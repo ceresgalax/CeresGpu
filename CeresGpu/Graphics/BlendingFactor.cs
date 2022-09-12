@@ -1,0 +1,25 @@
+namespace Metalancer.Graphics
+{
+    public enum BlendingFactor
+    {
+        ZERO = 0,
+        ONE = 1,
+        SRC_COLOR = 768, // 0x00000300
+        ONE_MINUS_SRC_COLOR = 769, // 0x00000301
+        SRC_ALPHA = 770, // 0x00000302
+        ONE_MINUS_SRC_ALPHA = 771, // 0x00000303
+        DST_ALPHA = 772, // 0x00000304
+        ONE_MINUS_DST_ALPHA = 773, // 0x00000305
+        DST_COLOR = 774, // 0x00000306
+        ONE_MINUS_DST_COLOR = 775, // 0x00000307
+        SRC_ALPHA_SATURATE = 776, // 0x00000308
+        CONSTANT_COLOR = 32769, // 0x00008001
+        ONE_MINUS_CONSTANT_COLOR = 32770, // 0x00008002
+        CONSTANT_ALPHA = 32771, // 0x00008003
+        ONE_MINUS_CONSTANT_ALPHA = 32772, // 0x00008004
+        SRC1_ALPHA = 34185, // 0x00008589
+        SRC1_COLOR = 35065, // 0x000088F9
+        ONE_MINUS_SRC1_COLOR = 35066, // 0x000088FA
+        ONE_MINUS_SRC1_ALPHA = 35067, // 0x000088FB
+    }
+}

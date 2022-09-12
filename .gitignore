@@ -1,0 +1,12 @@
+.idea
+*.pyc
+*.user
+
+obj
+bin
+
+*.metal
+*.spv
+
+*.Generated.cs
+!Metal.Generated.cs

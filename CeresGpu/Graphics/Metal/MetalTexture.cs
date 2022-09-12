@@ -1,0 +1,78 @@
+using System;
+using System.Runtime.InteropServices;
+using Metalancer.MetalBinding;
+
+namespace Metalancer.Graphics.Metal
+{
+    public sealed class MetalTexture : ITexture
+    {
+        private readonly MetalRenderer _renderer;
+        private IntPtr _texture;
+        private IntPtr _weakHandle;
+        
+        public uint Width { get; private set; }
+        public uint Height { get; private set; }
+
+        public IntPtr Handle => _texture;
+        public IntPtr WeakHandle => _weakHandle;
+        
+        public MetalTexture(MetalRenderer renderer)
+        {
+            _renderer = renderer;
+            _weakHandle = GCHandle.ToIntPtr(GCHandle.Alloc(this, GCHandleType.Weak));
+        }
+
+        public void Set(ReadOnlySpan<byte> data, uint width, uint height, InputFormat format)
+        {
+            // TODO: Must validate data size
+            
+            if (_texture != IntPtr.Zero) {
+                MetalApi.metalbinding_release_texture(_texture);
+                _texture = IntPtr.Zero;
+            }
+            
+            _texture = MetalApi.metalbinding_new_texture(_renderer.Context, width, height, GetMetalPixelFormat(format));
+
+            Width = width;
+            Height = height;
+
+            unsafe {
+                fixed (byte* p = data) {
+                    MetalApi.metalbinding_set_texture_data(_texture, width, height, new IntPtr(p), 4 * width);
+                }
+            }
+        }
+
+        private MetalApi.MTLPixelFormat GetMetalPixelFormat(InputFormat format)
+        {
+            return format switch { 
+                InputFormat.R8G8B8A8_UNORM => MetalApi.MTLPixelFormat.RGBA8Unorm,
+                InputFormat.B8G8R8A8_UNORM => MetalApi.MTLPixelFormat.BGRA8Unorm,
+                _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
+            };
+        }
+
+        private void ReleaseUnmanagedResources()
+        {
+            if (_texture != IntPtr.Zero) {
+                MetalApi.metalbinding_release_texture(_texture);
+                _texture = IntPtr.Zero;
+            }
+            if (_weakHandle != IntPtr.Zero) {
+                GCHandle.FromIntPtr(_weakHandle).Free();
+                _weakHandle = IntPtr.Zero;
+            }
+        }
+
+        public void Dispose()
+        {
+            GCHandle.FromIntPtr(_weakHandle).Free();
+            ReleaseUnmanagedResources();
+            GC.SuppressFinalize(this);
+        }
+
+        ~MetalTexture() {
+            ReleaseUnmanagedResources();
+        }
+    }
+}
