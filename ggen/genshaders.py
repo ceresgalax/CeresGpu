@@ -276,10 +276,15 @@ def make_multiline_cs_string_literal(lines: List[str]) -> str:
     return ''.join(parts)
             
 
-def generate_shader_file(root: str, shader: Shader):
+def generate_shader_file(root: str, paths: List[str], shader: Shader):
+    # TODO: Later validate that all shader source files are in the same directory
+    first_path = paths[0]
+    dir = os.path.dirname(first_path)
+    
     full_name_parts = shader.directives.full_class_name.split('.')
-    namespace_parts = full_name_parts[:-1]
-    project_path = os.path.join(root, *namespace_parts)
+    # namespace_parts = full_name_parts[:-1]
+    # project_path = os.path.join(root, *namespace_parts)
+    project_path = dir
     class_name = full_name_parts[-1]
     os.makedirs(project_path, exist_ok=True)
     with open(os.path.join(project_path, f'{class_name}.Generated.cs'), 'w') as f:

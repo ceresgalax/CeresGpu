@@ -106,7 +106,7 @@ def process_shader(root: str, paths: List[str]):
 
     shader = genshaders.Shader(shader_name, directives, reflections)
 
-    genshaders.generate_shader_file(root, shader)
+    genshaders.generate_shader_file(root, paths, shader)
 
 
 METAL_ENTRY_POINT_PARAMETERS_PATTERN = re.compile(r'main0\((.*)\)')
