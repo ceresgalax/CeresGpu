@@ -1,9 +1,8 @@
 using System;
-using System.Drawing;
 using System.IO;
 using System.Numerics;
 using Metalancer.Graphics.Shaders;
-using Metalancer.Renderers;
+using SkiaSharp;
 
 namespace Metalancer.Graphics.Test
 {
@@ -59,7 +58,7 @@ namespace Metalancer.Graphics.Test
         private void LoadTexture(string path, ITexture texture)
         {
             using FileStream stream = new(path, FileMode.Open, FileAccess.Read);
-            using Bitmap bitmap = new Bitmap(stream);
+            using SKBitmap bitmap = SKBitmap.Decode(stream);
             texture.Set(bitmap);
         }
     }
