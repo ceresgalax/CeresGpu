@@ -10,3 +10,5 @@ bin
 
 *.Generated.cs
 !Metal.Generated.cs
+
+xcuserdata
