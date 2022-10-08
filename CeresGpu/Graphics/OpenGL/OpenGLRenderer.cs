@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Threading;
 using CeresGL;
@@ -108,6 +109,15 @@ namespace Metalancer.Graphics.OpenGL
         {
             _window.SwapBuffers();
             ++UniqueFrameId;
+        }
+
+        public void GetDiagnosticInfo(IList<(string key, object value)> entries)
+        {
+        }
+
+        public void Dispose()
+        {
+            // TODO
         }
     }
 }

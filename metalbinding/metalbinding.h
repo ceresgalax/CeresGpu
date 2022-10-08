@@ -131,4 +131,16 @@ void metalbinding_encode_sampler_argument(id<MTLArgumentEncoder> encoder, id<MTL
 id<MTLSamplerState> metalbinding_create_sampler(MetalBindingContext* context) NS_RETURNS_RETAINED;
 void metalbinding_release_sampler(id<MTLSamplerState> NS_RELEASES_ARGUMENT sampler);
 
+//
+// Stats
+//
+void metalbinding_get_memory_info(MetalBindingContext* context, uint64_t* ref_current_allocated_size, uint64_t* ref_recommended_working_set_size, uint64_t* ref_has_unified_memory, uint64_t* ref_max_transfer_rate);
+
+//
+// Auto release pool (ARP)
+//
+// void metalbinding_arp_init(MetalBindingContext* context);
+void metalbinding_arp_deinit(MetalBindingContext* context);
+void metalbinding_arp_drain(MetalBindingContext* context);
+
 #endif /* metalbinding_h */

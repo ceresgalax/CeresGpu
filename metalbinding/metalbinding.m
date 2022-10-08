@@ -5,18 +5,7 @@
 #import <QuartzCore/CAMetalLayer.h>
 
 #include "metalbinding.h"
-
-
-struct MetalBindingContext {
-    //MTKView* view;
-    CAMetalLayer* layer;
-    id<MTLDevice> device;
-    id<CAMetalDrawable> currentDrawable;
-    id<MTLCommandQueue> commandQueue;
-    dispatch_semaphore_t semaphore;
-    NSData *lastError;
-};
-
+#include "context.h"
 
 id<MTLDevice> find_lower_power_device(void) {
     NSArray<id<MTLDevice>>* deviceList = MTLCopyAllDevices();
@@ -527,3 +516,21 @@ id<MTLSamplerState> metalbinding_create_sampler(MetalBindingContext* context) NS
 }
 
 void metalbinding_release_sampler(id<MTLSamplerState> NS_RELEASES_ARGUMENT sampler) {}
+
+//
+// Stats
+//
+
+void metalbinding_get_memory_info(
+    MetalBindingContext* context,
+    uint64_t* ref_current_allocated_size,
+    uint64_t* ref_recommended_working_set_size,
+    uint64_t* ref_has_unified_memory,
+    uint64_t* ref_max_transfer_rate
+) {
+    id<MTLDevice> device = context->device;
+    *ref_current_allocated_size = [device currentAllocatedSize];
+    *ref_recommended_working_set_size = [device recommendedMaxWorkingSetSize];
+    *ref_has_unified_memory = [device hasUnifiedMemory];
+    *ref_max_transfer_rate = [device maxTransferRate];
+}

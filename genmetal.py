@@ -38,7 +38,7 @@ def main():
                                          'Frameworks/Metal.framework/Headers'
     
     header_path = os.path.join(root, 'metalbinding', 'metalbinding.h')
-    cs_out_path = os.path.join(root, *NAMESPACE.split('.'), 'Metal.Generated.cs')
+    cs_out_path = os.path.join(root, 'CeresGpu', 'MetalBinding', 'Metal.Generated.cs')
     os.makedirs(os.path.dirname(cs_out_path), exist_ok=True)
     
     with open(header_path) as f:
@@ -168,7 +168,7 @@ def gen_cs_file(f: SourceWriter, prototypes: List[FunctionPrototype], enums: Lis
         gen_cs_extern(f, prototype)
         
     for enum in enums:
-        f.write_line(f'public enum {enum.name} : {get_cs_type(enum.backing_type)}', '{')
+        f.write_line(f'public enum {enum.name} : {get_cs_type_primitive(enum.backing_type)}', '{')
         f.indent()
         
         for entry_name, value in enum.entries:
@@ -184,11 +184,11 @@ def gen_cs_file(f: SourceWriter, prototypes: List[FunctionPrototype], enums: Lis
 
 
 def gen_cs_extern(f: SourceWriter, prototype: FunctionPrototype):
-    cs_return_type = get_cs_type(prototype.return_type)
+    cs_return_type = get_cs_type(prototype.return_type, '')
     
     cs_params = []
     for param in prototype.params:
-        cs_param_type = get_cs_type(param.typename)
+        cs_param_type = get_cs_type(param.typename, param.name)
         cs_params.append(f'{cs_param_type} {param.name}')
     
     params_text = ', '.join(cs_params)
@@ -197,18 +197,30 @@ def gen_cs_extern(f: SourceWriter, prototype: FunctionPrototype):
     f.write_line(f'public static extern {cs_return_type} {prototype.name}({params_text});', '')
 
 
-def get_cs_type(typename: str):
+def get_cs_type(typename: str, var_name: str):
     if typename == 'const char*':
         return 'string'
+    
+    if typename.endswith('*') and var_name.startswith('ref_'):
+        return 'ref ' + get_cs_type_primitive(typename[:-1])
+    
     if typename.endswith('*') or typename.startswith('id<'):
         return 'IntPtr'
+    return get_cs_type_primitive(typename)
+
+
+def get_cs_type_primitive(typename: str):
     if typename == 'BOOL':
         return 'bool'
     if typename == 'int32_t':
         return 'int'
     if typename == 'uint32_t':
         return 'uint'
-    if typename == 'NSUInteger':
+    if typename == 'int64_t':
+        return 'long'
+    if typename == 'uint64_t':
+        return 'ulong'
+    if typename == 'NSUInteger':  # TODO: Make the binding interface use constant size types and remove support for this.
         return 'ulong'  # Assuming no 64-bit. Doing this because c# doesn't allow IntPtr backed enums
     return typename
 

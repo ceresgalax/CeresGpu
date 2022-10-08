@@ -11,6 +11,7 @@
 		9B11A046281704C000624C5B /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B11A045281704C000624C5B /* Metal.framework */; };
 		9B11A0492817073600624C5B /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B11A0482817073600624C5B /* MetalKit.framework */; };
 		9B11A04B28170D0C00624C5B /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B11A04A28170D0C00624C5B /* AppKit.framework */; };
+		9B2B1E4328ED68D800588069 /* arp.m in Sources */ = {isa = PBXBuildFile; fileRef = 9B2B1E4228ED68D800588069 /* arp.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -20,6 +21,8 @@
 		9B11A047281705AD00624C5B /* metalbinding.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = metalbinding.h; sourceTree = "<group>"; };
 		9B11A0482817073600624C5B /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		9B11A04A28170D0C00624C5B /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		9B2B1E4228ED68D800588069 /* arp.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = arp.m; sourceTree = "<group>"; };
+		9B2B1E4428ED697600588069 /* context.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = context.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -39,6 +42,8 @@
 		9B11A032281703F200624C5B = {
 			isa = PBXGroup;
 			children = (
+				9B2B1E4428ED697600588069 /* context.h */,
+				9B2B1E4228ED68D800588069 /* arp.m */,
 				9B11A047281705AD00624C5B /* metalbinding.h */,
 				9B11A0422817042400624C5B /* metalbinding.m */,
 				9B11A03C281703F200624C5B /* Products */,
@@ -132,6 +137,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9B11A0432817042400624C5B /* metalbinding.m in Sources */,
+				9B2B1E4328ED68D800588069 /* arp.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -24,7 +24,17 @@ namespace Metalancer.Graphics.Metal
 
         public void Set(ReadOnlySpan<byte> data, uint width, uint height, InputFormat format)
         {
-            // TODO: Must validate data size
+            // TODO: Use correct BPP
+            uint bytesPerPixel = 4;
+
+            uint requiredSize;
+            checked {
+                requiredSize = width * height * bytesPerPixel;
+            }
+
+            if (data.Length < requiredSize) {
+                throw new ArgumentException("Invalid data size", nameof(data));
+            }
             
             if (_texture != IntPtr.Zero) {
                 MetalApi.metalbinding_release_texture(_texture);
@@ -38,7 +48,7 @@ namespace Metalancer.Graphics.Metal
 
             unsafe {
                 fixed (byte* p = data) {
-                    MetalApi.metalbinding_set_texture_data(_texture, width, height, new IntPtr(p), 4 * width);
+                    MetalApi.metalbinding_set_texture_data(_texture, width, height, new IntPtr(p), bytesPerPixel * width);
                 }
             }
         }
@@ -66,7 +76,6 @@ namespace Metalancer.Graphics.Metal
 
         public void Dispose()
         {
-            GCHandle.FromIntPtr(_weakHandle).Free();
             ReleaseUnmanagedResources();
             GC.SuppressFinalize(this);
         }

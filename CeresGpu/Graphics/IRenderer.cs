@@ -1,9 +1,11 @@
+using System;
+using System.Collections.Generic;
 using System.Numerics;
 using Metalancer.Graphics.Shaders;
 
 namespace Metalancer.Graphics
 {
-    public interface IRenderer
+    public interface IRenderer : IDisposable
     {
         uint UniqueFrameId { get; }
         
@@ -29,5 +31,7 @@ namespace Metalancer.Graphics
         IPass CreateFramebufferPass(bool clear, Vector4 clearColor);
 
         void Present(float minimumElapsedSeocnds);
+
+        void GetDiagnosticInfo(IList<(string key, object value)> entries);
     }
 }

@@ -195,6 +195,15 @@ namespace Metalancer.MetalBinding
         [DllImport(DLL_NAME)]
         public static extern void metalbinding_release_sampler(IntPtr sampler);
         
+        [DllImport(DLL_NAME)]
+        public static extern void metalbinding_get_memory_info(IntPtr context, ref ulong ref_current_allocated_size, ref ulong ref_recommended_working_set_size, ref ulong ref_has_unified_memory, ref ulong ref_max_transfer_rate);
+        
+        [DllImport(DLL_NAME)]
+        public static extern void metalbinding_arp_deinit(IntPtr context);
+        
+        [DllImport(DLL_NAME)]
+        public static extern void metalbinding_arp_drain(IntPtr context);
+        
         public enum MTLPixelFormat : ulong
         {
             Invalid = 0,

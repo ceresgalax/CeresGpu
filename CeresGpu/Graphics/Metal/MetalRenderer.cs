@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -9,7 +10,7 @@ using Metalancer.MetalBinding;
 
 namespace Metalancer.Graphics.Metal
 {
-    public sealed class MetalRenderer : IRenderer, IDisposable
+    public sealed class MetalRenderer : IRenderer
     {
         public readonly IntPtr Context;
         private readonly GLFWWindow _glfwWindow;
@@ -38,12 +39,14 @@ namespace Metalancer.Graphics.Metal
         {
             _glfwWindow = glfwWindow;
             Context = MetalApi.metalbinding_create(window, (uint)FrameCount);
+            MetalApi.metalbinding_arp_drain(Context);
             DefaultSampler = new MetalSampler(this);
         }
 
         public void Dispose()
         {
             // TODO: More things we have to release? Also shouldn't this have a finalizer too?
+            MetalApi.metalbinding_arp_deinit(Context);
             MetalApi.metalbinding_destroy(Context);
         }
 
@@ -169,6 +172,23 @@ namespace Metalancer.Graphics.Metal
             _clearRenderer?.NewFrame();
             
             //MetalApi.metalbinding_stop_capture(Context);
+
+            MetalApi.metalbinding_arp_drain(Context);
+        }
+
+        public void GetDiagnosticInfo(IList<(string key, object value)> entries)
+        {
+            ulong currentAllocatedSize = 0;
+            ulong recommendedWorkingSetSize = 0;
+            ulong hasUnifiedMemory = 0;
+            ulong maxTransferRate = 0;
+            
+            MetalApi.metalbinding_get_memory_info(Context, ref currentAllocatedSize, ref recommendedWorkingSetSize, ref hasUnifiedMemory, ref maxTransferRate);
+            
+            entries.Add((nameof(currentAllocatedSize), currentAllocatedSize));
+            entries.Add((nameof(recommendedWorkingSetSize), recommendedWorkingSetSize));
+            entries.Add((nameof(hasUnifiedMemory), hasUnifiedMemory));
+            entries.Add((nameof(maxTransferRate), maxTransferRate));
         }
 
         // No-BOM utf-8 encoding.
