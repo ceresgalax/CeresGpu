@@ -12,3 +12,6 @@ bin
 !Metal.Generated.cs
 
 xcuserdata
+
+/runtimes
+metalbinding/build
