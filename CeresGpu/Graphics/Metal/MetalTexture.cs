@@ -64,6 +64,8 @@ namespace Metalancer.Graphics.Metal
 
         private void ReleaseUnmanagedResources()
         {
+            // TODO: Do we need to ensure this texture isn't still being used in an encoded arugment buffer before disposing?
+            
             if (_texture != IntPtr.Zero) {
                 MetalApi.metalbinding_release_texture(_texture);
                 _texture = IntPtr.Zero;

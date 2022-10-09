@@ -102,9 +102,15 @@ namespace Metalancer.Graphics.Metal
                         break;
                     case DescriptorType.Texture:
                         IntPtr handle = ((MetalTexture)resource).Handle;
-                        if (handle != IntPtr.Zero) {
-                            MetalApi.metalbinding_encode_texture_argument(_argumentEncoder, renderCommandEncoder, ((MetalTexture)resource).Handle, (uint)i, stages);    
+                        // We _must_ encode a texture argument, I believe the argument buffer has an arbitrary value
+                        // if not encoded, which can cause crashes / corruption in Metal when used.
+                        if (handle == IntPtr.Zero) {
+                            // TODO: Keep an actual fallback texture around instead of throwing? 
+                            // I'm scared of a complicated exception 'exploit' where handling this exception leaves the
+                            // argument buffer in an incompelte state, then is somehow used again. :/
+                            throw new InvalidOperationException("Texture has either not been set or has been disposed.");
                         }
+                        MetalApi.metalbinding_encode_texture_argument(_argumentEncoder, renderCommandEncoder, handle, (uint)i, stages);
                         break;
                     case DescriptorType.Sampler:
                         MetalApi.metalbinding_encode_sampler_argument(_argumentEncoder, ((MetalSampler)resource).Handle, (uint)i);
