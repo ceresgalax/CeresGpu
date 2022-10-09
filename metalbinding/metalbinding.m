@@ -187,8 +187,11 @@ id<MTLCommandBuffer> metalbinding_acquire_command_buffer(MetalBindingContext* co
 void metalbinding_release_command_buffer(id<MTLCommandBuffer> NS_RELEASES_ARGUMENT commandBuffer) {}
 
 void metalbinding_present_current_frame_after_minimum_duration(MetalBindingContext* context, id<MTLCommandBuffer> commandBuffer, double seconds) {
-    //[commandBuffer presentDrawable:context->currentDrawable afterMinimumDuration:seconds];
-    [commandBuffer presentDrawable:context->currentDrawable];
+    if (seconds > 0.0) {
+        [commandBuffer presentDrawable:context->currentDrawable afterMinimumDuration:seconds];
+    } else {
+        [commandBuffer presentDrawable:context->currentDrawable];
+    }
 }
 
 void metalbinding_commit_command_buffer(id<MTLCommandBuffer> commandBuffer) {
