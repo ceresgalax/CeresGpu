@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using CeresGpu.Graphics;
 using Metalancer.MetalBinding;
 
 namespace Metalancer.Graphics.Metal
@@ -24,8 +25,7 @@ namespace Metalancer.Graphics.Metal
 
         public void Set(ReadOnlySpan<byte> data, uint width, uint height, InputFormat format)
         {
-            // TODO: Use correct BPP
-            uint bytesPerPixel = 4;
+            uint bytesPerPixel = (uint)format.GetBytesPerPixel();
 
             uint requiredSize;
             checked {
@@ -58,6 +58,7 @@ namespace Metalancer.Graphics.Metal
             return format switch { 
                 InputFormat.R8G8B8A8_UNORM => MetalApi.MTLPixelFormat.RGBA8Unorm,
                 InputFormat.B8G8R8A8_UNORM => MetalApi.MTLPixelFormat.BGRA8Unorm,
+                InputFormat.R8_UNORM => MetalApi.MTLPixelFormat.R8Unorm,
                 _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
             };
         }
