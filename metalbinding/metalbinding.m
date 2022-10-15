@@ -508,13 +508,20 @@ void metalbinding_encode_sampler_argument(id<MTLArgumentEncoder> encoder, id<MTL
 //
 // Samplers
 //
-id<MTLSamplerState> metalbinding_create_sampler(MetalBindingContext* context) NS_RETURNS_RETAINED {
+id<MTLSamplerState> metalbinding_create_sampler(
+    MetalBindingContext* context,
+    MTLSamplerMinMagFilter min,
+    MTLSamplerMinMagFilter mag,
+    MTLSamplerMipFilter mip,
+    BOOL normalizedCoordinates,
+    BOOL supportArgumentBuffers
+) NS_RETURNS_RETAINED {
     MTLSamplerDescriptor* desc = [MTLSamplerDescriptor new];
-    desc.minFilter = MTLSamplerMinMagFilterNearest;
-    desc.magFilter = MTLSamplerMinMagFilterNearest;
-    desc.mipFilter = MTLSamplerMipFilterNotMipmapped;
-    desc.normalizedCoordinates = YES;
-    desc.supportArgumentBuffers = YES;
+    desc.minFilter = min;
+    desc.magFilter = mag;
+    desc.mipFilter = mip;
+    desc.normalizedCoordinates = normalizedCoordinates;
+    desc.supportArgumentBuffers = supportArgumentBuffers;
     return [context->device newSamplerStateWithDescriptor:desc];
 }
 

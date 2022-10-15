@@ -10,12 +10,15 @@ namespace Metalancer.Graphics.Metal
         private readonly MetalRenderer _renderer;
         private IntPtr _texture;
         private IntPtr _weakHandle;
-        
+
         public uint Width { get; private set; }
         public uint Height { get; private set; }
 
         public IntPtr Handle => _texture;
         public IntPtr WeakHandle => _weakHandle;
+        
+        public MinMagFilter MinFilter { get; private set; }
+        public MinMagFilter MagFilter { get; private set; }
         
         public MetalTexture(MetalRenderer renderer)
         {
@@ -51,6 +54,12 @@ namespace Metalancer.Graphics.Metal
                     MetalApi.metalbinding_set_texture_data(_texture, width, height, new IntPtr(p), bytesPerPixel * width);
                 }
             }
+        }
+
+        public void SetFilter(MinMagFilter min, MinMagFilter mag)
+        {
+            MinFilter = min;
+            MagFilter = mag;
         }
 
         private MetalApi.MTLPixelFormat GetMetalPixelFormat(InputFormat format)

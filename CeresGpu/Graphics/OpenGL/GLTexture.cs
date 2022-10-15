@@ -1,9 +1,8 @@
 using System;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using CeresGL;
+using CeresGpu.Graphics;
 using PixelFormat = CeresGL.PixelFormat;
 
 namespace Metalancer.Graphics.OpenGL
@@ -33,61 +32,11 @@ namespace Metalancer.Graphics.OpenGL
         public Vector2 Size => new Vector2(_width, _height);
         public IntPtr WeakHandle => _weakHandle;
 
-        // public unsafe void Set(Bitmap bitmap)
-        // {
-        //     GL gl = _glProvider.Gl;
-        //     
-        //     IntPtr mappedBufferAddress = IntPtr.Zero;
-        //     
-        //     if (_texture == 0) {
-        //         uint[] textures = new uint[1];
-        //         gl.GenTextures(textures.Length, textures);
-        //         gl.BindTexture(TextureTarget.TEXTURE_2D, textures[0]);
-        //         gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_WRAP_S, (int)TextureWrapMode.CLAMP_TO_EDGE);
-        //         gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_WRAP_T, (int)TextureWrapMode.CLAMP_TO_EDGE);
-        //         gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_MIN_FILTER, (int)TextureMinFilter.NEAREST);
-        //         gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_MAG_FILTER, (int)TextureMinFilter.NEAREST);
-        //         _texture = textures[0];
-        //     }
-        //     
-        //     // if (_pixelUnpackBuffer == 0) {
-        //     //     uint[] buffers = new uint[1];
-        //     //     _gl.GenBuffers(buffers.Length, buffers);
-        //     //     _pixelUnpackBuffer = buffers[0];
-        //     // }
-        //     //
-        //     // _gl.BindBuffer(BufferTargetARB.PIXEL_UNPACK_BUFFER, _pixelUnpackBuffer);
-        //     // _gl.BufferData(BufferTargetARB.PIXEL_UNPACK_BUFFER, (uint)(bitmap.Width * bitmap.Height * 4), BufferUsageARB.STATIC_DRAW); // TODO: Is STATIC_DRAW the best hint for Pixel Unpack Buffers?
-        //     // mappedBufferAddress = _gl.MapBuffer(BufferTargetARB.PIXEL_UNPACK_BUFFER, BufferAccessARB.WRITE_ONLY);
-        //
-        //     // if (mappedBufferAddress != IntPtr.Zero) {
-        //     //     ConvertData(bitmap, mappedBufferAddress);
-        //     // }
-        //     // else {
-        //     //     // TODO: Log Something?
-        //     // }
-        //
-        //     byte[] data = new byte[bitmap.Width * bitmap.Height * 4];
-        //     fixed (byte* p = data) {
-        //         ConvertData(bitmap, (IntPtr) p);
-        //
-        //         _width = (uint)bitmap.Width;
-        //         _height = (uint)bitmap.Height;
-        //
-        //         // _gl.BindBuffer(BufferTargetARB.PIXEL_UNPACK_BUFFER, _pixelUnpackBuffer);
-        //         // _gl.UnmapBuffer(BufferTargetARB.PIXEL_UNPACK_BUFFER);
-        //
-        //         gl.BindTexture(TextureTarget.TEXTURE_2D, _texture);
-        //         //_gl.TexImage2DPixelBuffer(TextureTarget.TEXTURE_2D, 0, InternalFormat.RGBA, bitmap.Width, bitmap.Height, 0, PixelFormat.BGRA, PixelType.UNSIGNED_BYTE, 0);
-        //         gl.glTexImage2D((uint) TextureTarget.TEXTURE_2D, 0, (int) InternalFormat.RGBA, bitmap.Width, bitmap.Height, 0, (uint)PixelFormat.BGRA, (uint)PixelType.UNSIGNED_BYTE, (IntPtr) p);
-        //     }
-        // }
-
         public void Set(ReadOnlySpan<byte> data, uint width, uint height, InputFormat format)
         {
             GL gl = _glProvider.Gl;
             
-            IntPtr mappedBufferAddress = IntPtr.Zero;
+            // IntPtr mappedBufferAddress = IntPtr.Zero;
             
             if (_texture == 0) {
                 uint[] textures = new uint[1];
@@ -136,6 +85,38 @@ namespace Metalancer.Graphics.OpenGL
             }
             
             
+        }
+
+        public void SetFilter(MinMagFilter min, MinMagFilter mag)
+        {
+            // TODO: Move this validation to be common for all impl types.
+            if (_texture == 0) {
+                throw new InvalidOperationException("Filter cannot be set before setting texture.");
+            }
+
+            GL gl = _glProvider.Gl;
+            gl.BindTexture(TextureTarget.TEXTURE_2D, _texture);
+            gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_MIN_FILTER, (int)TranslateMinFilter(min));
+            gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_MIN_FILTER, (int)TranslateMagFilter(mag));
+
+        }
+
+        private TextureMinFilter TranslateMinFilter(MinMagFilter filter)
+        {
+            return filter switch {
+                MinMagFilter.Nearest => TextureMinFilter.NEAREST
+                , MinMagFilter.Linear => TextureMinFilter.LINEAR
+                , _ => throw new ArgumentOutOfRangeException(nameof(filter), filter, null)
+            };
+        }
+        
+        private TextureMagFilter TranslateMagFilter(MinMagFilter filter)
+        {
+            return filter switch {
+                MinMagFilter.Nearest => TextureMagFilter.NEAREST
+                , MinMagFilter.Linear => TextureMagFilter.LINEAR
+                , _ => throw new ArgumentOutOfRangeException(nameof(filter), filter, null)
+            };
         }
 
         private (InternalFormat, PixelFormat, PixelType) GetFormats(InputFormat format)

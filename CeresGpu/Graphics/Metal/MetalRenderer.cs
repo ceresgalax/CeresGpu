@@ -15,7 +15,7 @@ namespace Metalancer.Graphics.Metal
         public readonly IntPtr Context;
         private readonly GLFWWindow _glfwWindow;
         private IntPtr _currentFrameCommandBuffer;
-        public readonly MetalSampler DefaultSampler;
+        internal readonly SamplerManager Samplers;
 
         private MetalPass? _currentPass;
 
@@ -40,7 +40,7 @@ namespace Metalancer.Graphics.Metal
             _glfwWindow = glfwWindow;
             Context = MetalApi.metalbinding_create(window, (uint)FrameCount);
             MetalApi.metalbinding_arp_drain(Context);
-            DefaultSampler = new MetalSampler(this);
+            Samplers = new SamplerManager(this);
         }
 
         public void Dispose()

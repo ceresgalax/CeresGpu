@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Numerics;
+using CeresGpu.Graphics;
 
 namespace Metalancer.Graphics
 {
@@ -14,5 +15,6 @@ namespace Metalancer.Graphics
         public IntPtr WeakHandle { get; }
         
         public void Set(ReadOnlySpan<byte> data, uint width, uint height, InputFormat format);
+        public void SetFilter(MinMagFilter min, MinMagFilter mag);
     }
 }

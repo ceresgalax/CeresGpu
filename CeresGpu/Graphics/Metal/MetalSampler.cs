@@ -1,4 +1,5 @@
 using System;
+using CeresGpu.Graphics;
 using Metalancer.MetalBinding;
 
 namespace Metalancer.Graphics.Metal
@@ -9,9 +10,23 @@ namespace Metalancer.Graphics.Metal
 
         public IntPtr Handle => _sampler;
         
-        public MetalSampler(MetalRenderer renderer)
+        public MetalSampler(MetalRenderer renderer, MinMagFilter min, MinMagFilter mag)
         {
-            _sampler = MetalApi.metalbinding_create_sampler(renderer.Context);
+            _sampler = MetalApi.metalbinding_create_sampler(renderer.Context,
+                TranslateMinMagFilter(min),
+                TranslateMinMagFilter(mag),
+                MetalApi.MTLSamplerMipFilter.NotMipmapped,
+                normalizedCoordinates: true,
+                supportArgumentBuffers: true);
+        }
+
+        private MetalApi.MTLSamplerMinMagFilter TranslateMinMagFilter(MinMagFilter filter)
+        {
+            return filter switch {
+                MinMagFilter.Nearest => MetalApi.MTLSamplerMinMagFilter.Nearest
+                , MinMagFilter.Linear => MetalApi.MTLSamplerMinMagFilter.Linear
+                , _ => throw new ArgumentOutOfRangeException(nameof(filter), filter, null)
+            };
         }
 
         private void ReleaseUnmanagedResources()

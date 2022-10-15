@@ -83,7 +83,8 @@ namespace Metalancer.Graphics.Metal
             }
 
             SetDescriptor(info.BindingIndex, DescriptorType.Texture, metalTexture);
-            SetDescriptor(info.SamplerIndex, DescriptorType.Sampler, _renderer.DefaultSampler);
+            MetalSampler sampler = _renderer.Samplers.GetSampler(metalTexture.MinFilter, metalTexture.MagFilter);
+            SetDescriptor(info.SamplerIndex, DescriptorType.Sampler, sampler);
         }
 
         public void UpdateArgumentBuffer(IntPtr renderCommandEncoder)

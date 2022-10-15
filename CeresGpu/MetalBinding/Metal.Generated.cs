@@ -190,7 +190,7 @@ namespace Metalancer.MetalBinding
         public static extern void metalbinding_encode_sampler_argument(IntPtr encoder, IntPtr sampler, uint index);
         
         [DllImport(DLL_NAME)]
-        public static extern IntPtr metalbinding_create_sampler(IntPtr context);
+        public static extern IntPtr metalbinding_create_sampler(IntPtr context, MTLSamplerMinMagFilter min, MTLSamplerMinMagFilter mag, MTLSamplerMipFilter mip, bool normalizedCoordinates, bool supportArgumentBuffers);
         
         [DllImport(DLL_NAME)]
         public static extern void metalbinding_release_sampler(IntPtr sampler);
@@ -479,6 +479,19 @@ namespace Metalancer.MetalBinding
             None = 0,
             Front = 1,
             Back = 2,
+        }
+        
+        public enum MTLSamplerMinMagFilter : ulong
+        {
+            Nearest = 0,
+            Linear = 1,
+        }
+        
+        public enum MTLSamplerMipFilter : ulong
+        {
+            NotMipmapped = 0,
+            Nearest = 1,
+            Linear = 2,
         }
         
     }

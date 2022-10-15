@@ -60,7 +60,9 @@ def main():
         parse_enum_header(os.path.join(metal_headers_path, 'MTLVertexDescriptor.h'), 'MTLVertexFormat'),
         parse_enum_header(os.path.join(metal_headers_path, 'MTLVertexDescriptor.h'), 'MTLVertexStepFunction'),
         parse_enum_header(os.path.join(metal_headers_path, 'MTLStageInputOutputDescriptor.h'), 'MTLIndexType'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLRenderCommandEncoder.h'), 'MTLCullMode')
+        parse_enum_header(os.path.join(metal_headers_path, 'MTLRenderCommandEncoder.h'), 'MTLCullMode'),
+        parse_enum_header(os.path.join(metal_headers_path, 'MTLSampler.h'), 'MTLSamplerMinMagFilter'),
+        parse_enum_header(os.path.join(metal_headers_path, 'MTLSampler.h'), 'MTLSamplerMipFilter')
     ]
     
     with open(cs_out_path, 'w') as f:
