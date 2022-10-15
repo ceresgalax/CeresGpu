@@ -26,13 +26,15 @@
     <Content Include="..\runtimes\osx-arm64\native\libmetalbinding.dylib">
       <PackagePath>runtimes/osx-arm64/native/libmetalbinding.dylib</PackagePath>
       <Pack>true</Pack>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory Condition="$([MSBuild]::IsOSPlatform('OSX'))">PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory Condition="!$([MSBuild]::IsOSPlatform('OSX'))">Never</CopyToOutputDirectory>
       <Link>runtimes/osx-arm64/native/%(Filename)%(Extension)</Link>
     </Content>
     <Content Include="..\runtimes\osx-x64\native\libmetalbinding.dylib">
       <PackagePath>runtimes/osx-x64/native/libmetalbinding.dylib</PackagePath>
       <Pack>true</Pack>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory Condition="$([MSBuild]::IsOSPlatform('OSX'))">PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory Condition="!$([MSBuild]::IsOSPlatform('OSX'))">Never</CopyToOutputDirectory>
       <Link>runtimes/osx-x64/native/%(Filename)%(Extension)</Link>
     </Content>
   </ItemGroup>
