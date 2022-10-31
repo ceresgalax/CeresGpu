@@ -94,7 +94,7 @@ namespace Metalancer.Graphics.OpenGL
             _glProvider.DoOnContextThread(gl => {
                 gl.BindTexture(TextureTarget.TEXTURE_2D, _texture);
                 gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_MIN_FILTER, (int)TranslateMinFilter(min));
-                gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_MIN_FILTER, (int)TranslateMagFilter(mag));    
+                gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_MAG_FILTER, (int)TranslateMagFilter(mag));
             });
         }
 
