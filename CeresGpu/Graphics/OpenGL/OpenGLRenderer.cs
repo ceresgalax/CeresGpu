@@ -109,6 +109,8 @@ namespace Metalancer.Graphics.OpenGL
         {
             _window.SwapBuffers();
             ++UniqueFrameId;
+            
+            _context.ProcessFinalizerActions();
         }
 
         public void GetDiagnosticInfo(IList<(string key, object value)> entries)

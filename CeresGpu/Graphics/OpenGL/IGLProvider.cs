@@ -7,5 +7,6 @@ namespace Metalancer.Graphics.OpenGL
     {
         GL Gl { get; }
         void AddFinalizerAction(Action<GL> action);
+        void DoOnContextThread(Action<GL> action);
     }
 }

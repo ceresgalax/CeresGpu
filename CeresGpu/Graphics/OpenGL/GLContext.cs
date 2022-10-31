@@ -71,5 +71,27 @@ namespace Metalancer.Graphics.OpenGL
                 throw new InvalidOperationException("This operation must be performed on the context's thread");
             }
         }
+
+        public bool IsCurrentThreadContextThread => _thread == Thread.CurrentThread;
+
+        public void DoOnContextThread(Action<GL> action)
+        {
+            if (IsCurrentThreadContextThread) {
+                action(_gl);
+                return;
+            }
+            
+            object semaphore = new();
+            lock (semaphore) {
+                Action<GL> wrapper = gl => {
+                    lock (semaphore) {
+                        action(gl);
+                        Monitor.Pulse(semaphore);
+                    }
+                };
+                AddFinalizerAction(wrapper);
+                Monitor.Wait(semaphore);
+            }
+        }
     }
 }
