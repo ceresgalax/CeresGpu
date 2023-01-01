@@ -1,0 +1,6 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <Target Name="ShaderGen" Inputs="**\*.glsl" Outputs="**\*.spv;**\*.metal" BeforeTargets="Build">
+        <Message Text="Running ShaderGen @ $(MSBuildProjectDirectory)\.. @ $(MSBuildThisFileDirectory)" />
+        <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="python3 -m ggen $(MSBuildProjectDirectory)" />
+    </Target>
+</Project>
