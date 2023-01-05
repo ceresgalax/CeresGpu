@@ -287,7 +287,10 @@ def generate_shader_file(root: str, paths: List[str], shader: Shader):
     project_path = dir
     class_name = full_name_parts[-1]
     os.makedirs(project_path, exist_ok=True)
-    with open(os.path.join(project_path, f'{class_name}.Generated.cs'), 'w') as f:
+    
+    base_filename = os.path.splitext(os.path.splitext(paths[0])[0])[0]
+    
+    with open(os.path.join(project_path, f'{base_filename}.Generated.cs'), 'w') as f:
         generate_shader_class(SourceWriter(f), shader)
 
 

@@ -1,6 +1,36 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-    <Target Name="ShaderGen" Inputs="**\*.glsl" Outputs="**\*.spv;**\*.metal" BeforeTargets="Build">
-        <Message Text="Running ShaderGen @ $(MSBuildProjectDirectory)\.. @ $(MSBuildThisFileDirectory)" />
-        <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="python3 -m ggen $(MSBuildProjectDirectory)" />
+    <ItemGroup>
+        <EmbeddedResource Include="**\*.spv" />
+        <EmbeddedResource Include="**\*.metal" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <GlslFile Include="**\*.glsl">
+            <CsFile>$([System.IO.Path]::GetFileNameWithoutExtension('%(Filename)')).Generated.cs</CsFile>
+        </GlslFile>
+    </ItemGroup>
+
+    <PropertyGroup>
+        <ShaderGenSpvOutputs>@(GlslFile -> '%(RelativeDir)%(Filename).spv')</ShaderGenSpvOutputs>
+        <ShaderGenMetalOutputs>@(GlslFile -> '%(RelativeDir)%(Filename).metal')</ShaderGenMetalOutputs>
+        <ShaderGenCsOutputs>@(GlslFile -> '%(RelativeDir)%(CsFile)')</ShaderGenCsOutputs>
+        <ShaderGenOutputs>$(ShaderGenSpvOutputs)</ShaderGenOutputs>
+        <ShaderGenOutputs>$(ShaderGenMetalOutputs)</ShaderGenOutputs>
+        <ShaderGenOutputs>$(ShaderGenCsOutputs)</ShaderGenOutputs>
+    </PropertyGroup>
+    
+    <!-- Hack to support targeting multiple target frameworks https://github.com/dotnet/msbuild/issues/2781 -->
+    
+    <Target Name="ShaderGenInner" Inputs="@(GlslFile)" Outputs="$(ShaderGenOutputs)">
+        <Warning Text="Running ShaderGen @ $(MSBuildProjectDirectory)\.. @ $(MSBuildThisFileDirectory) @(GlslFile)" />
+        <Warning Text="ShaderGenSpvOutputs = $(ShaderGenSpvOutputs)" />
+        <Warning Text="ShaderGenMetalOutputs = $(ShaderGenMetalOutputs)" />
+        <Warning Text="ShaderGenCsOutputs = $(ShaderGenCsOutputs)" />
+        <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="python3 -m ggen &quot;$(MSBuildProjectDirectory)&quot; --files &quot;@(GlslFile -> '%(FullPath)')&quot;" />
+    </Target>
+    
+    <Target Name="ShaderGen" BeforeTargets="Build;BeforeBuild;DispatchToInnerBuilds">
+        <!--TargetFramework=once is critical here, as msbuild will not execute a task from same project with same properties twice. -->
+        <MSBuild Projects="$(MSBuildProjectFile)" Targets="ShaderGenInner" Properties="TargetFramework=once" />
     </Target>
 </Project>

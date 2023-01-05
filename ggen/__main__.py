@@ -15,6 +15,9 @@ from .genshaders import ShaderDirectives, SpirvReflection, ShaderStage, Argument
 argparser = argparse.ArgumentParser()
 argparser.add_argument('root')
 
+argparser.add_argument('--files', help="List of file paths to glsl files. Optional, used by msbuild target. "
+                                       "The list of files is a single argument, delimited by semicolons.")
+
 
 binaries_path = os.path.normpath(os.path.join(__file__, '..', 'binaries', sys.platform))
 EXE_POSTFIX = '.exe' if sys.platform == 'win32' else ''
@@ -142,8 +145,20 @@ def find_argument_bindings(metal_source: str) -> List[ArgumentBufferBinding]:
     return bindings
 
 
-def process_shaders(root):
-    paths = glob.glob(f'{root}/**/*.glsl', recursive=True)
+def process_shaders(args):
+    if args.files:
+        paths = set(args.files.split(';'))
+
+        # Find shaders which belong together
+        companion_files: List[str] = []
+        for path in paths:
+            basename = os.path.splitext(os.path.splitext(path)[0])[0]
+            companion_files.extend(glob.glob(f'{basename}.*.glsl'))
+        
+        paths.update(companion_files)
+            
+    else:
+        paths = glob.glob(f'{args.root}/**/*.glsl', recursive=True)
 
     shaders_by_name: Dict[str, List[str]] = {}
 
@@ -155,12 +170,12 @@ def process_shaders(root):
         shaders.append(path)
 
     for name, paths in shaders_by_name.items():
-        process_shader(root, paths)
+        process_shader(args.root, paths)
 
 
 def main():
     args = argparser.parse_args()
-    process_shaders(args.root)
+    process_shaders(args)
 
 
 if __name__ == '__main__':
