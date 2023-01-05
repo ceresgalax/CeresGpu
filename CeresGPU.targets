@@ -22,10 +22,6 @@
     <!-- Hack to support targeting multiple target frameworks https://github.com/dotnet/msbuild/issues/2781 -->
     
     <Target Name="ShaderGenInner" Inputs="@(GlslFile)" Outputs="$(ShaderGenOutputs)">
-        <Warning Text="Running ShaderGen @ $(MSBuildProjectDirectory)\.. @ $(MSBuildThisFileDirectory) @(GlslFile)" />
-        <Warning Text="ShaderGenSpvOutputs = $(ShaderGenSpvOutputs)" />
-        <Warning Text="ShaderGenMetalOutputs = $(ShaderGenMetalOutputs)" />
-        <Warning Text="ShaderGenCsOutputs = $(ShaderGenCsOutputs)" />
         <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="python3 -m ggen &quot;$(MSBuildProjectDirectory)&quot; --files &quot;@(GlslFile -> '%(FullPath)')&quot;" />
     </Target>
     
