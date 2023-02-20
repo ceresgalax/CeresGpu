@@ -1,9 +1,9 @@
 ﻿using System;
 using System.IO;
 using CeresGL;
-using Metalancer.Graphics.Shaders;
+using CeresGpu.Graphics.Shaders;
 
-namespace Metalancer.Graphics.OpenGL
+namespace CeresGpu.Graphics.OpenGL
 {
     public sealed class GLShaderBacking : IShaderBacking
     {

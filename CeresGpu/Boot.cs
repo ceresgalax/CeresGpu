@@ -1,8 +1,8 @@
 using System.Runtime.InteropServices;
 using CeresGLFW;
-using Metalancer.Graphics;
-using Metalancer.Graphics.Metal;
-using Metalancer.Graphics.OpenGL;
+using CeresGpu.Graphics;
+using CeresGpu.Graphics.Metal;
+using CeresGpu.Graphics.OpenGL;
 
 namespace CeresGpu
 {

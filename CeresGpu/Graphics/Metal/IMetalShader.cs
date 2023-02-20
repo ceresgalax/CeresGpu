@@ -1,6 +1,6 @@
 using System;
 
-namespace Metalancer.Graphics.Metal
+namespace CeresGpu.Graphics.Metal
 {
     public interface IMetalShader
     {

@@ -1,8 +1,8 @@
 using System;
-using Metalancer.Graphics.Shaders;
+using CeresGpu.Graphics.Shaders;
 using Metalancer.MetalBinding;
 
-namespace Metalancer.Graphics.Metal
+namespace CeresGpu.Graphics.Metal
 {
     public static class MetalBufferTableConstants
     {

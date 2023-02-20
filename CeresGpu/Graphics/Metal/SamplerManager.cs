@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using CeresGpu.Graphics;
 
-namespace Metalancer.Graphics.Metal;
+namespace CeresGpu.Graphics.Metal;
 
 sealed class SamplerManager : IDisposable
 {

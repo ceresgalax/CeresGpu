@@ -4,10 +4,10 @@ using System.Numerics;
 using System.Threading;
 using CeresGL;
 using CeresGLFW;
+using CeresGpu.Graphics.Shaders;
 using Metalancer.Graphcs.OpenGL;
-using Metalancer.Graphics.Shaders;
 
-namespace Metalancer.Graphics.OpenGL
+namespace CeresGpu.Graphics.OpenGL
 {
     public class OpenGLRenderer : IRenderer
     {

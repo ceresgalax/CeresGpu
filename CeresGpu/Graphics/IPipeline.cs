@@ -1,7 +1,7 @@
 using System;
-using Metalancer.Graphics.Shaders;
+using CeresGpu.Graphics.Shaders;
 
-namespace Metalancer.Graphics
+namespace CeresGpu.Graphics
 {
     public interface IPipeline<ShaderT> : IDisposable where ShaderT : IShader
     {

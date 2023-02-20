@@ -1,8 +1,8 @@
 using System;
 using CeresGL;
-using Metalancer.Graphics.Shaders;
+using CeresGpu.Graphics.Shaders;
 
-namespace Metalancer.Graphics.OpenGL
+namespace CeresGpu.Graphics.OpenGL
 {
     public class OpenGLPipeline<T> : IGLPipeline, IPipeline<T> where T : IShader
     {

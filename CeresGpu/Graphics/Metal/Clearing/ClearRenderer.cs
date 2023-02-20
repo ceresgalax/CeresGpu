@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using Metalancer.Renderers;
 
-namespace Metalancer.Graphics.Metal.Clearing
+namespace CeresGpu.Graphics.Metal.Clearing
 {
     public sealed class ClearRenderer : IDisposable, Pool<ClearRenderer.Resources>.IFactory
     {

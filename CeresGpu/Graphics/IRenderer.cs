@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using Metalancer.Graphics.Shaders;
+using CeresGpu.Graphics.Shaders;
 
-namespace Metalancer.Graphics
+namespace CeresGpu.Graphics
 {
     public interface IRenderer : IDisposable
     {

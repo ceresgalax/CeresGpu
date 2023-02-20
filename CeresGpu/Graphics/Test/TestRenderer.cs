@@ -1,10 +1,10 @@
 using System;
 using System.IO;
 using System.Numerics;
-using Metalancer.Graphics.Shaders;
+using CeresGpu.Graphics.Shaders;
 using SkiaSharp;
 
-namespace Metalancer.Graphics.Test
+namespace CeresGpu.Graphics.Test
 {
     public class TestRenderer
     {

@@ -3,7 +3,7 @@ using System.Drawing;
 using System.Numerics;
 using CeresGpu.Graphics;
 
-namespace Metalancer.Graphics
+namespace CeresGpu.Graphics
 {
     public interface ITexture : IDisposable
     {

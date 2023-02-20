@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Metalancer.Graphics.Shaders
+namespace CeresGpu.Graphics.Shaders
 {
     public sealed class ShaderManager : IDisposable
     {

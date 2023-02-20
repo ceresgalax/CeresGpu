@@ -4,11 +4,11 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using CeresGLFW;
-using Metalancer.Graphics.Metal.Clearing;
-using Metalancer.Graphics.Shaders;
+using CeresGpu.Graphics.Metal.Clearing;
+using CeresGpu.Graphics.Shaders;
 using Metalancer.MetalBinding;
 
-namespace Metalancer.Graphics.Metal
+namespace CeresGpu.Graphics.Metal
 {
     public sealed class MetalRenderer : IRenderer
     {

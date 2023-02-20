@@ -1,5 +1,5 @@
 using System;
-using Metalancer.Graphics;
+using CeresGpu.Graphics;
 
 namespace CeresGpu.Graphics
 {

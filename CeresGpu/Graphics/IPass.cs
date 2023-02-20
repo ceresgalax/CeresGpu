@@ -1,6 +1,6 @@
 using System;
 
-namespace Metalancer.Graphics
+namespace CeresGpu.Graphics
 {
     public interface IPass : ICommandEncoder, IDisposable
     {

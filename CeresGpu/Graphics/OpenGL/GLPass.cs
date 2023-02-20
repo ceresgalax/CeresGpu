@@ -2,9 +2,9 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using CeresGL;
-using Metalancer.Graphics.Shaders;
+using CeresGpu.Graphics.Shaders;
 
-namespace Metalancer.Graphics.OpenGL
+namespace CeresGpu.Graphics.OpenGL
 {
     public sealed class GLPass : IPass
     {

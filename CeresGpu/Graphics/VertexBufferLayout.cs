@@ -1,5 +1,5 @@
 
-namespace Metalancer.Graphics
+namespace CeresGpu.Graphics
 {
     public struct VertexBufferLayout
     {

@@ -1,6 +1,6 @@
 using System;
 
-namespace Metalancer.Graphics.Shaders
+namespace CeresGpu.Graphics.Shaders
 {
     public interface IShader : IDisposable
     {

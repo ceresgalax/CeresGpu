@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using CeresGL;
 
-namespace Metalancer.Graphics.OpenGL
+namespace CeresGpu.Graphics.OpenGL
 {
     public abstract class GLBuffer<T> : IGLBuffer, IBuffer<T> where T : unmanaged
     {

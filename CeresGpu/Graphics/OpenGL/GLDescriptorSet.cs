@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using CeresGL;
-using Metalancer.Graphics.Shaders;
+using CeresGpu.Graphics.Shaders;
 
-namespace Metalancer.Graphics.OpenGL
+namespace CeresGpu.Graphics.OpenGL
 {
     public class GLDescriptorSet : IDescriptorSet
     {

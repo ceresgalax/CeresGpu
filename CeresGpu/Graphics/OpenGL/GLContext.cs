@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using CeresGL;
 
-namespace Metalancer.Graphics.OpenGL
+namespace CeresGpu.Graphics.OpenGL
 {
     public class GLContext : IGLProvider
     {

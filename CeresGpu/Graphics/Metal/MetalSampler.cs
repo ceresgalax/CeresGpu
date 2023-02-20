@@ -2,7 +2,7 @@ using System;
 using CeresGpu.Graphics;
 using Metalancer.MetalBinding;
 
-namespace Metalancer.Graphics.Metal
+namespace CeresGpu.Graphics.Metal
 {
     public sealed class MetalSampler : IDisposable
     {

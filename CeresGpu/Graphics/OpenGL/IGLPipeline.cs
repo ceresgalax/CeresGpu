@@ -1,6 +1,6 @@
 ﻿using CeresGL;
 
-namespace Metalancer.Graphics.OpenGL
+namespace CeresGpu.Graphics.OpenGL
 {
     public interface IGLPipeline
     {

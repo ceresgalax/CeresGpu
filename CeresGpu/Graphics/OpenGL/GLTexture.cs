@@ -6,7 +6,7 @@ using CeresGpu.Graphics;
 using Buffer = System.Buffer;
 using PixelFormat = CeresGL.PixelFormat;
 
-namespace Metalancer.Graphics.OpenGL
+namespace CeresGpu.Graphics.OpenGL
 {
     public sealed class GLTexture : ITexture
     {

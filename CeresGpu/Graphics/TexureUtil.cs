@@ -1,7 +1,7 @@
 using System;
 using SkiaSharp;
 
-namespace Metalancer.Graphics
+namespace CeresGpu.Graphics
 {
     public static class TexureUtil
     {

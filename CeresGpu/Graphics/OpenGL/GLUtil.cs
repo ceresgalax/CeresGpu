@@ -2,7 +2,7 @@
 using System.Numerics;
 using CeresGL;
 
-namespace Metalancer.Graphics.OpenGL
+namespace CeresGpu.Graphics.OpenGL
 {
     // TODO: Add these to CeresGL if they are useful.
     public static class MetaGLUtil

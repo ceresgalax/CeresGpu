@@ -1,10 +1,10 @@
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using Metalancer.Graphics.Shaders;
+using CeresGpu.Graphics.Shaders;
 using Metalancer.MetalBinding;
 
-namespace Metalancer.Graphics.Metal
+namespace CeresGpu.Graphics.Metal
 {
     public sealed class MetalPass : IPass
     {
@@ -34,6 +34,10 @@ namespace Metalancer.Graphics.Metal
 
         public void Dispose()
         {
+            if (_renderer.CurrentPass == this) {
+                Finish();
+            }
+            
             ReleaseUnmanagedResources();
             GC.SuppressFinalize(this);
         }
@@ -187,6 +191,7 @@ namespace Metalancer.Graphics.Metal
         {
             CheckCurrent();
             MetalApi.metalbinding_command_encoder_end_encoding(_encoder);
+            _renderer.FinishPass();
         }
 
     }

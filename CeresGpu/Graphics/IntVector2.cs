@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Metalancer.Graphics
+namespace CeresGpu.Graphics
 {
     [StructLayout(LayoutKind.Explicit, Size=8)]
     public struct IntVector2

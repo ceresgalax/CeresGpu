@@ -1,6 +1,6 @@
-using Metalancer.Graphics.Shaders;
+using CeresGpu.Graphics.Shaders;
 
-namespace Metalancer.Graphics
+namespace CeresGpu.Graphics
 {
     public interface IShaderInstance<ShaderT> : IUntypedShaderInstance where ShaderT : IShader
     {

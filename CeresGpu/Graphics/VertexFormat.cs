@@ -1,4 +1,4 @@
-﻿namespace Metalancer.Graphics
+﻿namespace CeresGpu.Graphics
 {
     public enum VertexFormat
     {

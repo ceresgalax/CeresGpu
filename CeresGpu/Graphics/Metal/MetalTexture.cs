@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using CeresGpu.Graphics;
 using Metalancer.MetalBinding;
 
-namespace Metalancer.Graphics.Metal
+namespace CeresGpu.Graphics.Metal
 {
     public sealed class MetalTexture : ITexture
     {

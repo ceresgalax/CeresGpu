@@ -1,4 +1,4 @@
-namespace Metalancer.Graphics.Shaders
+namespace CeresGpu.Graphics.Shaders
 {
     public struct Uniform
     {

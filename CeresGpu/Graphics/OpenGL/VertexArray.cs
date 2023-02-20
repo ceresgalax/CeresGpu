@@ -1,7 +1,7 @@
 ﻿using System;
 using CeresGL;
 
-namespace Metalancer.Graphics.OpenGL
+namespace CeresGpu.Graphics.OpenGL
 {
     public sealed class VertexArray : IVertexDescriptor, IDisposable
     {

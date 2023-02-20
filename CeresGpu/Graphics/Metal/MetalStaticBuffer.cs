@@ -2,7 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using Metalancer.MetalBinding;
 
-namespace Metalancer.Graphics.Metal
+namespace CeresGpu.Graphics.Metal
 {
     public sealed class MetalStaticBuffer<T> : IMetalBuffer, IBuffer<T> where T : unmanaged
     {
