@@ -1,6 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
-using Metalancer.MetalBinding;
+using CeresGpu.MetalBinding;
 
 namespace CeresGpu.Graphics.Metal
 {

@@ -1,4 +1,4 @@
-// #CSNAME:Metalancer.Graphics.Metal.Clearing.ClearShader
+// #CSNAME:CeresGpu.Graphics.Metal.Clearing.ClearShader
 // #CSFIELD:Vertex
 #version 450 
 

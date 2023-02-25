@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CeresGpu.Graphics.Shaders;
-using Metalancer.MetalBinding;
+using CeresGpu.MetalBinding;
 
 namespace CeresGpu.Graphics.Metal
 {

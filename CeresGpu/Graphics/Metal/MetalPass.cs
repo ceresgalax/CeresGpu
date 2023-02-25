@@ -2,7 +2,7 @@ using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using CeresGpu.Graphics.Shaders;
-using Metalancer.MetalBinding;
+using CeresGpu.MetalBinding;
 
 namespace CeresGpu.Graphics.Metal
 {

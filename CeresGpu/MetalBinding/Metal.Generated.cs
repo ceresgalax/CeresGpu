@@ -2,7 +2,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Runtime.InteropServices;
 
-namespace Metalancer.MetalBinding
+namespace CeresGpu.MetalBinding
 {
     [GeneratedCode("genmetal.py", "0")]
     public class MetalApi

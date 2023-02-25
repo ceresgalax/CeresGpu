@@ -3,7 +3,7 @@ import re
 import subprocess
 from typing import Match, List, TextIO, Tuple, Optional
 
-NAMESPACE = 'Metalancer.MetalBinding'
+NAMESPACE = 'CeresGpu.MetalBinding'
 
 
 PROTOTYPE_PATTERN = re.compile(r'^(?P<returntype>\S+)\s+(?P<name>\w+)\s*\((?P<params>.*)\).*;')

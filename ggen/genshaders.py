@@ -311,10 +311,10 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         'using System.Numerics;',
         'using System.Runtime.InteropServices;',
         'using CeresGL;',
-        'using Metalancer.Graphics;',
-        'using Metalancer.Graphics.Shaders;',
-        'using Metalancer.Graphics.Metal;',
-        'using Metalancer.MetalBinding;',
+        'using CeresGpu.Graphics;',
+        'using CeresGpu.Graphics.Shaders;',
+        'using CeresGpu.Graphics.Metal;',
+        'using CeresGpu.MetalBinding;',
         ''
     )
 
