@@ -29,7 +29,6 @@ namespace CeresGpu
             
             // GLFW ignores this for macOS. Needed for windows to scale according to size.
             hints.ScaleToMonitor = true;
-            hints.Maximized = true;
 
             return hints;
         }
@@ -52,8 +51,10 @@ namespace CeresGpu
             return window;
         }
         
-        public static GLFWWindow MakeWindow(int width, int height, string title)
+        public static GLFWWindow MakeWindow(int width, int height, string title, bool maximized)
         {
+            WindowHints hints = MakeWindowHints();
+            hints.Maximized = maximized;
             return MakeWindow(MakeWindowHints(), width, height, title);
         }
 
@@ -73,13 +74,13 @@ namespace CeresGpu
             IRenderer renderer = MakeRenderer(window);
             return (renderer, window);
         }
-        
-        public static (IRenderer, GLFWWindow) MakeRenderer(int width, int height, string title)
+
+        public static (IRenderer, GLFWWindow) MakeRenderer(int width, int height, string title, bool maximized = true)
         {
-            GLFWWindow window = MakeWindow(width, height, title);
+            GLFWWindow window = MakeWindow(width, height, title, maximized);
             IRenderer renderer = MakeRenderer(window);
             return (renderer, window);
         }
-        
+
     }
 }
