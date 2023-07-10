@@ -276,21 +276,25 @@ def make_multiline_cs_string_literal(lines: List[str]) -> str:
     return ''.join(parts)
             
 
-def generate_shader_file(root: str, paths: List[str], shader: Shader):
+def generate_shader_file(root: str, paths: List[str], shader: Shader, output_dir: Optional[str]):
     # TODO: Later validate that all shader source files are in the same directory
     first_path = paths[0]
     dir = os.path.dirname(first_path)
     
-    full_name_parts = shader.directives.full_class_name.split('.')
-    # namespace_parts = full_name_parts[:-1]
-    # project_path = os.path.join(root, *namespace_parts)
     project_path = dir
-    class_name = full_name_parts[-1]
     os.makedirs(project_path, exist_ok=True)
     
-    base_filename = os.path.splitext(os.path.splitext(paths[0])[0])[0]
+    base_filename = os.path.basename(os.path.splitext(os.path.splitext(paths[0])[0])[0])
     
-    with open(os.path.join(project_path, f'{base_filename}.Generated.cs'), 'w') as f:
+    output_root = project_path
+    if output_dir:
+        if not os.path.isabs(output_dir):
+            output_dir = os.path.join(root, output_dir)
+        rel_dir = os.path.relpath(dir, root)
+        output_root = os.path.join(output_dir, rel_dir)
+        os.makedirs(output_root, exist_ok=True)
+    
+    with open(os.path.join(output_root, f'{base_filename}.Generated.cs'), 'w') as f:
         generate_shader_class(SourceWriter(f), shader)
 
 
@@ -406,10 +410,11 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             
             f.write_line(
                 'new VertexAttributeDescriptor() {',
-                f'    Index = {attribute.input.location},'
+                f'    Index = {attribute.input.location},',
                 f'    Format = VertexFormat.{buffer_type_to_mtlvertexformat[buffer_type]},',
                 f'    Offset = {attribute.offset},',
-                f'    BufferIndex = VERT_BUFFER_INDEX_{structure_name}',
+                f'    BufferIndex = VERT_BUFFER_INDEX_{structure_name},',
+                f'    Hint = "{make_cs_string_literal(attribute.directive.hint)}"',
                 '},'
             )
 

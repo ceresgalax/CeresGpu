@@ -1,4 +1,4 @@
-// #CSNAME:Metalancer.Graphics.Test.TestShader
+// #CSNAME:CeresGpu.Graphics.Test.TestShader
 // #CSFIELD:Fragment
 #version 450
 

@@ -25,7 +25,7 @@
   </ItemGroup>
   
   <ItemGroup>
-    <MetalBindingSrc Include="../metalbinding/**" Exclude="../metalbinding/build/**;../metalbinding/**/xcuserdata/**"/>
+    <MetalBindingSrc Include="../metalbinding/**" Exclude="../metalbinding/build/**;../metalbinding/**/xcuserdata/**" />
   </ItemGroup>
   
   <Import Project="$(MSBuildProjectDirectory)\..\CeresGPU.targets" />

@@ -1,32 +1,107 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <ItemGroup>
-        <EmbeddedResource Include="**\*.spv" />
+        <EmbeddedResource Include="**\*.spv"/>
         <EmbeddedResource Include="**\*.metal" />
     </ItemGroup>
     
     <ItemGroup>
-        <GlslFile Include="**\*.glsl">
-            <CsFile>$([System.IO.Path]::GetFileNameWithoutExtension('%(Filename)')).Generated.cs</CsFile>
-        </GlslFile>
+        <GlslVertFile Include="**\*.vert.glsl">
+            <CsFile>%(RecursiveDir)$([System.IO.Path]::GetFileNameWithoutExtension('%(Filename)')).Generated.cs</CsFile>
+        </GlslVertFile>
+        <GlslFragFile Include="**\*.frag.glsl" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <GgenScript Include="$(MSBuildThisFileDirectory)\ggen\**\*.py">
+            <Link>%(RelativeDir)/%(Filename).%(Extension)</Link>
+        </GgenScript>
     </ItemGroup>
 
     <PropertyGroup>
-        <ShaderGenSpvOutputs>@(GlslFile -> '%(RelativeDir)%(Filename).spv')</ShaderGenSpvOutputs>
-        <ShaderGenMetalOutputs>@(GlslFile -> '%(RelativeDir)%(Filename).metal')</ShaderGenMetalOutputs>
-        <ShaderGenCsOutputs>@(GlslFile -> '%(RelativeDir)%(CsFile)')</ShaderGenCsOutputs>
-        <ShaderGenOutputs>$(ShaderGenSpvOutputs)</ShaderGenOutputs>
-        <ShaderGenOutputs>$(ShaderGenMetalOutputs)</ShaderGenOutputs>
-        <ShaderGenOutputs>$(ShaderGenCsOutputs)</ShaderGenOutputs>
+        <GgenReceiptFile>$(BaseIntermediateOutputPath)/ggenreceipt.txt</GgenReceiptFile>
+        
+        <GgenSpvTargetReceiptFile>$(BaseIntermediateOutputPath)/ggen_spv_receipt.txt</GgenSpvTargetReceiptFile>
+        <GgenMetalTargetReceiptFile>$(BaseIntermediateOutputPath)/ggen_metal_receipt.txt</GgenMetalTargetReceiptFile>
+        <GgenCsTargetReceiptFile>$(BaseIntermediateOutputPath)/ggen_cs_receipt.txt</GgenCsTargetReceiptFile>
+        
+        <ShaderGenSpvOutputs>@(GlslVertFile -> '%(RelativeDir)%(Filename)_gl.spv');@(GlslFragFile -> '%(RelativeDir)%(Filename)_gl.spv')</ShaderGenSpvOutputs>
+        <ShaderGenMetalOutputs>@(GlslVertFile -> '%(RelativeDir)%(Filename).metal');@(GlslFragFile -> '%(RelativeDir)%(Filename).metal')</ShaderGenMetalOutputs>
+        <ShaderGenCsOutputs>@(GlslVertFile -> '$(BaseIntermediateOutputPath)ggen_cs/%(CsFile)')</ShaderGenCsOutputs>
+        <ShaderGenFragDummyOutputs>@(GlslFragFile -> '$(BaseIntermediateOutputPath)ggen_cs/%(RecursiveDir)/%(Filename).receipt')</ShaderGenFragDummyOutputs>
+        
+        <!-- TODO: Need to move other outputs to be in $(BaseIntermediateOutputPath) as well -->
     </PropertyGroup>
+
+
+    <ItemGroup>
+        <Compile Include="$(ShaderGenCsOutputs)" />
+    </ItemGroup>
     
+    <Target Name="ggen" Inputs="@(GgenScript)" Outputs="$(GgenReceiptFile)">
+        <!-- This target doesn't need to do anything, since we don't need to build the python scripts.
+            Having this target however allows the generated shader files to be invalided when the ggen script has changed. -->
+        <WriteLinesToFile File="$(GgenReceiptFile)" Lines="" Overwrite="true" WriteOnlyWhenDifferent="false"/>
+        <Message Text="ggen script has changed. Generated shader files will be rebuilt."/>
+    </Target>
+
     <!-- Hack to support targeting multiple target frameworks https://github.com/dotnet/msbuild/issues/2781 -->
     
-    <Target Name="ShaderGenInner" Inputs="@(GlslFile)" Outputs="$(ShaderGenOutputs)">
-        <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="python3 -m ggen &quot;$(MSBuildProjectDirectory)&quot; --files &quot;@(GlslFile -> '%(FullPath)')&quot;" />
+    <!--
+        ===== 
+        Generated Shader CS Files
+        ===== 
+    -->
+    
+    <!-- This target needs to be done before the C# compilation targets, since this target outputs the CS shader source
+         files that are needed by the project's code. -->
+    <Target Name="ShaderGenCs" BeforeTargets="Build;BeforeBuild;DispatchToInnerBuilds">
+        <!--TargetFramework=once is critical here, as msbuild will not execute a task from same project with same properties twice. 
+            Otherwise, this would be ran multiple times for each targeted framework, which is undesirable. -->
+        <MSBuild Projects="$(MSBuildProjectFile)" Targets="ShaderGenCsInner" Properties="TargetFramework=once" />
+    </Target>
+
+    <Target Name="ShaderGenCsInner" Inputs="$(GgenReceiptFile);@(GlslVertFile);@(GlslFragFile)" Outputs="$(GgenCsTargetReceiptFile);$(ShaderGenCsOutputs);$(ShaderGenFragDummyOutputs)" DependsOnTargets="ggen">
+        <WriteLinesToFile File="$(GgenCsTargetReceiptFile)" Lines="" Overwrite="true" WriteOnlyWhenDifferent="false"/>
+        <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="python3 -m ggen &quot;$(MSBuildProjectDirectory)&quot; --files &quot;@(GlslFile -> '%(FullPath)')&quot; --targets csclass --cs-output-dir &quot;$(BaseIntermediateOutputPath)ggen_cs&quot;" />
+    </Target>
+
+    <!--
+        ===== 
+        Compile OpenGL-compatible SpirV files
+        ===== 
+    -->
+    
+    <!-- This target needs to be done before the C# compilation targets, since this target outputs resource files that
+           need to be embeeded in the assembly. -->
+    <Target Name="ShaderGenOpenGlSpirV" BeforeTargets="Build;BeforeBuild;DispatchToInnerBuilds">
+        <!--TargetFramework=once is critical here, as msbuild will not execute a task from same project with same properties twice. 
+            Otherwise, this would be ran multiple times for each targeted framework, which is undesirable. -->
+        <MSBuild Projects="$(MSBuildProjectFile)" Targets="ShaderGenOpenGlSpirVInner" Properties="TargetFramework=once" />
+    </Target>
+
+    <Target Name="ShaderGenOpenGlSpirVInner" Inputs="$(GgenReceiptFile);@(GlslFile)" Outputs="$(GgenSpvTargetReceiptFile);$(ShaderGenSpvOutputs)" DependsOnTargets="ggen">
+        <WriteLinesToFile File="$(GgenSpvTargetReceiptFile)" Lines="" Overwrite="true" WriteOnlyWhenDifferent="false"/>
+        <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="python3 -m ggen &quot;$(MSBuildProjectDirectory)&quot; --files &quot;@(GlslFile -> '%(FullPath)')&quot; --targets opengl_spirv" />
+    </Target>
+
+    
+    <!--
+        ===== 
+        Transpile Metal shader source
+        ===== 
+    -->
+
+    <!-- This target needs to be done before the C# compilation targets, since this target outputs resource files that
+           need to be embeeded in the assembly. -->
+    <Target Name="ShaderGenMetal" BeforeTargets="Build;BeforeBuild;DispatchToInnerBuilds">
+        <!--TargetFramework=once is critical here, as msbuild will not execute a task from same project with same properties twice. 
+            Otherwise, this would be ran multiple times for each targeted framework, which is undesirable. -->
+        <MSBuild Projects="$(MSBuildProjectFile)" Targets="ShaderGenMetalInner" Properties="TargetFramework=once" />
+    </Target>
+
+    <Target Name="ShaderGenMetalInner" Inputs="$(GgenReceiptFile);@(GlslFile)" Outputs="$(GgenMetalTargetReceiptFile);$(ShaderGenMetalOutputs)" DependsOnTargets="ggen">
+        <WriteLinesToFile File="$(GgenMetalTargetReceiptFile)" Lines="" Overwrite="true" WriteOnlyWhenDifferent="false"/>
+        <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="python3 -m ggen &quot;$(MSBuildProjectDirectory)&quot; --files &quot;@(GlslFile -> '%(FullPath)')&quot; --targets metal" />
     </Target>
     
-    <Target Name="ShaderGen" BeforeTargets="Build;BeforeBuild;DispatchToInnerBuilds">
-        <!--TargetFramework=once is critical here, as msbuild will not execute a task from same project with same properties twice. -->
-        <MSBuild Projects="$(MSBuildProjectFile)" Targets="ShaderGenInner" Properties="TargetFramework=once" />
-    </Target>
 </Project>

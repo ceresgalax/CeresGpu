@@ -1,22 +1,37 @@
 import argparse
+import enum
 import glob
 import json
 import os
 import re
 import sys
 import subprocess
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 from . import genbuffers
 from . import genshaders
 from .genbuffers import Vertex
 from .genshaders import ShaderDirectives, SpirvReflection, ShaderStage, ArgumentBufferBinding
 
+
+class Target(enum.Enum):
+    CS_CLASS = 'csclass'
+    OPENGL_SPIRV = 'opengl_spirv'
+    METAL = 'metal'
+
+
 argparser = argparse.ArgumentParser()
 argparser.add_argument('root')
 
 argparser.add_argument('--files', help="List of file paths to glsl files. Optional, used by msbuild target. "
                                        "The list of files is a single argument, delimited by semicolons.")
+
+argparser.add_argument('--targets',
+                       help='List of the target shader types to output. Optional, used by the msbuild target.'
+                            'This is a list of targets, delimited by semicolons.')
+
+argparser.add_argument('--cs-output-dir',
+                       help='Directory to output generated cs files to.')
 
 
 binaries_path = os.path.normpath(os.path.join(__file__, '..', 'binaries', sys.platform))
@@ -40,11 +55,13 @@ def parse_buffers(root: str) -> Dict[str, Vertex]:
     return buffers
 
 
-def process_shader(root: str, paths: List[str]):
+def process_shader(root: str, paths: List[str], targets: Optional[Set[Target]], cs_output_dir: Optional[str]):
     directives = ShaderDirectives()
     reflections: Dict[ShaderStage, SpirvReflection] = {}
-    # metal_buffer_bindings: Dict[str, int] = {}
     shader_name = ''
+
+    # NOTE: Due to how we're set up with msbuild, we'll want caching here to reduce redundant glslcross work that is
+    # done for all targets.
 
     had_compile_errors = False
     for path in paths:
@@ -62,7 +79,6 @@ def process_shader(root: str, paths: List[str]):
             directives = genshaders.parse_shader_directives(path)
 
         spv_path = filename + '.spv'
-        gl_spv_path = filename + '_gl.spv'
         should_compile = True
         if os.path.isfile(spv_path):
             source_stat = os.stat(path)
@@ -81,35 +97,29 @@ def process_shader(root: str, paths: List[str]):
         reflection = genshaders.parse_spv_reflection(reflection_data)
         reflections[stage] = reflection
             
-        # Output Metal shader
-        metal_source = subprocess.check_output([SPIRV_CROSS_BINARY, spv_path, '--msl', '--msl-version', '20000', '--msl-argument-buffers'], text=True)
-        with open(filename + '.metal', 'w') as f:
-            f.write(metal_source)
+        # We generate the metal source for both the CS and Metal targets, since we need it for the CS target.
+        if not targets or Target.METAL in targets or Target.CS_CLASS in targets:
+            metal_source = subprocess.check_output([SPIRV_CROSS_BINARY, spv_path, '--msl', '--msl-version', '20000', '--msl-argument-buffers'], text=True)
+
+            # Output Metal shader
+            if not targets or Target.METAL in targets:
+                with open(filename + '.metal', 'w') as f:
+                    f.write(metal_source)
+                
+            reflection.arg_buffer_bindings = find_argument_bindings(metal_source)
             
         # Compile a version for OpenGL as well
-        gl_defines = [
-            '-Dgl_VertexIndex=gl_VertexID',
-            '-Dgl_InstanceIndex=gl_InstanceID'
-        ]
-        subprocess.check_call([GLSLANG_BINARY, '-G100', *gl_defines, '-o', gl_spv_path, path])
+        if not targets or Target.OPENGL_SPIRV in targets:
+            gl_defines = [
+                '-Dgl_VertexIndex=gl_VertexID',
+                '-Dgl_InstanceIndex=gl_InstanceID'
+            ]
+            gl_spv_path = filename + '_gl.spv'
+            subprocess.check_call([GLSLANG_BINARY, '-G100', *gl_defines, '-o', gl_spv_path, path])
 
-        reflection.arg_buffer_bindings = find_argument_bindings(metal_source)
-        
-        # metal_buffer_bindings.update(find_metal_buffer_bindings(metal_source))
-
-    # if not root_reflection:
-    #     print(f'Error: No vert shader for {shader_name}')
-    #     return
-
-    # for reflection in reflections:
-    #     root_reflection.types.update(reflection.types)
-    #     root_reflection.ubos.extend(reflection.ubos)
-    #     root_reflection.ssbos.extend(reflection.ssbos)
-    #     root_reflection.textures.extend(reflection.textures)
-
-    shader = genshaders.Shader(shader_name, directives, reflections)
-
-    genshaders.generate_shader_file(root, paths, shader)
+    if not targets or Target.CS_CLASS in targets:
+        shader = genshaders.Shader(shader_name, directives, reflections)
+        genshaders.generate_shader_file(root, paths, shader, cs_output_dir)
 
 
 METAL_ENTRY_POINT_PARAMETERS_PATTERN = re.compile(r'main0\((.*)\)')
@@ -148,6 +158,10 @@ def find_argument_bindings(metal_source: str) -> List[ArgumentBufferBinding]:
 def process_shaders(args):
     if args.files:
         paths = set(args.files.split(';'))
+        
+        # Filter out any receipt files that are part of the input, as those are an artifact of msbuild.
+        # TODO: Inneficient
+        paths = set(path for path in paths if '_receipt.txt' not in path)
 
         # Find shaders which belong together
         companion_files: List[str] = []
@@ -159,6 +173,10 @@ def process_shaders(args):
             
     else:
         paths = glob.glob(f'{args.root}/**/*.glsl', recursive=True)
+    
+    targets = None
+    if args.targets:
+        targets = set((Target(targetname) for targetname in args.targets.split(';')))
 
     shaders_by_name: Dict[str, List[str]] = {}
 
@@ -170,7 +188,7 @@ def process_shaders(args):
         shaders.append(path)
 
     for name, paths in shaders_by_name.items():
-        process_shader(args.root, paths)
+        process_shader(args.root, paths, targets, args.cs_output_dir)
 
 
 def main():
