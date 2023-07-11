@@ -29,7 +29,7 @@ class BufferInput(object):
         self.block_size = block_size
         self.set = set
         self.binding = binding
-        
+
 
 class TextureInput(object):
     def __init__(self, type: str, name: str, set: int, binding: int):
@@ -62,8 +62,8 @@ class SpirvReflection(object):
         self.ubos = ubos
         self.textures = textures
         self.arg_buffer_bindings: List[ArgumentBufferBinding] = []
-        
-        
+
+
 class ShaderCodeCollection(object):
     def __init__(self):
         self.metal_vertex_source = ''
@@ -82,8 +82,8 @@ class StepMode(Enum):
 class ShaderStage(Enum):
     VERTEX = auto()
     FRAGMENT = auto()
-    
-        
+
+
 class InputDirective(object):
     def __init__(self):
         self.structure_name = 'Vertex'
@@ -100,7 +100,8 @@ class ShaderDirectives(object):
 
 
 class Shader(object):
-    def __init__(self, resource_prefix: str, directives: ShaderDirectives, reflections_by_stage: Dict[ShaderStage, SpirvReflection]):
+    def __init__(self, resource_prefix: str, directives: ShaderDirectives,
+                 reflections_by_stage: Dict[ShaderStage, SpirvReflection]):
         self.resource_prefix = resource_prefix
         self.directives = directives
         self.reflections_by_stage = reflections_by_stage
@@ -117,10 +118,10 @@ class SourceWriter(object):
     def __init__(self, f: TextIO):
         self.f = f
         self.indent_level = 0
-    
+
     def indent(self):
         self.indent_level += 1
-        
+
     def deindent(self):
         self.indent_level -= 1
 
@@ -129,8 +130,8 @@ class SourceWriter(object):
             self.f.write('    ' * self.indent_level)
             self.f.write(line)
             self.f.write('\n')
-    
-    
+
+
 directive_pattern = re.compile(r'\/\/\s*#(\w+):\s*(\S+)')
 input_pattern = re.compile(r'layout\s*\(.*\)\s*in\s*\w+\s*(\w+);\s*\/\/\s*#input\s*(.*)')
 
@@ -153,7 +154,7 @@ def parse_type(data: Dict[str, Any]) -> Optional[ShaderType]:
         # This is an incomplete type. Don't include it.
         # (spirv-cross will include these sometimes, along with the 'real' type that we care about)
         return None
-    
+
     return ShaderType(
         name=data['name'],
         members=[parse_member(member) for member in data['members']]
@@ -189,7 +190,7 @@ def parse_texture_input(data: Dict[str, Any]) -> TextureInput:
 
 def parse_spv_reflection(data: Dict[str, Any]) -> SpirvReflection:
     types = [(k, parse_type(v)) for k, v in data.get('types', {}).items() if not v['name'].startswith('gl_')]
-    
+
     return SpirvReflection(
         types={k: v for k, v in types if v},
         inputs=[parse_stage_input(input) for input in data.get('inputs', [])],
@@ -201,36 +202,36 @@ def parse_spv_reflection(data: Dict[str, Any]) -> SpirvReflection:
 
 def parse_shader_directives(path: str) -> ShaderDirectives:
     data = ShaderDirectives()
-    
+
     with open(path, 'r', encoding='utf-8') as f:
         while True:
             line = f.readline()
             if not line:
                 break
-            
+
             directive_match = directive_pattern.search(line)
             if directive_match:
                 directive_name = directive_match.group(1)
                 directive_value = directive_match.group(2)
-                
+
                 if directive_name == 'CSNAME':
                     data.full_class_name = directive_value
                 elif directive_name == 'CSFIELD':
                     data.field_name = directive_value
-            
+
             input_match = input_pattern.search(line)
             if input_match:
                 input_name = input_match.group(1)
                 input_directive_text = input_match.group(2)
-                
+
                 input_directive = InputDirective()
                 data.input_directives_by_input_name[input_name] = input_directive
-                
+
                 property_strings = input_directive_text.strip().split(' ')
                 for property_string in property_strings:
                     key, value = property_string.split(':')
                     key = key.lower()
-                    
+
                     if key == 'struct':
                         input_directive.structure_name = value
                     elif key == 'stepmode':
@@ -239,7 +240,7 @@ def parse_shader_directives(path: str) -> ShaderDirectives:
                         input_directive.buffer_type = value
                     elif key == 'hint':
                         input_directive.hint = value
-                
+
     return data
 
 
@@ -256,7 +257,7 @@ def to_cs_style(val: str) -> str:
             val = val[:index] + val[index + 1].upper() + val[index + 2:]
         else:
             val = val[:index]
-    
+
     return val
 
 
@@ -272,20 +273,20 @@ def make_multiline_cs_string_literal(lines: List[str]) -> str:
         parts.append('"')
         if i + 1 != len(lines):
             parts.append(' +\n')
-            
+
     return ''.join(parts)
-            
+
 
 def generate_shader_file(root: str, paths: List[str], shader: Shader, output_dir: Optional[str]):
     # TODO: Later validate that all shader source files are in the same directory
     first_path = paths[0]
     dir = os.path.dirname(first_path)
-    
+
     project_path = dir
     os.makedirs(project_path, exist_ok=True)
-    
+
     base_filename = os.path.basename(os.path.splitext(os.path.splitext(paths[0])[0])[0])
-    
+
     output_root = project_path
     if output_dir:
         if not os.path.isabs(output_dir):
@@ -293,7 +294,7 @@ def generate_shader_file(root: str, paths: List[str], shader: Shader, output_dir
         rel_dir = os.path.relpath(dir, root)
         output_root = os.path.join(output_dir, rel_dir)
         os.makedirs(output_root, exist_ok=True)
-    
+
     with open(os.path.join(output_root, f'{base_filename}.Generated.cs'), 'w') as f:
         generate_shader_class(SourceWriter(f), shader)
 
@@ -305,7 +306,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     namespace_parts = full_name_parts[:-1]
     class_name = full_name_parts[-1]
     namespace = '.'.join(namespace_parts)
-    
+
     # Using statements
     f.write_line(
         '#nullable enable',
@@ -341,7 +342,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         ''
     )
     f.indent()
-    
+
     f.write_line(
         'public string GetShaderResourcePrefix()',
         '{',
@@ -349,7 +350,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         '}',
         '',
     )
-    
+
     # Emit Structures
     for reflection in shader.reflections_by_stage.values():
         for type in reflection.types.values():
@@ -358,12 +359,12 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     # inputs_by_name = {input.name: input for input in reflection.inputs}
     input_attributes_by_structure: Dict[str, List[InputAttribute]] = {}
     strides_by_structure: Dict[str, int] = {}
-    
+
     vertex_reflection = shader.reflections_by_stage[ShaderStage.VERTEX]
     for input in vertex_reflection.inputs:
         directive = directives.input_directives_by_input_name.get(input.name, InputDirective())
         input_attributes_by_structure.setdefault(directive.structure_name, []).append(InputAttribute(input, directive))
-        
+
     for input_attributes in input_attributes_by_structure.values():
         input_attributes.sort(key=lambda attrib: attrib.input.location)
 
@@ -386,13 +387,13 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             current_offset += cs_sizes[cs_type]
 
         strides_by_structure[structure_name] = current_offset
-        
+
         f.deindent()
         f.write_line('}', '')
-        
+
         f.write_line(f'private const int VERT_BUFFER_INDEX_{structure_name} = {current_vert_buffer_index};', '')
         current_vert_buffer_index += 1
-        
+
     # Output GetVertexAttributeDescriptors
     f.write_line(
         'public ReadOnlySpan<VertexAttributeDescriptor> GetVertexAttributeDescriptors()',
@@ -401,13 +402,13 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     )
     f.indent()
     f.indent()
-    
+
     for structure_name, attributes in input_attributes_by_structure.items():
         for attribute in attributes:
             buffer_type = attribute.directive.buffer_type
             if not buffer_type:
                 buffer_type = spirv_to_default_buffer_types[attribute.input.type]
-            
+
             f.write_line(
                 'new VertexAttributeDescriptor() {',
                 f'    Index = {attribute.input.location},',
@@ -422,7 +423,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     f.write_line('};')
     f.deindent()
     f.write_line('}', '')
-    
+
     # Output GetVertexBufferLayouts
     f.write_line(
         'public ReadOnlySpan<VertexBufferLayout> GetVertexBufferLayouts()',
@@ -446,12 +447,12 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     f.write_line('};')
     f.deindent()
     f.write_line('}', '')
-    
+
     # Begin fields
     global current_shader_id
     f.write_line(f'public static readonly int Id = {current_shader_id};\n\n')
     current_shader_id += 1
-    
+
     # Begin Shader Instance Class
     f.write_line(
         f'public class Instance : IDisposable, IShaderInstance<{class_name}>',
@@ -459,29 +460,29 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         '    private IShaderInstanceBacking _backing;'
     )
     f.indent()
-    
+
     #
     # Declare variables for each descriptor set
     #
     descriptor_set_variable_names = []
     descriptor_set_indices_by_stage: Dict[str, Set[int]] = {}
-    
+
     for stage, reflection in shader.reflections_by_stage.items():
         descriptor_set_indices: Set[int] = set()
         descriptor_set_indices.update(ubo.set for ubo in reflection.ubos)
         descriptor_set_indices.update(ssbo.set for ssbo in reflection.ssbos)
         descriptor_set_indices.update(texture.set for texture in reflection.textures)
         descriptor_set_indices_by_stage[stage] = descriptor_set_indices
-        
+
         stage_name = 'vertex' if stage == ShaderStage.VERTEX else 'fragment'
-        
+
         for set_index in descriptor_set_indices:
             var_name = f'_{stage_name}DescriptorSet{set_index}'
             f.write_line(f'private readonly IDescriptorSet {var_name};')
             descriptor_set_variable_names.append(var_name)
-            
+
     f.write_line('', 'private readonly IDescriptorSet[] _descriptorSets;')
-        
+
     f.write_line(
         '',
         'public IShaderInstanceBacking Backing => _backing;',
@@ -492,7 +493,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         '}',
         ''
     )
-    
+
     #
     # Generate ShaderInstanceConstructor
     #
@@ -505,7 +506,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         ''
     )
     f.indent()
-    
+
     set_array_index = 0
     for stage, indices in descriptor_set_indices_by_stage.items():
         for index in indices:
@@ -519,20 +520,20 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
                 f'_descriptorSets[{set_array_index}] = _{var_name};'
             )
             set_array_index += 1
-    
+
     f.deindent()
     f.write_line('}', '')
-    
+
     #
     # Generate ShaderInstance Dispose Method
     #
-    f.write_line('public void Dispose()', '{',)
+    f.write_line('public void Dispose()', '{', )
     f.indent()
     for var_name in descriptor_set_variable_names:
         f.write_line(f'{var_name}.Dispose();')
     f.deindent()
     f.write_line('}', '')
-    
+
     #
     # Vertex Buffer Setters
     #
@@ -543,19 +544,20 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             f'    _backing.SetVertexBuffer(buffer, VERT_BUFFER_INDEX_{structure_name});',
             '}'
         )
-    
+
     #
     # Buffer Setters
     #
-    
-    def gen_buffer_input(input: BufferInput, type: str, stage: ShaderStage, method_name: str, reflection: SpirvReflection):
+
+    def gen_buffer_input(input: BufferInput, type: str, stage: ShaderStage, method_name: str,
+                         reflection: SpirvReflection):
         stage_name = 'vertex' if stage == ShaderStage.VERTEX else 'fragment'
-        
+
         if input.type[0] == '_':
             type_name = reflection.types[input.type].name
         else:
             type_name = spirv_to_cs_types[input.type]
-            
+
         # TODO: METAL BUFFER IDS WILL NOT MATCH THE SPIR-V BINDING INDEX WHEN ARRAYS OF BUFFERS ARE USED.
         # Metal uses an argument buffer Id for each array element, where Vulkan uses the same binding.
         # This is uncommon for my project, but re-mapping support may need to be added.
@@ -584,10 +586,10 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     for stage, reflection in shader.reflections_by_stage.items():
         for ubo in reflection.ubos:
             gen_buffer_input(ubo, 'ubo', stage, 'SetUniformBufferDescriptor', reflection)
-            
+
         for ssbo in reflection.ssbos:
             gen_buffer_input(ssbo, 'ssbo', stage, 'SetShaderStorageBufferDescriptor', reflection)
-            
+
         for texture in reflection.textures:
 
             # Figure out what the metal argument buffer binding index is
@@ -596,10 +598,10 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
                     # For somereason spirv-cross reflects the Uniform typename as the name.
                     if abb.name == name:
                         return abb.index
-            
+
             texture_binding = get_binding_index(texture.name)
             sampler_binding = get_binding_index(texture.name + 'Smplr')
-            
+
             stage_name = 'vertex' if stage == ShaderStage.VERTEX else 'fragment'
             f.write_line(
                 f'public void Set{texture.name}(ITexture texture)',
@@ -612,7 +614,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
                 '}',
                 ''
             )
-    
+
     f.deindent()
     f.write_line('}', '')
 
@@ -628,12 +630,12 @@ def gen_structure(f: SourceWriter, shader_type: ShaderType, reflection: SpirvRef
     for member in shader_type.members:
         if len(member.array_sizes) == 1 and member.array_sizes[0] == 0:
             size = max(size, member.offset + member.array_stride)
-    
+
     if size > 0:
         f.write_line(f'[StructLayout(LayoutKind.Explicit, Size={size})]')
     else:
         f.write_line(f'[StructLayout(LayoutKind.Explicit)]')
-    
+
     f.write_line(
         f'public struct {shader_type.name}',
         '{'
@@ -681,7 +683,7 @@ cs_sizes = {
 }
 
 spirv_to_default_buffer_types = {
-    'int':  'R32_SINT',
+    'int': 'R32_SINT',
     'uint': 'R32_UINT',
     'vec2': 'R32G32_SFLOAT',
     'vec3': 'R32G32B32_SFLOAT',

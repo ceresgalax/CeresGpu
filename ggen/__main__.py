@@ -30,7 +30,7 @@ argparser.add_argument('--targets',
                        help='List of the target shader types to output. Optional, used by the msbuild target.'
                             'This is a list of targets, delimited by semicolons.')
 
-argparser.add_argument('--cs-output-dir',
+argparser.add_argument('--output-dir',
                        help='Directory to output generated cs files to.')
 
 
@@ -55,7 +55,7 @@ def parse_buffers(root: str) -> Dict[str, Vertex]:
     return buffers
 
 
-def process_shader(root: str, paths: List[str], targets: Optional[Set[Target]], cs_output_dir: Optional[str]):
+def process_shader(root: str, paths: List[str], targets: Optional[Set[Target]], output_dir: Optional[str]):
     directives = ShaderDirectives()
     reflections: Dict[ShaderStage, SpirvReflection] = {}
     shader_name = ''
@@ -65,8 +65,13 @@ def process_shader(root: str, paths: List[str], targets: Optional[Set[Target]], 
 
     had_compile_errors = False
     for path in paths:
-        filename = os.path.splitext(path)[0]
-        name, mode = os.path.splitext(filename)
+        dirname, filename = os.path.split(path)
+        relative_dir = os.path.relpath(dirname, root)
+        filename_no_ext = os.path.splitext(filename)[0]
+        full_output_dir = os.path.join(root, output_dir, relative_dir)
+        os.makedirs(full_output_dir, exist_ok=True)
+        output_path_no_ext = os.path.join(full_output_dir, filename_no_ext)
+        name, mode = os.path.splitext(filename_no_ext)
         shader_name = os.path.basename(name)
 
         stage = None
@@ -78,19 +83,11 @@ def process_shader(root: str, paths: List[str], targets: Optional[Set[Target]], 
         if stage == ShaderStage.VERTEX:
             directives = genshaders.parse_shader_directives(path)
 
-        spv_path = filename + '.spv'
-        should_compile = True
-        if os.path.isfile(spv_path):
-            source_stat = os.stat(path)
-            spv_stat = os.stat(spv_path)
-            if source_stat.st_mtime_ns == spv_stat.st_mtime_ns:
-                should_compile = False
+        spv_path = output_path_no_ext + '.spv'
 
-        if should_compile:
-            print(f'Compiling {path}...')
-            subprocess.check_call([GLSLANG_BINARY, '-V', '-o', spv_path, path])
-        else:
-            print(f'{path} already up to date')
+        print(f'Compiling {path} -> {spv_path} ...')
+        # TODO: Cache spv output if possible. Either with our own dirty detection, or refactor and have an msbuild spv compile dependency target.
+        subprocess.check_call([GLSLANG_BINARY, '-V', '-o', spv_path, path])
 
         relfection_json = subprocess.check_output([SPIRV_CROSS_BINARY, spv_path, '--reflect'])
         reflection_data = json.loads(relfection_json)
@@ -103,7 +100,7 @@ def process_shader(root: str, paths: List[str], targets: Optional[Set[Target]], 
 
             # Output Metal shader
             if not targets or Target.METAL in targets:
-                with open(filename + '.metal', 'w') as f:
+                with open(output_path_no_ext + '.metal', 'w') as f:
                     f.write(metal_source)
                 
             reflection.arg_buffer_bindings = find_argument_bindings(metal_source)
@@ -114,12 +111,12 @@ def process_shader(root: str, paths: List[str], targets: Optional[Set[Target]], 
                 '-Dgl_VertexIndex=gl_VertexID',
                 '-Dgl_InstanceIndex=gl_InstanceID'
             ]
-            gl_spv_path = filename + '_gl.spv'
+            gl_spv_path = output_path_no_ext + '_gl.spv'
             subprocess.check_call([GLSLANG_BINARY, '-G100', *gl_defines, '-o', gl_spv_path, path])
 
     if not targets or Target.CS_CLASS in targets:
         shader = genshaders.Shader(shader_name, directives, reflections)
-        genshaders.generate_shader_file(root, paths, shader, cs_output_dir)
+        genshaders.generate_shader_file(root, paths, shader, output_dir)
 
 
 METAL_ENTRY_POINT_PARAMETERS_PATTERN = re.compile(r'main0\((.*)\)')
@@ -188,7 +185,7 @@ def process_shaders(args):
         shaders.append(path)
 
     for name, paths in shaders_by_name.items():
-        process_shader(args.root, paths, targets, args.cs_output_dir)
+        process_shader(args.root, paths, targets, args.output_dir)
 
 
 def main():
