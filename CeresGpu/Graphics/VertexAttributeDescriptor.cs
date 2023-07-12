@@ -15,5 +15,13 @@ namespace CeresGpu.Graphics
         /// CeresGpu doesn't use this attribute for anything itself. 
         /// </summary>
         public string Hint;
+
+        /// <summary>
+        /// Name of the attribute. This may be used for displaying information about the shader to the user.
+        /// This may be used for generic shader tools to show attribute names.
+        ///
+        /// CeresGpu doesn't use this attribute for anything itself. 
+        /// </summary>
+        public string Name;
     }
 }

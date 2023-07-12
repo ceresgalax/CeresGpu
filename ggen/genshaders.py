@@ -455,7 +455,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
 
     # Begin Shader Instance Class
     f.write_line(
-        f'public class Instance : IDisposable, IShaderInstance<{class_name}>',
+        f'public class Instance : IShaderInstance<{class_name}>',
         '{',
         '    private IShaderInstanceBacking _backing;'
     )
@@ -502,7 +502,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         '{',
         '    // TODO: Actually use a correct vertex buffer count hint',
         '    _backing = renderer.CreateShaderInstanceBacking(0, shader);',
-        f'    _descriptorSets = new IDescriptorSet[{len(descriptor_set_variable_names)}];'
+        f'    _descriptorSets = new IDescriptorSet[{len(descriptor_set_variable_names)}];',
         ''
     )
     f.indent()
