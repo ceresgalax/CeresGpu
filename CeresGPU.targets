@@ -54,13 +54,13 @@
     </ItemGroup>
     
 
-    <Target Name="ggen" Inputs="@(GgenScript)" Outputs="$(GgenReceiptFile)">
+    <Target Name="ggen" Inputs="@(GgenScript)" Outputs="$(IntermediateOutputPath)$(GgenReceiptFile)">
         <!-- This target doesn't need to do anything, since we don't need to build the python scripts.
             Having this target however allows the generated shader files to be invalided when the ggen script has changed. -->
-        <Touch Files="$(GgenReceiptFile)" AlwaysCreate="true" />
+        <Touch Files="$(IntermediateOutputPath)$(GgenReceiptFile)" AlwaysCreate="true" />
         <Message Importance="high" Text="ggen script has changed. Generated shader files will be rebuilt."/>
         <ItemGroup>
-            <FileWrites Include="@(GgenReceiptFile)" />
+            <FileWrites Include="$(IntermediateOutputPath)$(GgenReceiptFile)" />
         </ItemGroup>
     </Target>
     
