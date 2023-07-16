@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace CeresGpu.Graphics
 {
     public struct VertexAttributeDescriptor

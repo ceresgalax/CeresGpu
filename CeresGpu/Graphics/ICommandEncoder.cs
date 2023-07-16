@@ -1,5 +1,3 @@
-
-
 using System.Numerics;
 using CeresGpu.Graphics.Shaders;
 

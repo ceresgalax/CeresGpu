@@ -23,9 +23,8 @@ namespace CeresGpu.Graphics.OpenGL
             try {
                 uint fragShader = gl.CreateShader(ShaderType.FRAGMENT_SHADER);
                 try {
-                    Type shaderType = shader.GetType();
-                    SetShader(gl, vertShader, shaderType, shader.GetShaderResourcePrefix() + ".vert_gl.spv");
-                    SetShader(gl, fragShader, shaderType, shader.GetShaderResourcePrefix() + ".frag_gl.spv");
+                    SetShader(gl, vertShader, shader, ".vert_gl.spv");
+                    SetShader(gl, fragShader, shader, ".frag_gl.spv");
                     gl.AttachShader(_program, vertShader);
                     gl.AttachShader(_program, fragShader);
                     gl.LinkProgram(_program);
@@ -38,18 +37,18 @@ namespace CeresGpu.Graphics.OpenGL
             }
         }
 
-        private void SetShader(GL gl, uint handle, Type shaderType, string name)
+        private void SetShader(GL gl, uint handle, IShader shader, string name)
         {
             Span<uint> shaders = stackalloc uint[1] { handle };
-            byte[] spirv = GetSpirv(shaderType, name);
+            byte[] spirv = GetSpirv(shader, name);
             gl.ShaderBinary(1, shaders, ShaderBinaryFormat.SHADER_BINARY_FORMAT_SPIR_V, spirv, spirv.Length);
             gl.SpecializeShader(handle, "main", 0, null, null);
-            Console.WriteLine($"{shaderType} Log (for {name}): {GLUtil.GetShaderInfoLog(gl, handle)}");
+            Console.WriteLine($"Shader Log: {GLUtil.GetShaderInfoLog(gl, handle)}"); // TODO: Needs more info
         }
         
-        private byte[] GetSpirv(Type shaderType, string name)
+        private byte[] GetSpirv(IShader shader, string name)
         {
-            using Stream? stream = shaderType.Assembly.GetManifestResourceStream(shaderType, name);
+            using Stream? stream = shader.GetShaderResource(name);
             if (stream == null) {
                 throw new InvalidOperationException($"Cannot find spriv resource for {name}");
             }

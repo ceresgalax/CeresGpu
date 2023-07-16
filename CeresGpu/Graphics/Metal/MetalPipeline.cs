@@ -21,9 +21,6 @@ namespace CeresGpu.Graphics.Metal
         
         public MetalPipeline(MetalRenderer renderer, PipelineDefinition definition, IShader shader)
         {
-            if (shader is not IMetalShader) {
-                throw new ArgumentException("Shader is not compatible with Metal");
-            }
             if (shader.Backing is not MetalShaderBacking backing) {
                 throw new ArgumentException("Incompatible shader backing", nameof(shader));
             }

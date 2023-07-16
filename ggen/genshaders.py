@@ -313,13 +313,12 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         'using System;',
         'using System.Collections.Generic;',
         'using System.CodeDom.Compiler;',
+        'using System.IO;',
         'using System.Numerics;',
         'using System.Runtime.InteropServices;',
         'using CeresGL;',
         'using CeresGpu.Graphics;',
         'using CeresGpu.Graphics.Shaders;',
-        'using CeresGpu.Graphics.Metal;',
-        'using CeresGpu.MetalBinding;',
         ''
     )
 
@@ -331,7 +330,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     # Begin Class
     f.write_line(
         '[GeneratedCode("genshaders.py", "0")]',
-        f'public class {class_name} : IShader, IMetalShader',
+        f'public class {class_name} : IShader',
         '{',
         '    public IShaderBacking? Backing { get; set; }',
         '',
@@ -344,9 +343,11 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     f.indent()
 
     f.write_line(
-        'public string GetShaderResourcePrefix()',
+        'public Stream? GetShaderResource(string postfix)',
         '{',
-        f'    return "{shader.resource_prefix}";',
+        f'    Type thisType = typeof({class_name});',
+        f'    return thisType.Assembly.GetManifestResourceStream(thisType, "{make_cs_string_literal(shader.resource_prefix)}" + postfix);',
+        # f'    return "{shader.resource_prefix}";',
         '}',
         '',
     )
@@ -450,8 +451,84 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
 
     # Begin fields
     global current_shader_id
-    f.write_line(f'public static readonly int Id = {current_shader_id};\n\n')
+    f.write_line(f'public static readonly int Id = {current_shader_id};\n')
     current_shader_id += 1
+    
+    # Write DescriptorInfo constants
+
+    f.write_line('private static readonly DescriptorInfo[] Descriptors = new DescriptorInfo[] {')
+    f.indent()
+    
+    def write_descriptor_info_field_for_buffer(buffer: BufferInput, reflection: SpirvReflection, cs_descriptor_type: str):
+
+        # TODO: METAL BUFFER IDS WILL NOT MATCH THE SPIR-V BINDING INDEX WHEN ARRAYS OF BUFFERS ARE USED.
+        # Metal uses an argument buffer Id for each array element, where Vulkan uses the same binding.
+        # This is uncommon for my project, but re-mapping support may need to be added.
+        # It would be easier to add this support with bindings to libspirvcross
+        # instead of regex detection of the generated metal source.
+        # https://github.com/KhronosGroup/SPIRV-Cross#msl-20
+
+        # Figure out what the metal argument buffer binding index is
+        def get_binding_index():
+            for abb in reflection.arg_buffer_bindings:
+                # For some reason spirv-cross reflects the Uniform typename as the name.
+                if abb.typename == buffer.name:
+                    return abb.index
+
+        if buffer.type[0] == '_':
+            type_name = reflection.types[buffer.type].name
+        else:
+            type_name = spirv_to_cs_types[buffer.type]
+        
+        f.write_line(
+            f'new DescriptorInfo {{',
+            f'    BindingIndex = {get_binding_index()},',
+            f'    DescriptorType = DescriptorType.{cs_descriptor_type},',
+            f'    BufferType = typeof({type_name}),',
+            f'    Name = "{make_cs_string_literal(buffer.name)}"',
+            '},'
+        )
+
+    def write_descriptor_info_field_for_texture(texture: TextureInput, reflection: SpirvReflection):
+        # Figure out what the metal argument buffer binding index is
+        def get_binding_index(name: str):
+            for abb in reflection.arg_buffer_bindings:
+                # For some reason spirv-cross reflects the Uniform typename as the name.
+                if abb.name == name:
+                    return abb.index
+
+        texture_binding = get_binding_index(texture.name)
+        sampler_binding = get_binding_index(texture.name + 'Smplr')
+
+        f.write_line(
+            f'new DescriptorInfo {{',
+            f'    BindingIndex = {texture_binding},',
+            f'    SamplerIndex = {sampler_binding},',
+            '    DescriptorType = DescriptorType.Texture,',
+            f'    Name = "{make_cs_string_literal(texture.name)}"',
+            '},'
+        )
+    
+    for stage, reflection in shader.reflections_by_stage.items():
+        for ubo in reflection.ubos:
+            write_descriptor_info_field_for_buffer(ubo, reflection, 'UniformBuffer')
+
+        for ssbo in reflection.ssbos:
+            write_descriptor_info_field_for_buffer(ssbo, reflection, 'ShaderStorageBuffer')
+            
+        for texture in reflection.textures:
+            write_descriptor_info_field_for_texture(texture, reflection)
+            
+    f.deindent()
+    f.write_line(
+        '};',
+        '',
+        'public ReadOnlySpan<DescriptorInfo> GetDescriptors()',
+        '{',
+        '    return Descriptors;',
+        '}',
+        ''
+    )
 
     # Begin Shader Instance Class
     f.write_line(
@@ -550,7 +627,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     #
 
     def gen_buffer_input(input: BufferInput, type: str, stage: ShaderStage, method_name: str,
-                         reflection: SpirvReflection):
+                         reflection: SpirvReflection, descriptor_index: int):
         stage_name = 'vertex' if stage == ShaderStage.VERTEX else 'fragment'
 
         if input.type[0] == '_':
@@ -558,62 +635,34 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         else:
             type_name = spirv_to_cs_types[input.type]
 
-        # TODO: METAL BUFFER IDS WILL NOT MATCH THE SPIR-V BINDING INDEX WHEN ARRAYS OF BUFFERS ARE USED.
-        # Metal uses an argument buffer Id for each array element, where Vulkan uses the same binding.
-        # This is uncommon for my project, but re-mapping support may need to be added.
-        # It would be easier to add this support with bindings to libspirvcross
-        # instead of regex detection of the generated metal source.
-        # https://github.com/KhronosGroup/SPIRV-Cross#msl-20
-
-        # Figure out what the metal argument buffer binding index is
-        def get_binding_index():
-            for abb in reflection.arg_buffer_bindings:
-                # For somereason spirv-cross reflects the Uniform typename as the name.
-                if abb.typename == input.name:
-                    return abb.index
-
         f.write_line(
             f'public void Set{input.name}(IBuffer<{type_name}> buffer)',
             '{',
-            '    DescriptorInfo info = new DescriptorInfo() {',
-            f'        BindingIndex = {get_binding_index()}',
-            '    };',
-            f'    _{stage_name}DescriptorSet{input.set}.{method_name}(buffer, in info);',
+            f'    _{stage_name}DescriptorSet{input.set}.{method_name}(buffer, in {class_name}.Descriptors[{descriptor_index}]);',
             '}',
             ''
         )
 
+    descriptor_index = 0
     for stage, reflection in shader.reflections_by_stage.items():
         for ubo in reflection.ubos:
-            gen_buffer_input(ubo, 'ubo', stage, 'SetUniformBufferDescriptor', reflection)
+            gen_buffer_input(ubo, 'ubo', stage, 'SetUniformBufferDescriptor', reflection, descriptor_index)
+            descriptor_index += 1
 
         for ssbo in reflection.ssbos:
-            gen_buffer_input(ssbo, 'ssbo', stage, 'SetShaderStorageBufferDescriptor', reflection)
+            gen_buffer_input(ssbo, 'ssbo', stage, 'SetShaderStorageBufferDescriptor', reflection, descriptor_index)
+            descriptor_index += 1
 
         for texture in reflection.textures:
-
-            # Figure out what the metal argument buffer binding index is
-            def get_binding_index(name: str):
-                for abb in reflection.arg_buffer_bindings:
-                    # For somereason spirv-cross reflects the Uniform typename as the name.
-                    if abb.name == name:
-                        return abb.index
-
-            texture_binding = get_binding_index(texture.name)
-            sampler_binding = get_binding_index(texture.name + 'Smplr')
-
             stage_name = 'vertex' if stage == ShaderStage.VERTEX else 'fragment'
             f.write_line(
                 f'public void Set{texture.name}(ITexture texture)',
                 '{',
-                '    DescriptorInfo info = new DescriptorInfo() {',
-                f'        BindingIndex = {texture_binding},',
-                f'        SamplerIndex = {sampler_binding}',
-                '    };',
-                f'    _{stage_name}DescriptorSet{texture.set}.SetTextureDescriptor(texture, in info);'
+                f'    _{stage_name}DescriptorSet{texture.set}.SetTextureDescriptor(texture, in {class_name}.Descriptors[{descriptor_index}]);',
                 '}',
                 ''
             )
+            descriptor_index += 1
 
     f.deindent()
     f.write_line('}', '')

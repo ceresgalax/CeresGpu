@@ -1,3 +1,5 @@
+using System;
+
 namespace CeresGpu.Graphics.Shaders
 {
     public struct DescriptorInfo
@@ -9,6 +11,30 @@ namespace CeresGpu.Graphics.Shaders
         /// </summary>
         public int SamplerIndex;
 
-        // TODO: Vulkan Descriptor data
+        // Note: More information may be required for Vulkan in order for it to properly set up it's descriptor sets.
+
+        /// <summary>
+        /// What type of descriptor should be used. This is meant to be used by shader introspection tooling.
+        ///
+        /// Not used by CeresGpu itself.
+        /// </summary>
+        public DescriptorType DescriptorType;
+
+        /// <summary>
+        /// The generated type which the generated descriptor set method in the ShaderInstance accepts.
+        /// This type is configured to match the expected buffer layout.
+        /// This is meant to be used by shader introspection tooling.
+        ///
+        /// Not used by CeresGpu itself.
+        /// </summary>
+        public Type? BufferType;
+
+        /// <summary>
+        /// The name of the descriptor in the shader. Meant for use by shader introspection.
+        ///
+        /// Not used by CeresGpu itself.
+        /// </summary>
+        public string? Name;
+
     }
 }

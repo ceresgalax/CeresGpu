@@ -19,12 +19,12 @@ namespace CeresGpu.Graphics.Metal
             // Load the shader from resources
             Type shaderType = shader.GetType();
 
-            IntPtr vertLibrary = GetLibrary(shaderType, shader.GetShaderResourcePrefix() + ".vert.metal");
+            IntPtr vertLibrary = GetLibrary(shader, ".vert.metal");
             if (vertLibrary == IntPtr.Zero) {
                 return;
             }
             try {
-                IntPtr fragmentLibrary = MetalApi.metalbinding_new_library(_renderer.Context, GetSource(shaderType, shader.GetShaderResourcePrefix() + ".frag.metal"));
+                IntPtr fragmentLibrary = MetalApi.metalbinding_new_library(_renderer.Context, GetSource(shader, ".frag.metal"));
                 if (fragmentLibrary == IntPtr.Zero) {
                     return;
                 }
@@ -39,18 +39,18 @@ namespace CeresGpu.Graphics.Metal
             }
         }
 
-        private IntPtr GetLibrary(Type shaderType, string name)
+        private IntPtr GetLibrary(IShader shader, string name)
         {
-            IntPtr library = MetalApi.metalbinding_new_library(_renderer.Context, GetSource(shaderType, name));
+            IntPtr library = MetalApi.metalbinding_new_library(_renderer.Context, GetSource(shader, name));
             if (library == IntPtr.Zero) {
                 Console.Error.WriteLine("Error creating shader library from source: }" + _renderer.GetLastError());
             }
             return library;
         }
 
-        private string GetSource(Type shaderType, string name)
+        private string GetSource(IShader shader, string name)
         {
-            Stream? stream = shaderType.Assembly.GetManifestResourceStream(shaderType, name);
+            Stream? stream = shader.GetShaderResource(name);
             if (stream == null) {
                 throw new InvalidOperationException($"Cannot find Metal shader source resource for {name}");
             }
