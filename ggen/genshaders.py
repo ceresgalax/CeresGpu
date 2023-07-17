@@ -277,25 +277,28 @@ def make_multiline_cs_string_literal(lines: List[str]) -> str:
     return ''.join(parts)
 
 
-def generate_shader_file(root: str, paths: List[str], shader: Shader, output_dir: Optional[str]):
-    # TODO: Later validate that all shader source files are in the same directory
-    first_path = paths[0]
-    dir = os.path.dirname(first_path)
+def generate_shader_file(output_path: str, shader: Shader):
+    output_dir = os.path.dirname(output_path)
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # # TODO: Later validate that all shader source files are in the same directory
+    # first_path = paths[0]
+    # dir = os.path.dirname(first_path)
+    # 
+    # project_path = dir
+    # os.makedirs(project_path, exist_ok=True)
+    # 
+    # base_filename = os.path.basename(os.path.splitext(os.path.splitext(paths[0])[0])[0])
 
-    project_path = dir
-    os.makedirs(project_path, exist_ok=True)
+    # output_root = project_path
+    # if output_dir:
+    #     if not os.path.isabs(output_dir):
+    #         output_dir = os.path.join(root, output_dir)
+    #     rel_dir = os.path.relpath(dir, root)
+    #     output_root = os.path.join(output_dir, rel_dir)
+    #     os.makedirs(output_root, exist_ok=True)
 
-    base_filename = os.path.basename(os.path.splitext(os.path.splitext(paths[0])[0])[0])
-
-    output_root = project_path
-    if output_dir:
-        if not os.path.isabs(output_dir):
-            output_dir = os.path.join(root, output_dir)
-        rel_dir = os.path.relpath(dir, root)
-        output_root = os.path.join(output_dir, rel_dir)
-        os.makedirs(output_root, exist_ok=True)
-
-    with open(os.path.join(output_root, f'{base_filename}.Generated.cs'), 'w') as f:
+    with open(output_path, 'w') as f:
         generate_shader_class(SourceWriter(f), shader)
 
 
@@ -376,13 +379,15 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             f'public struct {structure_name}',
             '{'
         )
-        f.indent()
+        f.indent() #asdf
 
         current_offset = 0
         for attribute in attributes:
             input = attribute.input
             input_directive = directives.input_directives_by_input_name.get(input.name, InputDirective())
             cs_type = get_cs_type(input, input_directive)
+            if attribute.directive.hint:
+                f.write_line(f'[VertexAttributeHint("{make_cs_string_literal(attribute.directive.hint)}")]')
             f.write_line(f'[FieldOffset({current_offset})] public {cs_type} {input.name};')
             attribute.offset = current_offset
             current_offset += cs_sizes[cs_type]

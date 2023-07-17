@@ -1,15 +1,12 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <ItemGroup>
-<!--        <EmbeddedResource Include="**\*.spv"/>-->
-<!--        <EmbeddedResource Include="**\*.metal" />-->
-    </ItemGroup>
-    
-    <ItemGroup>
         <GlslVertFile Include="**\*.vert.glsl">
+            <GgenVersionFile>%(RecursiveDir)%(Filename).ggen_version</GgenVersionFile>
             <CsFile>%(RecursiveDir)$([System.IO.Path]::GetFileNameWithoutExtension('%(Filename)')).Generated.cs</CsFile>
             <LogicalDirectory>$(MSBuildProjectName).$([System.String]::new('%(RecursiveDir)').Replace('/', '.'))</LogicalDirectory>
         </GlslVertFile>
         <GlslFragFile Include="**\*.frag.glsl">
+            <GgenVersionFile>%(RecursiveDir)%(Filename).ggen_version</GgenVersionFile>
             <LogicalDirectory>$(MSBuildProjectName).$([System.String]::new('%(RecursiveDir)').Replace('/', '.'))</LogicalDirectory>
         </GlslFragFile>
     </ItemGroup>
@@ -19,13 +16,6 @@
             <Link>%(RelativeDir)/%(Filename).%(Extension)</Link>
         </GgenScript>
     </ItemGroup>
-
-    <PropertyGroup>
-        <GgenReceiptFile>ggenreceipt.txt</GgenReceiptFile>
-        <GgenSpvTargetReceiptFile>ggen_spv_receipt.txt</GgenSpvTargetReceiptFile>
-        <GgenMetalTargetReceiptFile>ggen_metal_receipt.txt</GgenMetalTargetReceiptFile>
-        <GgenCsTargetReceiptFile>ggen_cs_receipt.txt</GgenCsTargetReceiptFile>
-    </PropertyGroup>
     
     <ItemGroup>
         <Compile Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)')">
@@ -53,89 +43,22 @@
         </EmbeddedResource>
     </ItemGroup>
     
-
-    <Target Name="ggen" Inputs="@(GgenScript)" Outputs="$(IntermediateOutputPath)$(GgenReceiptFile)">
-        <!-- This target doesn't need to do anything, since we don't need to build the python scripts.
-            Having this target however allows the generated shader files to be invalided when the ggen script has changed. -->
-        <Touch Files="$(IntermediateOutputPath)$(GgenReceiptFile)" AlwaysCreate="true" />
-        <Message Importance="high" Text="ggen script has changed. Generated shader files will be rebuilt."/>
+    <Target Name="ggen" BeforeTargets="Build;BeforeBuild;DispatchToInnerBuilds">
+        <Message Importance="high" Text="Running ggen..." />
+        <Exec
+            WorkingDirectory="$(MSBuildThisFileDirectory)"
+            Command="python3 -m ggen &quot;$(MSBuildProjectDirectory)&quot; --ggen-script-files &quot;@(GgenScript)&quot; --files &quot;@(GlslVertFile -> '%(FullPath)');@(GlslFragFile -> '%(FullPath)')&quot; --output-dir &quot;$(MSBuildProjectDirectory)/$(IntermediateOutputPath)ggen&quot;" 
+        />
         <ItemGroup>
-            <FileWrites Include="$(IntermediateOutputPath)$(GgenReceiptFile)" />
-        </ItemGroup>
-    </Target>
-    
-    <!--
-        ===== 
-        Generated Shader CS Files
-        ===== 
-    -->
-
-    <Target Name="ShaderGenCs" 
-            BeforeTargets="Build;BeforeBuild;DispatchToInnerBuilds"
-            Inputs="$(IntermediateOutputPath)$(GgenReceiptFile);
-                @(GlslVertFile);
-                @(GlslFragFile)"
-            Outputs="$(IntermediateOutputPath)$(GgenCsTargetReceiptFile);
-                @(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)');
-                @(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).cs_fraginput_dummyoutput')"
-            DependsOnTargets="ggen">
-        <Touch Files="$(IntermediateOutputPath)$(GgenCsTargetReceiptFile)" AlwaysCreate="true" />
-        <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="python3 -m ggen &quot;$(MSBuildProjectDirectory)&quot; --files &quot;@(GlslVertFile -> '%(FullPath)')&quot; --targets csclass --output-dir &quot;$(IntermediateOutputPath)ggen&quot;" />
-        <Touch Files="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).cs_fraginput_dummyoutput')" AlwaysCreate="true" />
-        <ItemGroup>
-            <FileWrites Include="$(IntermediateOutputPath)$(GgenCsTargetReceiptFile);
-                @(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)');
-                @(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).cs_fraginput_dummyoutput')" />
-        </ItemGroup>
-        
-    </Target>
-
-    <!--
-        ===== 
-        Compile OpenGL-compatible SpirV files
-        ===== 
-    -->
-
-    <Target Name="ShaderGenOpenGlSpirV"
-            BeforeTargets="Build;BeforeBuild;DispatchToInnerBuilds"
-            Inputs="$(IntermediateOutputPath)$(GgenReceiptFile);
-                @(GlslVertFile);
-                @(GlslFragFile)"
-            Outputs="$(IntermediateOutputPath)$(GgenSpvTargetReceiptFile);
-                @(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename)_gl.spv');
-                @(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename)_gl.spv')"
-            DependsOnTargets="ggen">
-        <Touch Files="$(IntermediateOutputPath)$(GgenSpvTargetReceiptFile)" AlwaysCreate="true" />
-        <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="python3 -m ggen &quot;$(MSBuildProjectDirectory)&quot; --files &quot;@(GlslFile -> '%(FullPath)')&quot; --targets opengl_spirv --output-dir &quot;$(IntermediateOutputPath)ggen&quot;" />
-        <ItemGroup>
-            <FileWrites Include="$(IntermediateOutputPath)$(GgenSpvTargetReceiptFile);
-                @(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename)_gl.spv');
-                @(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename)_gl.spv')" />
-        </ItemGroup>
-    </Target>
-
-    
-    <!--
-        ===== 
-        Transpile Metal shader source
-        ===== 
-    -->
-
-    <Target Name="ShaderGenMetalInner"
-            BeforeTargets="Build;BeforeBuild;DispatchToInnerBuilds"
-            Inputs="$(IntermediateOutputPath)$(GgenReceiptFile);
-                @(GlslVertFile);
-                @(GlslFragFile)"
-            Outputs="$(IntermediateOutputPath)$(GgenMetalTargetReceiptFile);
-                @(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).metal');
-                @(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).metal')"
-            DependsOnTargets="ggen">
-        <Touch Files="$(IntermediateOutputPath)$(GgenMetalTargetReceiptFile)" AlwaysCreate="true" />
-        <Exec WorkingDirectory="$(MSBuildThisFileDirectory)" Command="python3 -m ggen &quot;$(MSBuildProjectDirectory)&quot; --files &quot;@(GlslFile -> '%(FullPath)')&quot; --targets metal --output-dir &quot;$(IntermediateOutputPath)ggen&quot;" />
-        <ItemGroup>
-            <FileWrites Include="$(IntermediateOutputPath)$(GgenMetalTargetReceiptFile);
-                @(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).metal');
-                @(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).metal')" />
+            <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)')" />
+            <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).spv')" />
+            <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).spv')" />
+            <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).reflection.json')" />
+            <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).reflection.json')" />
+            <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename)_gl.spv')" />
+            <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename)_gl.spv')" />
+            <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).metal')" />
+            <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).metal')" />
         </ItemGroup>
     </Target>
     
