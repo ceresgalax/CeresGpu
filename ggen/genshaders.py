@@ -443,9 +443,9 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         step_mode = 'PerVertex' if attributes[0].directive.step_mode == StepMode.PER_VERTEX else 'PerInstance'
         f.write_line(
             'new VertexBufferLayout() {',
-            # f'    BufferIndex = VERT_BUFFER_INDEX_{structure_name},',
             f'    StepFunction = VertexStepFunction.{step_mode},',
-            f'    Stride = {strides_by_structure[structure_name]}',
+            f'    Stride = {strides_by_structure[structure_name]},',
+            f'    BufferType = typeof({structure_name})',
             '},'
         )
 

@@ -22,6 +22,8 @@ argparser.add_argument('--files', help="List of file paths to glsl files. Option
 
 argparser.add_argument('--ggen-script-files')
 
+argparser.add_argument('--rebuild', default=False, action='store_true')
+
 argparser.add_argument('--output-dir',
                        help='Directory to output generated cs files to.')
 
@@ -244,7 +246,7 @@ def process_shaders(args):
     
     dirty_nodes = graph.find_dirty_nodes(min_modtime)
     for node in graph.walk():
-        if node not in dirty_nodes:
+        if node not in dirty_nodes and not args.rebuild:
             continue
         
         print(f'[{node.action}] {node.filepath}')
