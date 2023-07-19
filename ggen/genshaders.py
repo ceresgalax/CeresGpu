@@ -95,8 +95,8 @@ class InputDirective(object):
 class ShaderDirectives(object):
     def __init__(self):
         self.full_class_name = ''
-        self.field_name = ''
         self.input_directives_by_input_name: Dict[str, InputDirective] = {}
+        self.descriptor_field_hints_by_name: Dict[str, str] = {}
 
 
 class Shader(object):
@@ -132,7 +132,7 @@ class SourceWriter(object):
             self.f.write('\n')
 
 
-directive_pattern = re.compile(r'\/\/\s*#(\w+):\s*(\S+)')
+directive_pattern = re.compile(r'\/\/\s*#(\w+):\s*([^\n]+)')
 input_pattern = re.compile(r'layout\s*\(.*\)\s*in\s*\w+\s*(\w+);\s*\/\/\s*#input\s*(.*)')
 
 
@@ -215,9 +215,11 @@ def parse_shader_directives(path: str) -> ShaderDirectives:
                 directive_value = directive_match.group(2)
 
                 if directive_name == 'CSNAME':
-                    data.full_class_name = directive_value
-                elif directive_name == 'CSFIELD':
-                    data.field_name = directive_value
+                    data.full_class_name = directive_value.strip()
+                    
+                if directive_name == 'DescriptorHint':
+                    name, hint = [part.strip() for part in directive_value.strip().split('=', maxsplit=2)]
+                    data.descriptor_field_hints_by_name[name] = hint
 
             input_match = input_pattern.search(line)
             if input_match:
@@ -358,9 +360,8 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     # Emit Structures
     for reflection in shader.reflections_by_stage.values():
         for type in reflection.types.values():
-            gen_structure(f, type, reflection)
+            gen_structure(f, type, reflection, shader.directives.descriptor_field_hints_by_name)
 
-    # inputs_by_name = {input.name: input for input in reflection.inputs}
     input_attributes_by_structure: Dict[str, List[InputAttribute]] = {}
     strides_by_structure: Dict[str, int] = {}
 
@@ -379,7 +380,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             f'public struct {structure_name}',
             '{'
         )
-        f.indent() #asdf
+        f.indent()
 
         current_offset = 0
         for attribute in attributes:
@@ -387,7 +388,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             input_directive = directives.input_directives_by_input_name.get(input.name, InputDirective())
             cs_type = get_cs_type(input, input_directive)
             if attribute.directive.hint:
-                f.write_line(f'[VertexAttributeHint("{make_cs_string_literal(attribute.directive.hint)}")]')
+                f.write_line(f'[Hint("{make_cs_string_literal(attribute.directive.hint)}")]')
             f.write_line(f'[FieldOffset({current_offset})] public {cs_type} {input.name};')
             attribute.offset = current_offset
             current_offset += cs_sizes[cs_type]
@@ -679,7 +680,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     f.write_line('}')
 
 
-def gen_structure(f: SourceWriter, shader_type: ShaderType, reflection: SpirvReflection):
+def gen_structure(f: SourceWriter, shader_type: ShaderType, reflection: SpirvReflection, hints: Dict[str, str]):
     size = -1
     for member in shader_type.members:
         if len(member.array_sizes) == 1 and member.array_sizes[0] == 0:
@@ -701,6 +702,10 @@ def gen_structure(f: SourceWriter, shader_type: ShaderType, reflection: SpirvRef
             type_name = reflection.types[member.type].name
         else:
             type_name = spirv_to_cs_types[member.type]
+        
+        hint = hints.get(f'{shader_type.name}.{member.name}')
+        if hint:
+            f.write_line(f'[Hint("{make_cs_string_literal(hint)}")]')
 
         f.write_line(f'[FieldOffset({member.offset})] public {type_name} {member.name};')
 
