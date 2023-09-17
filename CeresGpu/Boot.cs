@@ -55,7 +55,7 @@ namespace CeresGpu
         {
             WindowHints hints = MakeWindowHints();
             hints.Maximized = maximized;
-            return MakeWindow(MakeWindowHints(), width, height, title);
+            return MakeWindow(hints, width, height, title);
         }
 
         public static IRenderer MakeRenderer(GLFWWindow window)
