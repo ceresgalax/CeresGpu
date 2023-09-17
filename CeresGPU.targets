@@ -20,12 +20,17 @@
         </GgenScript>
     </ItemGroup>
     
-    <!--
+    
     <ItemGroup>
+        <!-- 
+            Define as an Item outside of the Target so that IDEs can pick up on these files.
+            This seemed to be an issue with Rider, not sure if it's an issue with Visual Studio or not. 
+        -->
         <Compile Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)')">
             <Link>%(CsFile)</Link>
         </Compile>
-        
+
+        <!--
         <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).spv')">
             <LogicalName>%(LogicalDirectory)%(Filename).spv</LogicalName>
         </EmbeddedResource>
@@ -35,7 +40,7 @@
         <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).metal')">
             <LogicalName>%(LogicalDirectory)%(Filename).metal</LogicalName>
         </EmbeddedResource>
-
+    
         <EmbeddedResource Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).spv')">
             <LogicalName>%(LogicalDirectory)%(Filename).spv</LogicalName>
         </EmbeddedResource>
@@ -45,8 +50,9 @@
         <EmbeddedResource Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).metal')">
             <LogicalName>%(LogicalDirectory)%(Filename).metal</LogicalName>
         </EmbeddedResource>
+        -->
     </ItemGroup>
-    -->
+
     
     <Target Name="ggen" BeforeTargets="Build;BeforeBuild;DispatchToInnerBuilds">
         <Message Importance="high" Text="Running ggen..." />
@@ -59,6 +65,7 @@
         />
         <ItemGroup>
 
+            <Compile Remove="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)')" />
             <Compile Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)')">
                 <Link>%(GlslVertFile.CsFile)</Link>
             </Compile>
