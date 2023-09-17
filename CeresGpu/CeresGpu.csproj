@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\CeresGLFW\CeresGLFW\CeresGLFW.csproj" />
+    <ProjectReference Include="..\CeresGpuTasks\CeresGpuTasks.csproj" />
   </ItemGroup>
 
   <ItemGroup>

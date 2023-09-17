@@ -1,13 +1,16 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    
+    <UsingTask TaskName="FindPythonTask" AssemblyFile="$(MSBuildThisFileDirectory)/CeresGpuTasks/bin/Debug/net6.0/CeresGpuTasks.dll"/>
+    
     <ItemGroup>
         <GlslVertFile Include="**\*.vert.glsl">
             <GgenVersionFile>%(RecursiveDir)%(Filename).ggen_version</GgenVersionFile>
             <CsFile>%(RecursiveDir)$([System.IO.Path]::GetFileNameWithoutExtension('%(Filename)')).Generated.cs</CsFile>
-            <LogicalDirectory>$(MSBuildProjectName).$([System.String]::new('%(RecursiveDir)').Replace('/', '.'))</LogicalDirectory>
+            <LogicalDirectory>$(MSBuildProjectName).$([System.String]::new('%(RecursiveDir)').Replace('/', '.').Replace('\', '.'))</LogicalDirectory>
         </GlslVertFile>
         <GlslFragFile Include="**\*.frag.glsl">
             <GgenVersionFile>%(RecursiveDir)%(Filename).ggen_version</GgenVersionFile>
-            <LogicalDirectory>$(MSBuildProjectName).$([System.String]::new('%(RecursiveDir)').Replace('/', '.'))</LogicalDirectory>
+            <LogicalDirectory>$(MSBuildProjectName).$([System.String]::new('%(RecursiveDir)').Replace('/', '.').Replace('\', '.'))</LogicalDirectory>
         </GlslFragFile>
     </ItemGroup>
     
@@ -17,6 +20,7 @@
         </GgenScript>
     </ItemGroup>
     
+    <!--
     <ItemGroup>
         <Compile Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)')">
             <Link>%(CsFile)</Link>
@@ -42,14 +46,44 @@
             <LogicalName>%(LogicalDirectory)%(Filename).metal</LogicalName>
         </EmbeddedResource>
     </ItemGroup>
+    -->
     
     <Target Name="ggen" BeforeTargets="Build;BeforeBuild;DispatchToInnerBuilds">
         <Message Importance="high" Text="Running ggen..." />
+        <FindPythonTask>
+            <Output TaskParameter="PythonPath" PropertyName="Python" />
+        </FindPythonTask>
         <Exec
             WorkingDirectory="$(MSBuildThisFileDirectory)"
-            Command="python3 -m ggen &quot;$(MSBuildProjectDirectory)&quot; --ggen-script-files &quot;@(GgenScript)&quot; --files &quot;@(GlslVertFile -> '%(FullPath)');@(GlslFragFile -> '%(FullPath)')&quot; --output-dir &quot;$(MSBuildProjectDirectory)/$(IntermediateOutputPath)ggen&quot;" 
+            Command="$(Python) -m ggen &quot;$(MSBuildProjectDirectory)&quot; --ggen-script-files &quot;@(GgenScript)&quot; --files &quot;@(GlslVertFile -> '%(FullPath)');@(GlslFragFile -> '%(FullPath)')&quot; --output-dir &quot;$(MSBuildProjectDirectory)/$(IntermediateOutputPath)ggen&quot;" 
         />
         <ItemGroup>
+
+            <Compile Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)')">
+                <Link>%(GlslVertFile.CsFile)</Link>
+            </Compile>
+            
+            <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).spv')">
+                <LogicalName>%(GlslVertFile.LogicalDirectory)%(GlslVertFile.Filename).spv</LogicalName>
+            </EmbeddedResource>
+            <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename)_gl.spv')">
+                <LogicalName>%(GlslVertFile.LogicalDirectory)%(GlslVertFile.Filename)_gl.spv</LogicalName>
+            </EmbeddedResource>
+            <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).metal')">
+                <LogicalName>%(GlslVertFile.LogicalDirectory)%(GlslVertFile.Filename).metal</LogicalName>
+            </EmbeddedResource>
+            <EmbeddedResource Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).spv')">
+                <LogicalName>%(GlslFragFile.LogicalDirectory)%(GlslFragFile.Filename).spv</LogicalName>
+            </EmbeddedResource>
+            <EmbeddedResource Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename)_gl.spv')">
+                <LogicalName>%(GlslFragFile.LogicalDirectory)%(GlslFragFile.Filename)_gl.spv</LogicalName>
+            </EmbeddedResource>
+            <EmbeddedResource Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).metal')">
+                <LogicalName>%(GlslFragFile.LogicalDirectory)%(GlslFragFile.Filename).metal</LogicalName>
+            </EmbeddedResource>
+            
+            
+            <!--
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)')" />
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).spv')" />
             <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).spv')" />
@@ -59,6 +93,7 @@
             <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename)_gl.spv')" />
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).metal')" />
             <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).metal')" />
+            -->
         </ItemGroup>
     </Target>
     
