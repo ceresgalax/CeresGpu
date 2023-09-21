@@ -1,6 +1,6 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     
-    <UsingTask TaskName="FindPythonTask" AssemblyFile="$(MSBuildThisFileDirectory)/CeresGpuTasks/bin/Debug/net6.0/CeresGpuTasks.dll"/>
+    <UsingTask TaskName="FindPythonTask" AssemblyFile="$(MSBuildThisFileDirectory)CeresGpuTasks/bin/Debug/net5.0/CeresGpuTasks.dll"/>
     
     <ItemGroup>
         <GlslVertFile Include="**\*.vert.glsl">
@@ -54,7 +54,7 @@
     </ItemGroup>
 
     
-    <Target Name="ggen" BeforeTargets="Build;BeforeBuild;DispatchToInnerBuilds">
+    <Target Name="ggen" AfterTargets="AfterResolveReferences" BeforeTargets="BeforeCompile;PrepareResourceNames">
         <Message Importance="high" Text="Running ggen..." />
         <FindPythonTask>
             <Output TaskParameter="PythonPath" PropertyName="Python" />
