@@ -32,8 +32,10 @@ public class FindPythonTask : Task
                 return true;
             }
         }
+
+        string triedPythonsString = string.Join(", ", pythons);
         
-        Log.LogError($"Couldn't not find python on the PATH. Tried: {pythons}");
+        Log.LogError($"Couldn't not find python on the PATH. Tried: {triedPythonsString}");
         return false;
     }
     

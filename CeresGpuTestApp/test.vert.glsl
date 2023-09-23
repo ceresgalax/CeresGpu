@@ -1,4 +1,4 @@
-// #CSNAME:CeresGpu.Graphics.Test.TestShader
+// #CSNAME:CeresGpuTestApp.TestShader
 // #CSFIELD:Vertex
 #version 450 
 

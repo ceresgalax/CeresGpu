@@ -27,6 +27,49 @@ namespace CeresGpu.Graphics.OpenGL
             gl.Init(new GlfwGLLoader());
             _context = new(gl, Thread.CurrentThread);
             _window = window;
+
+            Span<int> pMajorVersion = stackalloc int[1];
+            Span<int> pMinorVersion = stackalloc int[1];
+            Span<int> pContextFlags = stackalloc int[1];
+            gl.GetIntegerv(GetPName.MAJOR_VERSION, pMajorVersion);
+            gl.GetIntegerv(GetPName.MINOR_VERSION, pMinorVersion);
+            gl.GetIntegerv(GetPName.CONTEXT_FLAGS, pContextFlags);
+
+            int majorVersion = pMajorVersion[0];
+            int minorVersion = pMinorVersion[0];
+            int flags = pContextFlags[0];
+            
+            Console.WriteLine($"OpenGLRenderer: OpenGL version {majorVersion}.{minorVersion}, context flags: {flags}");
+            
+            // TODO: Fix parameter validation in gl.GetIntegerv
+            
+            // Get supported shader binary formats
+            int numShaderBinaryFormats = 0;
+            unsafe {
+                gl.glGetIntegerv((uint)GetPName.NUM_SHADER_BINARY_FORMATS, (IntPtr)(&numShaderBinaryFormats));
+            }
+            
+            int[] formats = new int[numShaderBinaryFormats];
+            unsafe {
+                fixed (int* pFormats = formats) {
+                    gl.glGetIntegerv((uint)GetPName.SHADER_BINARY_FORMATS, (IntPtr)(pFormats));
+                }
+            }
+
+            bool supportsSpirV = false;
+            
+            foreach(int formatInt in formats) {
+                ShaderBinaryFormat format = (ShaderBinaryFormat)formatInt;
+                Console.WriteLine($"OpenGLRenderer: Supports Shader Binary Format {Enum.GetName(format)}");
+                if (format == ShaderBinaryFormat.SHADER_BINARY_FORMAT_SPIR_V)
+                {
+                    supportsSpirV = true;
+                } 
+            }
+
+            if (!supportsSpirV) {
+                throw new InvalidOperationException("This device does not support SPIR-V shader binaries. As OpenGL does not support selecting GPUs, please set a different GPU for this app in your GPU settings.");
+            }
             
             gl.Enable(EnableCap.SCISSOR_TEST);
         }

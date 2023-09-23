@@ -22,9 +22,10 @@ namespace CeresGpu
                 hints.ClientApi = Api.NoAPI;    
             } else {
                 hints.ContextVersionMajor = 4;
-                hints.ContextVersionMinor = 1;
+                //hints.ContextVersionMinor = 1;
+                hints.ContextVersionMinor = 6;
                 hints.OpenGLProfile = OpenGLProfile.Core;
-                hints.OpenGLForwardCompat = true;    
+                hints.OpenGLForwardCompat = true;
             }
             
             // GLFW ignores this for macOS. Needed for windows to scale according to size.

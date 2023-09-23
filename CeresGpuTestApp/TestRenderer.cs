@@ -1,16 +1,17 @@
 using System;
 using System.IO;
 using System.Numerics;
+using CeresGpu.Graphics;
 using CeresGpu.Graphics.Shaders;
 using SkiaSharp;
 
-namespace CeresGpu.Graphics.Test
+namespace CeresGpuTestApp
 {
-    public class TestRenderer
+    public sealed class TestRenderer : IDisposable
     {
-        private IPipeline<TestShader> _pipeline;
-        private TestShader.Instance _shaderInstance;
-        private IBuffer<TestShader.Vertex> _vbo;
+        private readonly IPipeline<TestShader> _pipeline;
+        private readonly TestShader.Instance _shaderInstance;
+        private readonly IBuffer<TestShader.Vertex> _vbo;
         private IBuffer<ushort> _indexBuffer;
         private IBuffer<TestShader.VertUniforms> _ubo;
         private ITexture _texture;
@@ -57,9 +58,20 @@ namespace CeresGpu.Graphics.Test
         
         private void LoadTexture(string path, ITexture texture)
         {
-            using FileStream stream = new(path, FileMode.Open, FileAccess.Read);
+            using Stream stream = GetType().Assembly.GetManifestResourceStream("CeresGpuTestApp.test.png")!;
+            //using FileStream stream = new(path, FileMode.Open, FileAccess.Read);
             using SKBitmap bitmap = SKBitmap.Decode(stream);
             texture.Set(bitmap);
+        }
+
+        public void Dispose()
+        {
+            _pipeline.Dispose();
+            _shaderInstance.Dispose();
+            _vbo.Dispose();
+            _indexBuffer.Dispose();
+            _ubo.Dispose();
+            _texture.Dispose();
         }
     }
 }
