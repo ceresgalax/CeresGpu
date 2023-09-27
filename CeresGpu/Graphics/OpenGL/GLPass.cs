@@ -15,7 +15,7 @@ namespace CeresGpu.Graphics.OpenGL
         private GLShaderInstanceBacking? _shaderInstanceBacking;
         private bool _instanceUpdated;
 
-        private uint _attachmentWidth, _attachmentHeight;
+        private readonly uint _attachmentWidth, _attachmentHeight;
         
         public ScissorRect CurrentDynamicScissor { get; }
         public Viewport CurrentDynamicViewport { get; }
@@ -58,7 +58,7 @@ namespace CeresGpu.Graphics.OpenGL
         {
             CheckCurrent();
             GL gl = _renderer.GLProvider.Gl;
-            
+            // OpenGL scissor coords originate from bottom-left, CeresGPU scissor coords originate from top-left.
             int y = (int)_attachmentHeight - scissor.Y - (int)scissor.Height;
             gl.Scissor(scissor.X, y, (int)scissor.Width, (int)scissor.Height);
         }
@@ -67,7 +67,9 @@ namespace CeresGpu.Graphics.OpenGL
         {
             CheckCurrent();
             GL gl = _renderer.GLProvider.Gl;
-            gl.Viewport((int)viewport.X, (int)viewport.Y, (int)viewport.Width, (int)viewport.Height);
+            // OpenGL viewport coords originate from bottom-left, CeresGPU viewport coords originate from top-left.
+            uint y = _attachmentHeight - viewport.Y - viewport.Height;
+            gl.Viewport((int)viewport.X, (int)y, (int)viewport.Width, (int)viewport.Height);
         }
 
         public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
