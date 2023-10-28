@@ -98,28 +98,6 @@ public class FindPythonTask : Task
         <Compile Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)')">
             <Link>%(CsFile)</Link>
         </Compile>
-
-        <!--
-        <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).spv')">
-            <LogicalName>%(LogicalDirectory)%(Filename).spv</LogicalName>
-        </EmbeddedResource>
-        <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename)_gl.spv')">
-            <LogicalName>%(LogicalDirectory)%(Filename)_gl.spv</LogicalName>
-        </EmbeddedResource>
-        <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).metal')">
-            <LogicalName>%(LogicalDirectory)%(Filename).metal</LogicalName>
-        </EmbeddedResource>
-    
-        <EmbeddedResource Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).spv')">
-            <LogicalName>%(LogicalDirectory)%(Filename).spv</LogicalName>
-        </EmbeddedResource>
-        <EmbeddedResource Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename)_gl.spv')">
-            <LogicalName>%(LogicalDirectory)%(Filename)_gl.spv</LogicalName>
-        </EmbeddedResource>
-        <EmbeddedResource Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).metal')">
-            <LogicalName>%(LogicalDirectory)%(Filename).metal</LogicalName>
-        </EmbeddedResource>
-        -->
     </ItemGroup>
 
     
@@ -142,8 +120,8 @@ public class FindPythonTask : Task
             <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).spv')">
                 <LogicalName>%(GlslVertFile.LogicalDirectory)%(GlslVertFile.Filename).spv</LogicalName>
             </EmbeddedResource>
-            <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename)_gl.spv')">
-                <LogicalName>%(GlslVertFile.LogicalDirectory)%(GlslVertFile.Filename)_gl.spv</LogicalName>
+            <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename)_gl.glsl')">
+                <LogicalName>%(GlslVertFile.LogicalDirectory)%(GlslVertFile.Filename)_gl.glsl</LogicalName>
             </EmbeddedResource>
             <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).metal')">
                 <LogicalName>%(GlslVertFile.LogicalDirectory)%(GlslVertFile.Filename).metal</LogicalName>
@@ -151,8 +129,8 @@ public class FindPythonTask : Task
             <EmbeddedResource Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).spv')">
                 <LogicalName>%(GlslFragFile.LogicalDirectory)%(GlslFragFile.Filename).spv</LogicalName>
             </EmbeddedResource>
-            <EmbeddedResource Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename)_gl.spv')">
-                <LogicalName>%(GlslFragFile.LogicalDirectory)%(GlslFragFile.Filename)_gl.spv</LogicalName>
+            <EmbeddedResource Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename)_gl.glsl')">
+                <LogicalName>%(GlslFragFile.LogicalDirectory)%(GlslFragFile.Filename)_gl.glsl</LogicalName>
             </EmbeddedResource>
             <EmbeddedResource Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).metal')">
                 <LogicalName>%(GlslFragFile.LogicalDirectory)%(GlslFragFile.Filename).metal</LogicalName>
@@ -165,8 +143,8 @@ public class FindPythonTask : Task
             <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).spv')" />
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).reflection.json')" />
             <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).reflection.json')" />
-            <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename)_gl.spv')" />
-            <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename)_gl.spv')" />
+            <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename)_gl.glsl')" />
+            <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename)_gl.glsl')" />
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).metal')" />
             <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).metal')" />
             -->

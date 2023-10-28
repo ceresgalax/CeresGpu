@@ -58,11 +58,11 @@ def compile_to_spv(node: Node):
 def spv_to_opengl(node: Node):
     input_path = node.tagged_inputs[0][1].filepath
     output_path = node.filepath
-    gl_defines = [
-        '-Dgl_VertexIndex=gl_VertexID',
-        '-Dgl_InstanceIndex=gl_InstanceID'
-    ]
-    subprocess.check_call([GLSLANG_BINARY, '-G100', *gl_defines, '-o', output_path, input_path])
+    # gl_defines = [
+    #     '-Dgl_VertexIndex=gl_VertexID',
+    #     '-Dgl_InstanceIndex=gl_InstanceID'
+    # ]
+    subprocess.check_call([SPIRV_CROSS_BINARY, '--output', output_path, input_path])
 
 
 def spv_to_metal(node: Node):
@@ -211,13 +211,13 @@ def process_shaders(args):
             filename_no_ext = os.path.splitext(os.path.basename(path))[0]
             output_no_ext = os.path.join(rel_out_dir, filename_no_ext)
             spv_path = output_no_ext + '.spv'
-            opengl_path = output_no_ext + '_gl.spv'
+            opengl_path = output_no_ext + '_gl.glsl'
             metal_path = output_no_ext + '.metal'
             reflection_path = output_no_ext + '.reflection.json'
             
             spv_node = Node(spv_path, ACTION_COMPILE_TO_SPV, [('', source_node)])
             
-            opengl_node = Node(opengl_path, ACTION_COMPILE_TO_OPENGL, [('', source_node)])
+            opengl_node = Node(opengl_path, ACTION_COMPILE_TO_OPENGL, [('', spv_node)])
             graph.root_nodes.append(opengl_node)
             
             metal_node = Node(metal_path, ACTION_SPVCROSS_METAL, [('', spv_node)])

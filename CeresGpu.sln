@@ -1,8 +1,6 @@
 ﻿Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CeresGpu", "CeresGpu\CeresGpu.csproj", "{3B821FB7-52F8-4DCF-85E9-AC1013E60A02}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CeresGpuTasks", "CeresGpuTasks\CeresGpuTasks.csproj", "{CE61CD21-FC65-499F-8313-C556D3471DCE}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CeresGpuTestApp", "CeresGpuTestApp\CeresGpuTestApp.csproj", "{750B041C-54B9-4893-A815-26A0E9CF237C}"
 EndProject
 Global
@@ -15,10 +13,6 @@ Global
 		{3B821FB7-52F8-4DCF-85E9-AC1013E60A02}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3B821FB7-52F8-4DCF-85E9-AC1013E60A02}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3B821FB7-52F8-4DCF-85E9-AC1013E60A02}.Release|Any CPU.Build.0 = Release|Any CPU
-		{CE61CD21-FC65-499F-8313-C556D3471DCE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CE61CD21-FC65-499F-8313-C556D3471DCE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CE61CD21-FC65-499F-8313-C556D3471DCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CE61CD21-FC65-499F-8313-C556D3471DCE}.Release|Any CPU.Build.0 = Release|Any CPU
 		{750B041C-54B9-4893-A815-26A0E9CF237C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{750B041C-54B9-4893-A815-26A0E9CF237C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{750B041C-54B9-4893-A815-26A0E9CF237C}.Release|Any CPU.ActiveCfg = Release|Any CPU
