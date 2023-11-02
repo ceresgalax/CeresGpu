@@ -47,6 +47,9 @@ def main():
     prototypes = []
         
     for line in lines:
+        if line.lstrip().startswith('//'):
+            continue
+    
         prototype_match = PROTOTYPE_PATTERN.match(line)
         if prototype_match:
             prototypes.append(parse_prorotype(prototype_match))
@@ -62,7 +65,9 @@ def main():
         parse_enum_header(os.path.join(metal_headers_path, 'MTLStageInputOutputDescriptor.h'), 'MTLIndexType'),
         parse_enum_header(os.path.join(metal_headers_path, 'MTLRenderCommandEncoder.h'), 'MTLCullMode'),
         parse_enum_header(os.path.join(metal_headers_path, 'MTLSampler.h'), 'MTLSamplerMinMagFilter'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLSampler.h'), 'MTLSamplerMipFilter')
+        parse_enum_header(os.path.join(metal_headers_path, 'MTLSampler.h'), 'MTLSamplerMipFilter'),
+        parse_enum_header(os.path.join(metal_headers_path, 'MTLRenderPass.h'), 'MTLLoadAction'),
+        parse_enum_header(os.path.join(metal_headers_path, 'MTLRenderPass.h'), 'MTLStoreAction')
     ]
     
     with open(cs_out_path, 'w') as f:
@@ -104,7 +109,11 @@ def parse_prorotype(match: Match) -> FunctionPrototype:
     param_text = match.group('params')
     
     param_strings = [p.strip() for p in param_text.split(',')]
-    params = [parse_param(p) for p in param_strings]
+    
+    if len(param_strings) == 1 and param_strings[0].strip() == 'void':
+        params = []
+    else:
+        params = [parse_param(p) for p in param_strings]
     
     return FunctionPrototype(return_type, name, params)
 

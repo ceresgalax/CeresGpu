@@ -15,6 +15,6 @@ namespace CeresGpu.Graphics
         void DrawIndexedUshort(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset, uint firstInstance);
         void DrawIndexedUint(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset, uint firstInstance);
 
-        void Clear(Viewport rect, Vector4 color);
+        //void Clear(Viewport rect, Vector4 color);
     }
 }

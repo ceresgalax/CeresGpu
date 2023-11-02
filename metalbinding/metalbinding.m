@@ -70,7 +70,7 @@ void metalbinding_destroy(MetalBindingContext* context) {
     free(context);
 }
 
-//void metalbinding_set_prefered_frames_per_second(MetalBindingContext* context, int frameRate) {
+//void metalbinding_set_prefered_framexs_per_second(MetalBindingContext* context, int frameRate) {
 //    context->view.preferredFramesPerSecond = frameRate;
 //}
 
@@ -137,30 +137,76 @@ void metalbinding_set_content_scale(MetalBindingContext* context, float scale, u
     [context->layer setDrawableSize:CGSizeMake(drawableWidth * scale, drawableHeight * scale)];
 }
 
-//
-// Render Pass Descriptors
-//
-MTLRenderPassDescriptor* metalbinding_create_current_frame_render_pass_descriptor(MetalBindingContext* context, bool clear, float r, float g, float b, float a) NS_RETURNS_RETAINED {
+id<MTLTexture> metalbinding_get_current_frame_drawable_texture(MetalBindingContext* context) {
     if (!context->currentDrawable) {
         NSLog(@"BAD: No current drawable.");
         return NULL;
     }
-    
+    return context->currentDrawable.texture;
+}
+
+//
+// Render Pass Descriptors
+//
+MTLRenderPassDescriptor* metalbinding_create_render_pass_descriptor(void) NS_RETURNS_RETAINED {
+    // TODO: Do we need NS_RETURNS_RETAINED on this function and the related "metalbinding_release_render_pass_descriptor" function?
+    //       The [MTLRenderPassDescriptor renderPassDescriptor] method below states the the returned renderPassDescriptor is autoreleased..
     MTLRenderPassDescriptor* pass = [MTLRenderPassDescriptor renderPassDescriptor];
-    if (clear) {
-        pass.colorAttachments[0].clearColor = MTLClearColorMake(r, g, b, a);
-        pass.colorAttachments[0].loadAction = MTLLoadActionClear;
-    } else {
-        pass.colorAttachments[0].loadAction = MTLLoadActionDontCare;
-    }
-    pass.colorAttachments[0].storeAction = MTLStoreActionStore;
-    pass.colorAttachments[0].texture = context->currentDrawable.texture;
-    pass.depthAttachment.loadAction = MTLLoadActionClear;
-    pass.depthAttachment.storeAction = MTLStoreActionStore;
-    pass.depthAttachment.clearDepth = 1.0;
     return pass;
+}
+
+//MTLRenderPassDescriptor* metalbinding_create_current_frame_render_pass_descriptor(MetalBindingContext* context, bool clear, double r, double g, double b, double a) NS_RETURNS_RETAINED {
+//    if (!context->currentDrawable) {
+//        NSLog(@"BAD: No current drawable.");
+//        return NULL;
+//    }
+//
+//    MTLRenderPassDescriptor* pass = [MTLRenderPassDescriptor renderPassDescriptor];
+//    if (clear) {
+//        pass.colorAttachments[0].clearColor = MTLClearColorMake(r, g, b, a);
+//        pass.colorAttachments[0].loadAction = MTLLoadActionClear;
+//    } else {
+//        pass.colorAttachments[0].loadAction = MTLLoadActionDontCare;
+//    }
+//    pass.colorAttachments[0].storeAction = MTLStoreActionStore;
+//    pass.colorAttachments[0].texture = context->currentDrawable.texture;
+//
+//    // TODO: No texture is set to the depth attachment. Are we not using a depth buffer!?
+//    pass.depthAttachment.loadAction = MTLLoadActionClear;
+//    pass.depthAttachment.storeAction = MTLStoreActionStore;
+//    pass.depthAttachment.clearDepth = 1.0;
+//    return pass;
+//
+//    //return [context->view currentRenderPassDescriptor];
+//}
+
+
+void metalbinding_set_render_pass_descriptor_color_attachment(MTLRenderPassDescriptor* descriptor, uint32_t colorAttachmentIndex, id<MTLTexture> texture, MTLLoadAction loadAction, MTLStoreAction storeAction, double clearR, double clearG, double clearB, double clearA) {
+    MTLRenderPassColorAttachmentDescriptor* attachmentDescriptor = descriptor.colorAttachments[colorAttachmentIndex];
     
-    //return [context->view currentRenderPassDescriptor];
+    attachmentDescriptor.clearColor = MTLClearColorMake(clearR, clearG, clearB, clearA);
+    attachmentDescriptor.loadAction = loadAction;
+    attachmentDescriptor.storeAction = storeAction;
+    attachmentDescriptor.texture = texture;
+    
+    // TODO: Verify if this is really necesary.
+    // In the past there was an issue where just editing the returned descriptor didn't get applied to the descriptor
+    // in the attachment array, so I fear that the api is returning a pointer to a copy of the object instead of a reference.
+    descriptor.colorAttachments[colorAttachmentIndex] = attachmentDescriptor;
+}
+
+void metalbinding_set_render_pass_descriptor_depth_attachment(MTLRenderPassDescriptor* descriptor, id<MTLTexture> texture, MTLLoadAction loadAction, MTLStoreAction storeAction, double clearDepth) {
+    descriptor.depthAttachment.texture = texture;
+    descriptor.depthAttachment.clearDepth = clearDepth;
+    descriptor.depthAttachment.loadAction = loadAction;
+    descriptor.depthAttachment.storeAction = storeAction;
+}
+
+void metalbinding_set_render_pass_descriptor_stencil_attachment(MTLRenderPassDescriptor* descriptor, id<MTLTexture> texture, MTLLoadAction loadAction, MTLStoreAction storeAction, uint32_t clearStencil) {
+    descriptor.stencilAttachment.texture = texture;
+    descriptor.stencilAttachment.clearStencil = clearStencil;
+    descriptor.stencilAttachment.loadAction = loadAction;
+    descriptor.stencilAttachment.storeAction = storeAction;
 }
 
 void metalbinding_release_render_pass_descriptor(MTLRenderPassDescriptor* NS_RELEASES_ARGUMENT rpd) {}

@@ -106,14 +106,14 @@ namespace CeresGpu.Graphics.OpenGL
             gl.glDrawElementsInstancedBaseVertexBaseInstance((uint)PrimitiveType.TRIANGLES, (int)indexCount, (uint)DrawElementsType.UNSIGNED_INT, new IntPtr(indexBufferOffset), (int)instanceCount, (int)vertexOffset, firstInstance);
         }
 
-        public void Clear(Viewport rect, Vector4 color)
-        {
-            CheckCurrent();
-            GL gl = _renderer.GLProvider.Gl;
-            gl.Viewport((int)rect.X, (int)rect.Y, (int)rect.Width, (int)rect.Height);
-            gl.ClearColor(color.X, color.Y, color.Z, color.W);
-            gl.Clear(ClearBufferMask.COLOR_BUFFER_BIT);
-        }
+        // public void Clear(Viewport rect, Vector4 color)
+        // {
+        //     CheckCurrent();
+        //     GL gl = _renderer.GLProvider.Gl;
+        //     gl.Viewport((int)rect.X, (int)rect.Y, (int)rect.Width, (int)rect.Height);
+        //     gl.ClearColor(color.X, color.Y, color.Z, color.W);
+        //     gl.Clear(ClearBufferMask.COLOR_BUFFER_BIT);
+        // }
 
         public void Finish()
         {

@@ -31,7 +31,19 @@ namespace CeresGpu.MetalBinding
         public static extern void metalbinding_set_content_scale(IntPtr context, float scale, uint drawableWidth, uint drawableHeight);
         
         [DllImport(DLL_NAME)]
-        public static extern IntPtr metalbinding_create_current_frame_render_pass_descriptor(IntPtr context, bool clear, float r, float g, float b, float a);
+        public static extern IntPtr metalbinding_get_current_frame_drawable_texture(IntPtr context);
+        
+        [DllImport(DLL_NAME)]
+        public static extern IntPtr metalbinding_create_render_pass_descriptor();
+        
+        [DllImport(DLL_NAME)]
+        public static extern void metalbinding_set_render_pass_descriptor_color_attachment(IntPtr descriptor, uint colorAttachmentIndex, IntPtr texture, MTLLoadAction loadAction, MTLStoreAction storeAction, double clearR, double clearG, double clearB, double clearA);
+        
+        [DllImport(DLL_NAME)]
+        public static extern void metalbinding_set_render_pass_descriptor_depth_attachment(IntPtr descriptor, IntPtr texture, MTLLoadAction loadAction, MTLStoreAction storeAction, double clearDepth);
+        
+        [DllImport(DLL_NAME)]
+        public static extern void metalbinding_set_render_pass_descriptor_stencil_attachment(IntPtr descriptor, IntPtr texture, MTLLoadAction loadAction, MTLStoreAction storeAction, uint clearStencil);
         
         [DllImport(DLL_NAME)]
         public static extern void metalbinding_release_render_pass_descriptor(IntPtr rpd);
@@ -492,6 +504,23 @@ namespace CeresGpu.MetalBinding
             NotMipmapped = 0,
             Nearest = 1,
             Linear = 2,
+        }
+        
+        public enum MTLLoadAction : ulong
+        {
+            DontCare = 0,
+            Load = 1,
+            Clear = 2,
+        }
+        
+        public enum MTLStoreAction : ulong
+        {
+            DontCare = 0,
+            Store = 1,
+            MultisampleResolve = 2,
+            StoreAndMultisampleResolve = 3,
+            Unknown = 4,
+            CustomSampleDepthStore = 5,
         }
         
     }

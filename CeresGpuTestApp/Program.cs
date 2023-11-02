@@ -15,7 +15,7 @@ using TestRenderer testRenderer = new TestRenderer(renderer, shaderManager);
 
 while (!window.ShouldClose)
 {
-    using IPass pass = renderer.CreateFramebufferPass(true, new Vector4(0f, 1f, 1f, 1f));
+    using IPass pass = renderer.CreateFramebufferPass(LoadAction.Clear, new Vector4(0f, 1f, 1f, 1f), false, 0, 0);
     testRenderer.Draw(pass);
     pass.Finish();
     renderer.Present(1f / 60f);

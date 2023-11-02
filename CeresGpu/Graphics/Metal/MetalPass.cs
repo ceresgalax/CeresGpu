@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using CeresGpu.Graphics.Shaders;
@@ -20,6 +21,9 @@ namespace CeresGpu.Graphics.Metal
 
         public MetalPass(MetalRenderer renderer, IntPtr commandBuffer, IntPtr passDescriptor)
         {
+            Debug.Assert(commandBuffer != IntPtr.Zero);
+            Debug.Assert(passDescriptor != IntPtr.Zero);
+            
             _renderer = renderer;
             _encoder = MetalApi.metalbinding_new_command_encoder(commandBuffer, passDescriptor);
         }

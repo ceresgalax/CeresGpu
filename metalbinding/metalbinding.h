@@ -14,11 +14,16 @@ void metalbinding_get_last_error(MetalBindingContext* context, char* outUtf8Text
 void metalbinding_capture(MetalBindingContext* context);
 void metalbinding_stop_capture(MetalBindingContext* context);
 void metalbinding_set_content_scale(MetalBindingContext* context, float scale, uint32_t drawableWidth, uint32_t drawableHeight);
+id<MTLTexture> metalbinding_get_current_frame_drawable_texture(MetalBindingContext* context);
 
 //
 // Render Pass Descriptors
 //
-MTLRenderPassDescriptor* metalbinding_create_current_frame_render_pass_descriptor(MetalBindingContext* context, bool clear, float r, float g, float b, float a) NS_RETURNS_RETAINED;
+MTLRenderPassDescriptor* metalbinding_create_render_pass_descriptor(void) NS_RETURNS_RETAINED;
+//MTLRenderPassDescriptor* metalbinding_create_current_frame_render_pass_descriptor(MetalBindingContext* context, bool clear, double r, double g, double b, double a) NS_RETURNS_RETAINED;
+void metalbinding_set_render_pass_descriptor_color_attachment(MTLRenderPassDescriptor* descriptor, uint32_t colorAttachmentIndex, id<MTLTexture> texture, MTLLoadAction loadAction, MTLStoreAction storeAction, double clearR, double clearG, double clearB, double clearA);
+void metalbinding_set_render_pass_descriptor_depth_attachment(MTLRenderPassDescriptor* descriptor, id<MTLTexture> texture, MTLLoadAction loadAction, MTLStoreAction storeAction, double clearDepth);
+void metalbinding_set_render_pass_descriptor_stencil_attachment(MTLRenderPassDescriptor* descriptor, id<MTLTexture> texture, MTLLoadAction loadAction, MTLStoreAction storeAction, uint32_t clearStencil);
 void metalbinding_release_render_pass_descriptor(MTLRenderPassDescriptor* NS_RELEASES_ARGUMENT rpd);
 
 //

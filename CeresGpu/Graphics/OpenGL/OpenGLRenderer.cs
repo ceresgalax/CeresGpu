@@ -136,16 +136,41 @@ namespace CeresGpu.Graphics.OpenGL
             return pass;
         }
 
-        public IPass CreateFramebufferPass(bool clear, Vector4 clearColor)
+        public IPass CreateFramebufferPass(LoadAction colorLoadAction, Vector4 clearColor, bool withDepthStencil, double depthClearValue, uint stencilClearValue)
         {
             _window.GetFramebufferSize(out int width, out int height);
             GLPass pass = SetCurrentPass(new GLPass(this, (uint)width, (uint)height));
-            pass.SetScissor(new ScissorRect(0, 0, (uint)width, (uint)height));
-            if (clear) {
-                Viewport viewport = new(0, 0, (uint)width, (uint)height);
-                pass.Clear(viewport, clearColor);
+            
+            // TODO: Need to better clarify which methods CeresGPU API allows to be performed outside of the main thread.
+            // If the CeresGPU API allows CreateFramebuffer pass to be called outside of the main thread, We will need
+            // to serially queue the GL commands here to the GL thread.
+            GL gl = GLProvider.Gl;
+            gl.Viewport(0, 0, width, height);
+
+            ClearBufferMask clearMask = 0;
+            if (colorLoadAction == LoadAction.Clear) {
+                gl.ClearColor(clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
+                clearMask |= ClearBufferMask.COLOR_BUFFER_BIT;
             }
+            if (withDepthStencil) {
+                gl.ClearDepth(depthClearValue);
+                gl.ClearStencil((int)stencilClearValue);
+                clearMask |= ClearBufferMask.DEPTH_BUFFER_BIT | ClearBufferMask.STENCIL_BUFFER_BIT;
+            }
+
+            if (clearMask != 0) {
+                gl.Clear(clearMask);    
+            }
+            
+            pass.SetScissor(new ScissorRect(0, 0, (uint)width, (uint)height));
+            
             return pass;
+        }
+
+        public IPass CreatePass(ReadOnlySpan<ColorAttachment> colorAttachments, ITexture? depthStencilAttachment, LoadAction depthLoadAction
+            , double depthClearValue, LoadAction stencilLoadAction, uint stenclClearValue)
+        {
+            throw new NotImplementedException();
         }
 
         public void Present(float minimumElapsedSeocnds)
