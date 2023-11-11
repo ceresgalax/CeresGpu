@@ -23,8 +23,8 @@ namespace CeresGpu.Graphics.OpenGL
             try {
                 uint fragShader = gl.CreateShader(ShaderType.FRAGMENT_SHADER);
                 try {
-                    SetShader(gl, vertShader, shader, ".vert_gl.spv");
-                    SetShader(gl, fragShader, shader, ".frag_gl.spv");
+                    SetShader(gl, vertShader, shader, ".vert_gl.glsl");
+                    SetShader(gl, fragShader, shader, ".frag_gl.glsl");
                     gl.AttachShader(_program, vertShader);
                     gl.AttachShader(_program, fragShader);
                     gl.LinkProgram(_program);
@@ -39,10 +39,14 @@ namespace CeresGpu.Graphics.OpenGL
 
         private void SetShader(GL gl, uint handle, IShader shader, string name)
         {
-            Span<uint> shaders = stackalloc uint[1] { handle };
+            //Span<uint> shaders = stackalloc uint[1] { handle };
             byte[] spirv = GetSpirv(shader, name);
-            gl.ShaderBinary(1, shaders, ShaderBinaryFormat.SHADER_BINARY_FORMAT_SPIR_V, spirv, spirv.Length);
-            gl.SpecializeShader(handle, "main", 0, null, null);
+            
+            gl.ShaderSource(handle, spirv);
+            gl.CompileShader(handle);
+            
+            //gl.ShaderBinary(1, shaders, ShaderBinaryFormat.SHADER_BINARY_FORMAT_SPIR_V, spirv, spirv.Length);
+            //gl.SpecializeShader(handle, "main", 0, null, null);
             Console.WriteLine($"Shader Log: {GLUtil.GetShaderInfoLog(gl, handle)}"); // TODO: Needs more info
         }
         

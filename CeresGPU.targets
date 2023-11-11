@@ -136,8 +136,6 @@ public class FindPythonTask : Task
                 <LogicalName>%(GlslFragFile.LogicalDirectory)%(GlslFragFile.Filename).metal</LogicalName>
             </EmbeddedResource>
             
-            
-            <!--
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)')" />
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).spv')" />
             <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).spv')" />
@@ -147,7 +145,7 @@ public class FindPythonTask : Task
             <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename)_gl.glsl')" />
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).metal')" />
             <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).metal')" />
-            -->
+            
         </ItemGroup>
     </Target>
     
