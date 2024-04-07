@@ -45,7 +45,7 @@ public class FindPythonTask : Task
     
     private bool IsPythonValid(string python)
     {
-        bool isPythonValid;
+        bool isPythonValid = false;
         
         Process process = new Process();
         process.StartInfo = new ProcessStartInfo {
@@ -54,15 +54,16 @@ public class FindPythonTask : Task
             Arguments = "--version",
             RedirectStandardOutput = true
         };
-        process.Start();
         try {
-            process.WaitForExit(1000 * 10);
-            string outputLine = process.StandardOutput.ReadLine() ?? "";
-            isPythonValid = outputLine.ToLowerInvariant().StartsWith("python 3");
-        } finally {
-            process.Kill();
-        }
-
+            process.Start();
+            try {
+                process.WaitForExit(1000 * 10);
+                string outputLine = process.StandardOutput.ReadLine() ?? "";
+                isPythonValid = outputLine.ToLowerInvariant().StartsWith("python 3");
+            } finally {
+                process.Kill();
+            }
+        } catch { }
         return isPythonValid;
     }        
 }
