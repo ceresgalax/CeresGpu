@@ -158,11 +158,11 @@ namespace CeresGpu.Graphics.OpenGL
                 clearMask |= ClearBufferMask.DEPTH_BUFFER_BIT | ClearBufferMask.STENCIL_BUFFER_BIT;
             }
 
+            pass.SetScissor(new ScissorRect(0, 0, (uint)width, (uint)height));
+
             if (clearMask != 0) {
                 gl.Clear(clearMask);    
             }
-            
-            pass.SetScissor(new ScissorRect(0, 0, (uint)width, (uint)height));
             
             return pass;
         }

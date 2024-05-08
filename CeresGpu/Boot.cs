@@ -40,6 +40,16 @@ namespace CeresGpu
                 GLFW.Init();
             }
             
+            // GLFW does not allow width or height of 0.
+            if (width == 0) {
+                // TODO: Should we log somehow?
+                width = 1;
+            }
+            if (height == 0) {
+                // TODO: Should we log somehow?
+                height = 1;
+            }
+
             GLFWWindow window = new(
                 width: width,
                 height: height,
