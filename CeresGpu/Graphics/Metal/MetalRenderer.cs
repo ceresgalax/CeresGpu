@@ -15,7 +15,6 @@ namespace CeresGpu.Graphics.Metal
         public readonly IntPtr Context;
         private readonly GLFWWindow _glfwWindow;
         private IntPtr _currentFrameCommandBuffer;
-        internal readonly SamplerManager Samplers;
 
         private MetalPass? _currentPass;
 
@@ -40,7 +39,6 @@ namespace CeresGpu.Graphics.Metal
             _glfwWindow = glfwWindow;
             Context = MetalApi.metalbinding_create(window, (uint)FrameCount);
             MetalApi.metalbinding_arp_drain(Context);
-            Samplers = new SamplerManager(this);
         }
 
         public void Dispose()
@@ -75,6 +73,11 @@ namespace CeresGpu.Graphics.Metal
         public ITexture CreateTexture()
         {
             return new MetalTexture(this);
+        }
+
+        public ISampler CreateSampler(in SamplerDescription description)
+        {
+            return new MetalSampler(this, in description);
         }
 
         public IShaderBacking CreateShaderBacking(IShader shader)

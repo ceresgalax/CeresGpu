@@ -7,7 +7,8 @@ namespace CeresGpu.Graphics.Shaders
         void SetUniformBufferDescriptor<T>(IBuffer<T> buffer, in DescriptorInfo info) where T : unmanaged;
         void SetShaderStorageBufferDescriptor<T>(IBuffer<T> buffer, in DescriptorInfo info) where T : unmanaged;
         void SetTextureDescriptor(ITexture texture, in DescriptorInfo info);
-        
+        void SetSamplerDescriptor(ISampler sampler, in DescriptorInfo info);
+
         // NOTE: On future Push Constant support:
         // Push constants will likely be supported with the following method prototype:
         // `SetPushConstantsDescriptor<T>(in DescriptorInfo info)`

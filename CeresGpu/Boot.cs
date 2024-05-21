@@ -76,7 +76,7 @@ namespace CeresGpu
             }
             
             GLFW.SwapInterval(1);
-            return new OpenGLRenderer(window);
+            return new GLRenderer(window);
         }
         
         public static (IRenderer, GLFWWindow) MakeRenderer(WindowHints hints, int width, int height, string title)

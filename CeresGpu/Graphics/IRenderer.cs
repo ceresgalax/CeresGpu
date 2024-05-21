@@ -23,6 +23,7 @@ namespace CeresGpu.Graphics
         IBuffer<T> CreateStreamingBuffer<T>(int elementCount) where T : unmanaged;
 
         ITexture CreateTexture();
+        ISampler CreateSampler(in SamplerDescription description);
         IShaderBacking CreateShaderBacking(IShader shader);
         IShaderInstanceBacking CreateShaderInstanceBacking(int vertexBufferCountHint, IShader shader);
         IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints);

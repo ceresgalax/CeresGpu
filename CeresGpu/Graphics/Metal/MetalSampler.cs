@@ -4,17 +4,17 @@ using CeresGpu.MetalBinding;
 
 namespace CeresGpu.Graphics.Metal
 {
-    public sealed class MetalSampler : IDisposable
+    public sealed class MetalSampler : ISampler
     {
         private IntPtr _sampler;
 
         public IntPtr Handle => _sampler;
         
-        public MetalSampler(MetalRenderer renderer, MinMagFilter min, MinMagFilter mag)
+        public MetalSampler(MetalRenderer renderer, in SamplerDescription description)
         {
             _sampler = MetalApi.metalbinding_create_sampler(renderer.Context,
-                TranslateMinMagFilter(min),
-                TranslateMinMagFilter(mag),
+                TranslateMinMagFilter(description.MinFilter),
+                TranslateMinMagFilter(description.MinFilter),
                 MetalApi.MTLSamplerMipFilter.NotMipmapped,
                 normalizedCoordinates: true,
                 supportArgumentBuffers: true);

@@ -8,7 +8,7 @@ namespace CeresGpu.Graphics.OpenGL
 {
     public sealed class GLPass : IPass
     {
-        private OpenGLRenderer _renderer;
+        private GLRenderer _renderer;
 
         private object? _previousPipeline;
         private IUntypedShaderInstance? _shaderInstance;
@@ -20,7 +20,7 @@ namespace CeresGpu.Graphics.OpenGL
         public ScissorRect CurrentDynamicScissor { get; }
         public Viewport CurrentDynamicViewport { get; }
 
-        public GLPass(OpenGLRenderer renderer, uint attachmentWidth, uint attachmentHeight)
+        public GLPass(GLRenderer renderer, uint attachmentWidth, uint attachmentHeight)
         {
             _renderer = renderer;
             _attachmentWidth = attachmentWidth;

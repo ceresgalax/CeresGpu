@@ -83,8 +83,15 @@ namespace CeresGpu.Graphics.Metal
             }
 
             SetDescriptor(info.BindingIndex, DescriptorType.Texture, metalTexture);
-            MetalSampler sampler = _renderer.Samplers.GetSampler(metalTexture.MinFilter, metalTexture.MagFilter);
-            SetDescriptor(info.SamplerIndex, DescriptorType.Sampler, sampler);
+        }
+
+        public void SetSamplerDescriptor(ISampler sampler, in DescriptorInfo info)
+        {
+            if (sampler is not MetalSampler metalSampler) {
+                throw new ArgumentException("Incompatible sampler", nameof(sampler));
+            }
+            
+            SetDescriptor(info.BindingIndex, DescriptorType.Sampler, metalSampler);
         }
 
         public void UpdateArgumentBuffer(IntPtr renderCommandEncoder)

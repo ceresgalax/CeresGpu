@@ -4,12 +4,12 @@ using CeresGpu.Graphics.Shaders;
 
 namespace CeresGpu.Graphics.OpenGL
 {
-    public class OpenGLPipeline<T> : IGLPipeline, IPipeline<T> where T : IShader
+    public class GLPipeline<T> : IGLPipeline, IPipeline<T> where T : IShader
     {
         private readonly PipelineDefinition _definition;
         private readonly T _shader;
         
-        public OpenGLPipeline(PipelineDefinition definition, T shader)
+        public GLPipeline(PipelineDefinition definition, T shader)
         {
             _definition = definition;
             _shader = shader;

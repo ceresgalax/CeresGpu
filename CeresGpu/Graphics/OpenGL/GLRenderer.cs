@@ -9,7 +9,7 @@ using Metalancer.Graphcs.OpenGL;
 
 namespace CeresGpu.Graphics.OpenGL
 {
-    public class OpenGLRenderer : IRenderer
+    public class GLRenderer : IRenderer
     {
         private readonly GLContext _context;
         private readonly GLFWWindow _window;
@@ -21,7 +21,7 @@ namespace CeresGpu.Graphics.OpenGL
         public IGLProvider GLProvider => _context;
         public GLPass? CurrentPass => _currentPass;
 
-        public OpenGLRenderer(GLFWWindow window)
+        public GLRenderer(GLFWWindow window)
         {
             GL gl = new();
             gl.Init(new GlfwGLLoader());
@@ -101,6 +101,11 @@ namespace CeresGpu.Graphics.OpenGL
             return new GLTexture(_context);
         }
 
+        public ISampler CreateSampler(in SamplerDescription description)
+        {
+            return new GLSampler(_context, in description);
+        }
+
         public IShaderBacking CreateShaderBacking(IShader shader)
         {
             return new GLShaderBacking(_context, shader);
@@ -118,7 +123,7 @@ namespace CeresGpu.Graphics.OpenGL
 
         public IPipeline<ShaderT> CreatePipeline<ShaderT>(PipelineDefinition definition, ShaderT shader) where ShaderT : IShader
         {
-            return new OpenGLPipeline<ShaderT>(definition, shader);
+            return new GLPipeline<ShaderT>(definition, shader);
         }
         
         /// <summary>

@@ -666,6 +666,11 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
                 '{',
                 f'    _{stage_name}DescriptorSet{texture.set}.SetTextureDescriptor(texture, in {class_name}.Descriptors[{descriptor_index}]);',
                 '}',
+                '',
+                f'public void Set{texture.name}Sampler(ISampler sampler)',
+                '{',
+                f'    _{stage_name}DescriptorSet{texture.set}.SetSamplerDescriptor(sampler, in {class_name}.Descriptors[{descriptor_index}]);',
+                '}',
                 ''
             )
             descriptor_index += 1

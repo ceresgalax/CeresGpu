@@ -559,6 +559,9 @@ id<MTLSamplerState> metalbinding_create_sampler(
     MTLSamplerMinMagFilter min,
     MTLSamplerMinMagFilter mag,
     MTLSamplerMipFilter mip,
+    MTLSamplerAddressMode rAddressMode,
+    MTLSamplerAddressMode sAddressMode,
+    MTLSamplerAddressMode tAddressMode,
     BOOL normalizedCoordinates,
     BOOL supportArgumentBuffers
 ) NS_RETURNS_RETAINED {
@@ -566,6 +569,9 @@ id<MTLSamplerState> metalbinding_create_sampler(
     desc.minFilter = min;
     desc.magFilter = mag;
     desc.mipFilter = mip;
+    desc.rAddressMode = rAddressMode;
+    desc.sAddressMode = sAddressMode;
+    desc.tAddressMode = tAddressMode;
     desc.normalizedCoordinates = normalizedCoordinates;
     desc.supportArgumentBuffers = supportArgumentBuffers;
     return [context->device newSamplerStateWithDescriptor:desc];
