@@ -34,8 +34,12 @@ def main():
 
     xcode_select_result = subprocess.run(['xcode-select', '-p'], check=True, stdout=subprocess.PIPE, encoding='utf-8')
     developer_dir = xcode_select_result.stdout.strip()
-    metal_headers_path = developer_dir + '/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/' \
-                                         'Frameworks/Metal.framework/Headers'
+    
+    sdk_dir = developer_dir + '/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk'
+    if not os.path.isdir(sdk_dir):
+        sdk_dir = developer_dir + '/SDKs/MacOSX.sdk'
+        
+    metal_headers_path = sdk_dir + '/System/Library/Frameworks/Metal.framework/Headers'
     
     header_path = os.path.join(root, 'metalbinding', 'metalbinding.h')
     cs_out_path = os.path.join(root, 'CeresGpu', 'MetalBinding', 'Metal.Generated.cs')
@@ -66,6 +70,7 @@ def main():
         parse_enum_header(os.path.join(metal_headers_path, 'MTLRenderCommandEncoder.h'), 'MTLCullMode'),
         parse_enum_header(os.path.join(metal_headers_path, 'MTLSampler.h'), 'MTLSamplerMinMagFilter'),
         parse_enum_header(os.path.join(metal_headers_path, 'MTLSampler.h'), 'MTLSamplerMipFilter'),
+        parse_enum_header(os.path.join(metal_headers_path, 'MTLSampler.h'), 'MTLSamplerAddressMode'),
         parse_enum_header(os.path.join(metal_headers_path, 'MTLRenderPass.h'), 'MTLLoadAction'),
         parse_enum_header(os.path.join(metal_headers_path, 'MTLRenderPass.h'), 'MTLStoreAction')
     ]

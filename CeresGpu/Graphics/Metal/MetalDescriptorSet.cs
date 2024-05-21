@@ -91,7 +91,7 @@ namespace CeresGpu.Graphics.Metal
                 throw new ArgumentException("Incompatible sampler", nameof(sampler));
             }
             
-            SetDescriptor(info.BindingIndex, DescriptorType.Sampler, metalSampler);
+            SetDescriptor(info.SamplerIndex, DescriptorType.Sampler, metalSampler);
         }
 
         public void UpdateArgumentBuffer(IntPtr renderCommandEncoder)

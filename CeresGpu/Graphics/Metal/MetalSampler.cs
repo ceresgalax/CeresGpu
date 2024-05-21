@@ -1,5 +1,4 @@
 using System;
-using CeresGpu.Graphics;
 using CeresGpu.MetalBinding;
 
 namespace CeresGpu.Graphics.Metal
@@ -16,8 +15,12 @@ namespace CeresGpu.Graphics.Metal
                 TranslateMinMagFilter(description.MinFilter),
                 TranslateMinMagFilter(description.MinFilter),
                 MetalApi.MTLSamplerMipFilter.NotMipmapped,
+                TranslateAddressMode(description.DepthAddressMode),
+                TranslateAddressMode(description.WidthAddressMode),
+                TranslateAddressMode(description.HeightAddressMode),
                 normalizedCoordinates: true,
-                supportArgumentBuffers: true);
+                supportArgumentBuffers: true
+            );
         }
 
         private MetalApi.MTLSamplerMinMagFilter TranslateMinMagFilter(MinMagFilter filter)
@@ -26,6 +29,16 @@ namespace CeresGpu.Graphics.Metal
                 MinMagFilter.Nearest => MetalApi.MTLSamplerMinMagFilter.Nearest
                 , MinMagFilter.Linear => MetalApi.MTLSamplerMinMagFilter.Linear
                 , _ => throw new ArgumentOutOfRangeException(nameof(filter), filter, null)
+            };
+        }
+        
+        private MetalApi.MTLSamplerAddressMode TranslateAddressMode(SamplerAddressMode mode)
+        {
+            return mode switch {
+                SamplerAddressMode.ClampToEdge => MetalApi.MTLSamplerAddressMode.ClampToEdge,
+                SamplerAddressMode.Repeat => MetalApi.MTLSamplerAddressMode.Repeat,
+                SamplerAddressMode.MirrorRepeat => MetalApi.MTLSamplerAddressMode.MirrorRepeat,
+                _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null)
             };
         }
 

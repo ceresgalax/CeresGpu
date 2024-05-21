@@ -202,7 +202,7 @@ namespace CeresGpu.MetalBinding
         public static extern void metalbinding_encode_sampler_argument(IntPtr encoder, IntPtr sampler, uint index);
         
         [DllImport(DLL_NAME)]
-        public static extern IntPtr metalbinding_create_sampler(IntPtr context, MTLSamplerMinMagFilter min, MTLSamplerMinMagFilter mag, MTLSamplerMipFilter mip, bool normalizedCoordinates, bool supportArgumentBuffers);
+        public static extern IntPtr metalbinding_create_sampler(IntPtr context, MTLSamplerMinMagFilter min, MTLSamplerMinMagFilter mag, MTLSamplerMipFilter mip, MTLSamplerAddressMode rAddressMode, MTLSamplerAddressMode sAddressMode, MTLSamplerAddressMode tAddressMode, bool normalizedCoordinates, bool supportArgumentBuffers);
         
         [DllImport(DLL_NAME)]
         public static extern void metalbinding_release_sampler(IntPtr sampler);
@@ -469,6 +469,8 @@ namespace CeresGpu.MetalBinding
             UShortNormalized = 51,
             ShortNormalized = 52,
             Half = 53,
+            FloatRG11B10 = 54,
+            FloatRGB9E5 = 55,
         }
         
         public enum MTLVertexStepFunction : ulong
@@ -504,6 +506,16 @@ namespace CeresGpu.MetalBinding
             NotMipmapped = 0,
             Nearest = 1,
             Linear = 2,
+        }
+        
+        public enum MTLSamplerAddressMode : ulong
+        {
+            ClampToEdge = 0,
+            MirrorClampToEdge = 1,
+            Repeat = 2,
+            MirrorRepeat = 3,
+            ClampToZero = 4,
+            ClampToBorderColor = 5,
         }
         
         public enum MTLLoadAction : ulong

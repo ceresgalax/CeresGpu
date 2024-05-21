@@ -133,7 +133,7 @@ void metalbinding_encode_sampler_argument(id<MTLArgumentEncoder> encoder, id<MTL
 //
 // Samplers
 //
-id<MTLSamplerState> metalbinding_create_sampler(MetalBindingContext* context, MTLSamplerMinMagFilter min, MTLSamplerMinMagFilter mag, MTLSamplerMipFilter mip, MTLSamplerAddressMode rAddressMode, MTLSamplerAddressMode sAddressMode, MTSamplerAddressMode tAddressMode, BOOL normalizedCoordinates, BOOL supportArgumentBuffers) NS_RETURNS_RETAINED;
+id<MTLSamplerState> metalbinding_create_sampler(MetalBindingContext* context, MTLSamplerMinMagFilter min, MTLSamplerMinMagFilter mag, MTLSamplerMipFilter mip, MTLSamplerAddressMode rAddressMode, MTLSamplerAddressMode sAddressMode, MTLSamplerAddressMode tAddressMode, BOOL normalizedCoordinates, BOOL supportArgumentBuffers) NS_RETURNS_RETAINED;
 void metalbinding_release_sampler(id<MTLSamplerState> NS_RELEASES_ARGUMENT sampler);
 
 //
