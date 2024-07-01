@@ -1,16 +1,40 @@
-﻿using CeresGL;
+﻿using System;
+using CeresGL;
 
 namespace CeresGpu.Graphics.OpenGL
 {
-    public sealed class StaticGLBuffer<T> : GLBuffer<T> where T : unmanaged
+    public sealed class StaticGLBuffer<T> : StaticBuffer<T>, IGLBuffer where T : unmanaged
     {
-        public StaticGLBuffer(IGLProvider glProvider) : base(glProvider)
+        private GLBuffer<T> _inner;
+        
+        public StaticGLBuffer(IGLProvider glProvider)
         {
+            _inner = new GLBuffer<T>(glProvider);
         }
 
-        protected override BufferUsageARB GetBufferUsage()
+        public override uint Count => _inner.Count;
+
+        public override void Allocate(uint elementCount)
         {
-            return BufferUsageARB.STATIC_DRAW;
+            base.Allocate(elementCount);
+            _inner.Allocate(elementCount, BufferUsageARB.STATIC_DRAW);
+        }
+
+        public override void Set(uint offset, Span<T> elements, uint count)
+        {
+            base.Set(offset, elements, count);
+            _inner.Set(offset, elements, count);
+        }
+
+        public override void Dispose()
+        {
+            _inner.Dispose();
+        }
+
+        public uint CommitAndGetHandle()
+        {
+            Commit();
+            return _inner.Handle;
         }
     }
 }

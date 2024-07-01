@@ -13,14 +13,14 @@ namespace CeresGpu.Graphics
         /// <summary>
         /// Static buffers can only be set up once. Once used their contents cannot be changed again.
         /// </summary>
-        IBuffer<T> CreateStaticBuffer<T>(int elementCount) where T : unmanaged;
+        IStaticBuffer<T> CreateStaticBuffer<T>(int elementCount) where T : unmanaged;
         
         /// <summary>
         /// Streaming buffers can be set every frame.
         /// If a streaming buffer is not set for a frame, the contents from the previous frame will be used.
         /// When a streaming buffer is set, buffer contents from the previous frame will not be retained.
         /// </summary>
-        IBuffer<T> CreateStreamingBuffer<T>(int elementCount) where T : unmanaged;
+        IStreamingBuffer<T> CreateStreamingBuffer<T>(int elementCount) where T : unmanaged;
 
         ITexture CreateTexture();
         ISampler CreateSampler(in SamplerDescription description);

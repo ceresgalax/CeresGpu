@@ -48,7 +48,7 @@ namespace CeresGpu.Graphics.Metal
             MetalApi.metalbinding_destroy(Context);
         }
 
-        public IBuffer<T> CreateStaticBuffer<T>(int elementCount) where T : unmanaged
+        public IStaticBuffer<T> CreateStaticBuffer<T>(int elementCount) where T : unmanaged
         {
             if (elementCount < 0) {
                 throw new ArgumentOutOfRangeException(nameof(elementCount));
@@ -59,7 +59,7 @@ namespace CeresGpu.Graphics.Metal
             return buffer;
         }
 
-        public IBuffer<T> CreateStreamingBuffer<T>(int elementCount) where T : unmanaged
+        public IStreamingBuffer<T> CreateStreamingBuffer<T>(int elementCount) where T : unmanaged
         {
             if (elementCount < 0) {
                 throw new ArgumentOutOfRangeException(nameof(elementCount));

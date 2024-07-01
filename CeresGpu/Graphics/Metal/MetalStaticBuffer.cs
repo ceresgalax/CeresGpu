@@ -4,75 +4,50 @@ using CeresGpu.MetalBinding;
 
 namespace CeresGpu.Graphics.Metal
 {
-    public sealed class MetalStaticBuffer<T> : IMetalBuffer, IBuffer<T> where T : unmanaged
+    public sealed class MetalStaticBuffer<T> : StaticBuffer<T>, IMetalBuffer where T : unmanaged
     {
         private readonly MetalRenderer _renderer;
 
         private IntPtr _buffer;
+        private uint _count;
         
         public MetalStaticBuffer(MetalRenderer renderer)
         {
             _renderer = renderer;
         }
-        
-        public uint Count { get; private set; }
+
+        public override uint Count => _count;
 
         public IntPtr GetHandleForCurrentFrame()
         {
             return _buffer;
         }
 
-        public void ThrowIfNotReadyForUse()
+        void IMetalBuffer.Commit()
         {
+            Commit();
         }
 
         public void PrepareToUpdateExternally()
         {
         }
 
-        public void Allocate(uint elementCount)
+        public override void Allocate(uint elementCount)
         {
+            base.Allocate(elementCount);
             if (_buffer != IntPtr.Zero) {
                 MetalApi.metalbinding_release_buffer(_buffer);
                 _buffer = IntPtr.Zero;
             }
 
             _buffer = MetalApi.metalbinding_new_buffer(_renderer.Context, (uint)Marshal.SizeOf<T>() * elementCount);
-            Count = elementCount;
+            _count = elementCount;
         }
-
-        public void Set(uint offset, Span<T> elements)
+        
+        public override void Set(uint offset, Span<T> elements, uint count)
         {
-            Set(offset, elements, (uint)elements.Length);
-        }
-
-        public void Set(Span<T> elements, uint count)
-        {
-            Set(0, elements, count);
-        }
-
-        public void Set(Span<T> elements)
-        {
-            Set(0, elements, (uint)elements.Length);
-        }
-
-        public void Set(uint offset, Span<T> elements, uint count)
-        {
+            base.Set(offset, elements, count);
             MetalBufferUtil.CopyBuffer(_buffer, offset, elements, count, Count);
-        }
-
-        public void Set(in T element)
-        {
-            Set(0, in element);
-        }
-
-        public void Set(uint offset, in T element)
-        {
-            unsafe {
-                fixed (T* p = &element) {
-                    Set(offset, new Span<T>(p, 1));
-                }
-            }
         }
 
         private void ReleaseUnmanagedResources()
@@ -83,7 +58,7 @@ namespace CeresGpu.Graphics.Metal
             }
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             ReleaseUnmanagedResources();
             GC.SuppressFinalize(this);

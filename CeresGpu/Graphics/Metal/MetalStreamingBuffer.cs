@@ -4,17 +4,18 @@ using CeresGpu.MetalBinding;
 
 namespace CeresGpu.Graphics.Metal
 {
-    public sealed class MetalStreamingBuffer<T> : IMetalBuffer, IBuffer<T> where T : unmanaged
+    public sealed class MetalStreamingBuffer<T> : StreamingBuffer<T>, IMetalBuffer where T : unmanaged
     {
         private readonly MetalRenderer _renderer;
 
         private readonly IntPtr[] _buffers;
         private readonly uint[] _sizes;
 
-        private int _lastFrameUpdated;
-        private uint _lastFrameUsed = uint.MaxValue;
-        
-        public uint Count { get; private set; }
+        private uint _count;
+
+        public override uint Count => _count;
+
+        protected override IRenderer Renderer => _renderer;
 
         private uint ByteCount => Count * (uint)Marshal.SizeOf<T>();
 
@@ -25,44 +26,22 @@ namespace CeresGpu.Graphics.Metal
             _sizes = new uint[renderer.FrameCount];
             
             RecreateBufferIfNecesary();
-            _lastFrameUpdated = renderer.WorkingFrame;
         }
 
         public IntPtr GetHandleForCurrentFrame()
         {
-            //ThrowIfNotReadyForUse();
-            //RecreateBufferIfNecesary();
-            //int workingFrame = _renderer.WorkingFrame;
-            _lastFrameUsed = _renderer.UniqueFrameId;
-            return _buffers[_lastFrameUpdated];
-        }
-        
-        public void ThrowIfNotReadyForUse()
-        {
-        //     int workingFrame = _renderer.WorkingFrame;
-        //     if (_lastFrameUpdated != workingFrame) {
-        //         throw new InvalidOperationException("Cannot use streaming buffer until contents have been updated for this frame.");
-        //     }
+            return _buffers[_renderer.WorkingFrame];
         }
 
-        public void Allocate(uint elementCount)
+        void IMetalBuffer.Commit()
         {
-            Count = elementCount;
+            Commit();
         }
 
-        public void Set(uint offset, Span<T> elements)
+        public override void Allocate(uint elementCount)
         {
-            Set(offset, elements, (uint)elements.Length);
-        }
-
-        public void Set(Span<T> elements, uint count)
-        {
-            Set(0, elements, count);
-        }
-
-        public void Set(Span<T> elements)
-        {
-            Set(0, elements, (uint)elements.Length);
+            base.Allocate(elementCount);
+            _count = elementCount;
         }
 
         private void RecreateBufferIfNecesary()
@@ -90,11 +69,9 @@ namespace CeresGpu.Graphics.Metal
             }
         }
         
-        public void Set(uint offset, Span<T> elements, uint count)
+        public override void Set(uint offset, Span<T> elements, uint count)
         {
-            if (_lastFrameUsed == _renderer.UniqueFrameId) {
-                throw new InvalidOperationException("Cannot set buffer after it has been encoded for this frame.");
-            }
+            base.Set(offset, elements, count);
             
             RecreateBufferIfNecesary();
             
@@ -106,28 +83,11 @@ namespace CeresGpu.Graphics.Metal
             }
 
             MetalBufferUtil.CopyBuffer(buffer, offset, elements, count, Count);
-
-            _lastFrameUpdated = workingFrame;
-        }
-
-        public void Set(in T element)
-        {
-            Set(0, in element);
-        }
-
-        public void Set(uint offset, in T element)
-        {
-            unsafe {
-                fixed (T* p = &element) {
-                    Set(offset, new Span<T>(p, 1), 1);
-                }
-            }
         }
 
         public void PrepareToUpdateExternally()
         {
             RecreateBufferIfNecesary();
-            _lastFrameUpdated = _renderer.WorkingFrame;
         }
 
         private void ReleaseUnmanagedResources()
@@ -141,7 +101,7 @@ namespace CeresGpu.Graphics.Metal
             }
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             ReleaseUnmanagedResources();
             GC.SuppressFinalize(this);

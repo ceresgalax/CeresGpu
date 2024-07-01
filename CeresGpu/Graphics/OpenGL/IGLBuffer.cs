@@ -2,6 +2,6 @@
 {
     public interface IGLBuffer
     {
-        uint Handle { get; }
+        uint CommitAndGetHandle();
     }
 }

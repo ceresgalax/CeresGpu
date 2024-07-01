@@ -105,7 +105,7 @@ namespace CeresGpu.Graphics.Metal
                 switch (descriptorType) {
                     case DescriptorType.Buffer:
                         IMetalBuffer buffer = (IMetalBuffer)resource;
-                        buffer.ThrowIfNotReadyForUse();
+                        buffer.Commit();
                         MetalApi.metalbinding_encode_buffer_argument(_argumentEncoder, renderCommandEncoder, buffer.GetHandleForCurrentFrame(), 0, (uint)i, stages);
                         break;
                     case DescriptorType.Texture:

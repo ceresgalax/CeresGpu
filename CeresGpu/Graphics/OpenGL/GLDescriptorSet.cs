@@ -83,9 +83,19 @@ namespace CeresGpu.Graphics.OpenGL
             SetDescriptor(info.SamplerIndex, DescriptorType.Sampler, glSampler, (uint)info.BindingIndex);
         }
 
+        private readonly HashSet<int> _texturesWithSetSamplers = new();
+        
         public void Apply()
         {
             GL gl = _glProvider.Gl;
+            
+            _texturesWithSetSamplers.Clear();
+            for (int i = 0, ilen = _descriptors.Count; i < ilen; ++i) {
+                (DescriptorType descriptorType, object resource, uint extraIndex) = _descriptors[i];
+                if (descriptorType == DescriptorType.Sampler) {
+                    _texturesWithSetSamplers.Add((int)i);
+                }
+            }
             
             for (int i = 0, ilen = _descriptors.Count; i < ilen; ++i) {
                 (DescriptorType descriptorType, object resource, uint extraIndex) = _descriptors[i];
@@ -93,19 +103,25 @@ namespace CeresGpu.Graphics.OpenGL
                     case DescriptorType.UniformBuffer:
                         // gl.BindBuffer(BufferTargetARB.UNIFORM_BUFFER, glBuffer.Handle);
                         IGLBuffer uniformBuffer = (IGLBuffer)resource;
-                        gl.BindBufferBase(BufferTargetARB.UNIFORM_BUFFER, (uint)i, uniformBuffer.Handle);
+                        gl.BindBufferBase(BufferTargetARB.UNIFORM_BUFFER, (uint)i, uniformBuffer.CommitAndGetHandle());
                         break;
                     
                     case DescriptorType.ShaderStorageBuffer:
                         IGLBuffer storageBuffer = (IGLBuffer)resource;
-                        gl.BindBufferBase(BufferTargetARB.SHADER_STORAGE_BUFFER, (uint)i, storageBuffer.Handle);
+                        gl.BindBufferBase(BufferTargetARB.SHADER_STORAGE_BUFFER, (uint)i, storageBuffer.CommitAndGetHandle());
                         break;
                     
                     case DescriptorType.Texture:
-                        GLTexture texture = (GLTexture)resource;
                         gl.ActiveTexture((TextureUnit)((uint)TextureUnit.TEXTURE0 + i));
                         gl.Uniform1i(i, i);
-                        gl.BindTexture(TextureTarget.TEXTURE_2D, texture.Handle);
+                        if (_texturesWithSetSamplers.Contains(i)) {
+                            GLTexture texture = (GLTexture)resource;
+                            gl.BindTexture(TextureTarget.TEXTURE_2D, texture.Handle);    
+                        }
+                        else {
+                            // No sampler bound - CeresGPU standard behavior (currently) is to not allow access to texture data in this case.
+                            gl.BindTexture(TextureTarget.TEXTURE_2D, 0);
+                        }
                         break;
                     
                     case DescriptorType.Sampler:

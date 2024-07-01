@@ -15,7 +15,7 @@ namespace CeresGpu.Graphics.OpenGL
         private readonly GLFWWindow _window;
         
         private GLPass? _currentPass;
-
+        
         public uint UniqueFrameId { get; private set; }
         
         public IGLProvider GLProvider => _context;
@@ -74,7 +74,7 @@ namespace CeresGpu.Graphics.OpenGL
             gl.Enable(EnableCap.SCISSOR_TEST);
         }
         
-        public IBuffer<T> CreateStaticBuffer<T>(int elementCount) where T : unmanaged
+        public IStaticBuffer<T> CreateStaticBuffer<T>(int elementCount) where T : unmanaged
         {
             if (elementCount < 0) {
                 throw new ArgumentOutOfRangeException(nameof(elementCount));
@@ -85,13 +85,19 @@ namespace CeresGpu.Graphics.OpenGL
             return buffer;
         }
 
-        public IBuffer<T> CreateStreamingBuffer<T>(int elementCount) where T : unmanaged
+        public IStreamingBuffer<T> CreateStreamingBuffer<T>(int elementCount) where T : unmanaged
         {
             if (elementCount < 0) {
                 throw new ArgumentOutOfRangeException(nameof(elementCount));
             }
+
+            IStreamingBuffer<T> buffer;
+            #if DEBUG
+            buffer = new DebugStreamingGLBuffer<T>(this);
+            #else
+            buffer = new StreamingGLBuffer<T>(this);
+            #endif
             
-            StreamingGLBuffer<T> buffer = new StreamingGLBuffer<T>(_context);
             buffer.Allocate((uint)elementCount);
             return buffer;
         }

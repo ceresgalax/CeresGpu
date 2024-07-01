@@ -79,7 +79,7 @@ namespace CeresGpu.Graphics.OpenGL
 
                 VertexBufferLayout layout = layouts[(int)attrib.BufferIndex];
                 gl.EnableVertexAttribArray(attrib.Index);
-                gl.BindBuffer(BufferTargetARB.ARRAY_BUFFER, buffer.Handle);
+                gl.BindBuffer(BufferTargetARB.ARRAY_BUFFER, buffer.CommitAndGetHandle());
                 SetAttribute(gl, attrib, layout);
                 gl.VertexAttribDivisor(attrib.Index, layout.StepFunction == VertexStepFunction.PerInstance ? 1u : 0u);
             }

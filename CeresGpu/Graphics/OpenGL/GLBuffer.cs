@@ -4,7 +4,7 @@ using CeresGL;
 
 namespace CeresGpu.Graphics.OpenGL
 {
-    public abstract class GLBuffer<T> : IGLBuffer, IBuffer<T> where T : unmanaged
+    public class GLBuffer<T> where T : unmanaged
     {
         private readonly IGLProvider _glProvider;
         private readonly uint _elementSize;
@@ -12,7 +12,7 @@ namespace CeresGpu.Graphics.OpenGL
         public uint Handle { get; private set; }
         public uint Count { get; private set; }
 
-        protected GLBuffer(IGLProvider glProvider)
+        public GLBuffer(IGLProvider glProvider)
         {
             _glProvider = glProvider;
             _elementSize = (uint)Marshal.SizeOf<T>();
@@ -49,30 +49,15 @@ namespace CeresGpu.Graphics.OpenGL
             _glProvider.AddFinalizerAction(ReleaseUnmanagedResources);
         }
 
-        protected abstract BufferUsageARB GetBufferUsage();
+        //protected abstract BufferUsageARB GetBufferUsage();
 
-        public void Allocate(uint elementCount)
+        public void Allocate(uint elementCount, BufferUsageARB bufferUsage)
         {
             CheckDisposed();
             GL gl = _glProvider.Gl;
             gl.BindBuffer(BufferTargetARB.ARRAY_BUFFER, Handle);
-            gl.BufferData(BufferTargetARB.ARRAY_BUFFER, elementCount * _elementSize, GetBufferUsage());
+            gl.BufferData(BufferTargetARB.ARRAY_BUFFER, elementCount * _elementSize, bufferUsage);
             Count = elementCount;
-        }
-        
-        public void Set(uint offset, Span<T> elements)
-        {
-            Set(offset, elements, (uint)elements.Length);
-        }
-
-        public void Set(Span<T> elements, uint count)
-        {
-            Set(0, elements, count);
-        }
-        
-        public void Set(Span<T> elements)
-        {
-            Set(0, elements, (uint)elements.Length);
         }
         
         public unsafe void Set(uint offset, Span<T> elements, uint count)
@@ -95,18 +80,5 @@ namespace CeresGpu.Graphics.OpenGL
             }
         }
 
-        public void Set(in T element)
-        {
-            Set(0, in element);
-        }
-
-        public void Set(uint offset, in T element)
-        {
-            unsafe {
-                fixed (T* p = &element) {
-                    Set(offset, new Span<T>(p, 1));
-                }
-            }
-        }
     }
 }
