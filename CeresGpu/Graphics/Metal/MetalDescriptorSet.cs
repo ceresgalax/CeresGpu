@@ -126,12 +126,16 @@ namespace CeresGpu.Graphics.Metal
                         // We _must_ encode a texture argument, I believe the argument buffer has an arbitrary value
                         // if not encoded, which can cause crashes / corruption in Metal when used.
                         // But even more importantly, we need CeresGPU to behave consistently across all graphics APIs.
-                        
-                        if (handle == IntPtr.Zero || !_texturesWithSetSamplers.Contains(i)) {
+
+                        if (handle != IntPtr.Zero) {
+                            MetalApi.metalbinding_encode_texture_argument(_argumentEncoder, renderCommandEncoder, handle, (uint)i, stages);
+                        }
+                        else {
                             MetalApi.metalbinding_encode_texture_argument(_argumentEncoder, renderCommandEncoder, _renderer.FallbackTexture.Handle, (uint)i, stages);
+                        }
+                        
+                        if (!_texturesWithSetSamplers.Contains(i)) {
                             MetalApi.metalbinding_encode_sampler_argument(_argumentEncoder, _renderer.FallbackSampler.Handle, (uint)extraIndex);
-                        } else {
-                            MetalApi.metalbinding_encode_texture_argument(_argumentEncoder, renderCommandEncoder, handle, (uint)i, stages);    
                         }
                         break;
                     case DescriptorType.Sampler:

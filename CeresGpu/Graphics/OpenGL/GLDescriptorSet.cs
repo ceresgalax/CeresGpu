@@ -110,12 +110,15 @@ namespace CeresGpu.Graphics.OpenGL
                         gl.ActiveTexture((TextureUnit)((uint)TextureUnit.TEXTURE0 + i));
                         gl.Uniform1i(i, i);
                         GLTexture texture = (GLTexture)resource;
-                        if (texture.Handle != 0 && _texturesWithSetSamplers.Contains(i)) {
+
+                        if (texture.Handle != 0) {
                             gl.BindTexture(TextureTarget.TEXTURE_2D, texture.Handle);
                         }
                         else {
-                            // No sampler bound - CeresGPU standard behavior (currently) is to not allow access to texture data in this case.
                             gl.BindTexture(TextureTarget.TEXTURE_2D, _renderer.FallbackTexture.Handle);
+                        }
+                        
+                        if (!_texturesWithSetSamplers.Contains(i)) {
                             gl.BindSampler((uint)i, _renderer.FallbackSampler.Handle);
                         }
                         break;
