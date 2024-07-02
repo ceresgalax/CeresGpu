@@ -30,20 +30,23 @@ namespace CeresGpu.Graphics
                 , InputFormat.R8G8_UINT => 2
                 , InputFormat.R8G8_SINT => 2
                 , InputFormat.R8G8_SRGB => 2
-                , InputFormat.R8G8B8_UNORM => 3
-                , InputFormat.R8G8B8_SNORM => 3
-                , InputFormat.R8G8B8_USCALED => 3
-                , InputFormat.R8G8B8_SSCALED => 3
-                , InputFormat.R8G8B8_UINT => 3
-                , InputFormat.R8G8B8_SINT => 3
-                , InputFormat.R8G8B8_SRGB => 3
-                , InputFormat.B8G8R8_UNORM => 3
-                , InputFormat.B8G8R8_SNORM => 3
-                , InputFormat.B8G8R8_USCALED => 3
-                , InputFormat.B8G8R8_SSCALED => 3
-                , InputFormat.B8G8R8_UINT => 3
-                , InputFormat.B8G8R8_SINT => 3
-                , InputFormat.B8G8R8_SRGB => 3
+                
+                // Removed - See comment in InputFormat.
+                //, InputFormat.R8G8B8_UNORM => 3
+                //, InputFormat.R8G8B8_SNORM => 3
+                //, InputFormat.R8G8B8_USCALED => 3
+                //, InputFormat.R8G8B8_SSCALED => 3
+                //, InputFormat.R8G8B8_UINT => 3
+                //, InputFormat.R8G8B8_SINT => 3
+                //, InputFormat.R8G8B8_SRGB => 3
+                //, InputFormat.B8G8R8_UNORM => 3
+                //, InputFormat.B8G8R8_SNORM => 3
+                //, InputFormat.B8G8R8_USCALED => 3
+                //, InputFormat.B8G8R8_SSCALED => 3
+                //, InputFormat.B8G8R8_UINT => 3
+                //, InputFormat.B8G8R8_SINT => 3
+                //, InputFormat.B8G8R8_SRGB => 3
+                
                 , InputFormat.R8G8B8A8_UNORM => 4
                 , InputFormat.R8G8B8A8_SNORM => 4
                 , InputFormat.R8G8B8A8_USCALED => 4

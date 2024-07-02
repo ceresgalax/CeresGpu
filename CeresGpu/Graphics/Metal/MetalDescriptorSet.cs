@@ -129,7 +129,7 @@ namespace CeresGpu.Graphics.Metal
                         
                         if (handle == IntPtr.Zero || !_texturesWithSetSamplers.Contains(i)) {
                             MetalApi.metalbinding_encode_texture_argument(_argumentEncoder, renderCommandEncoder, _renderer.FallbackTexture.Handle, (uint)i, stages);
-                            MetalApi.metalbinding_encode_sampler_argument(_argumentEncoder, _renderer.FallbackSampler.Handle, (uint)i);
+                            MetalApi.metalbinding_encode_sampler_argument(_argumentEncoder, _renderer.FallbackSampler.Handle, (uint)extraIndex);
                         } else {
                             MetalApi.metalbinding_encode_texture_argument(_argumentEncoder, renderCommandEncoder, handle, (uint)i, stages);    
                         }
