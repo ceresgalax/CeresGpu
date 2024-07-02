@@ -4,7 +4,6 @@ namespace CeresGpu.Graphics;
 
 public abstract class StreamingBuffer<T> : IStreamingBuffer<T> where T : unmanaged
 {
-    private uint _lastFrameUpdated = uint.MaxValue;
     private uint _lastFrameCommited = uint.MaxValue;
 
     // private readonly ValidRegionTracker _validRegionTracker = new();

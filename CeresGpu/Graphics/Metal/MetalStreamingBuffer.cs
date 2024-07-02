@@ -8,9 +8,13 @@ namespace CeresGpu.Graphics.Metal
     {
         private readonly MetalRenderer _renderer;
 
+        private int _activeIndex;
+        
         private readonly IntPtr[] _buffers;
         private readonly uint[] _sizes;
-
+        
+        private uint _lastAllocationFrameId = uint.MaxValue;
+        
         private uint _count;
 
         public override uint Count => _count;
@@ -30,7 +34,7 @@ namespace CeresGpu.Graphics.Metal
 
         public IntPtr GetHandleForCurrentFrame()
         {
-            return _buffers[_renderer.WorkingFrame];
+            return _buffers[_activeIndex];
         }
 
         void IMetalBuffer.Commit()
@@ -41,20 +45,26 @@ namespace CeresGpu.Graphics.Metal
         public override void Allocate(uint elementCount)
         {
             base.Allocate(elementCount);
+
+            if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
+                _lastAllocationFrameId = _renderer.UniqueFrameId;
+                _activeIndex = (_activeIndex + 1) % _renderer.FrameCount;    
+            }
+            
             _count = elementCount;
+            
+            RecreateBufferIfNecesary();
         }
 
         private void RecreateBufferIfNecesary()
         {
-            int workingFrame = _renderer.WorkingFrame;
-            
-            bool needsNewBuffer = _sizes[workingFrame] != Count || _buffers[workingFrame] == IntPtr.Zero;
+            bool needsNewBuffer = _sizes[_activeIndex] != Count || _buffers[_activeIndex] == IntPtr.Zero;
             
             if (needsNewBuffer) {
-                IntPtr oldBuffer = _buffers[workingFrame];
+                IntPtr oldBuffer = _buffers[_activeIndex];
                 if (oldBuffer != IntPtr.Zero) {
                     MetalApi.metalbinding_release_buffer(oldBuffer);
-                    _buffers[workingFrame] = IntPtr.Zero;
+                    _buffers[_activeIndex] = IntPtr.Zero;
                 }
 
                 // Metal will not create buffers of zero size.
@@ -64,23 +74,28 @@ namespace CeresGpu.Graphics.Metal
                 }
 
                 IntPtr newBuffer = MetalApi.metalbinding_new_buffer(_renderer.Context, byteCount);
-                _sizes[workingFrame] = Count;
-                _buffers[workingFrame] = newBuffer;
+                _sizes[_activeIndex] = Count;
+                _buffers[_activeIndex] = newBuffer;
             }
         }
         
         public override void Set(uint offset, Span<T> elements, uint count)
         {
             base.Set(offset, elements, count);
-            
-            RecreateBufferIfNecesary();
-            
-            int workingFrame = _renderer.WorkingFrame;
-            IntPtr buffer = _buffers[workingFrame];
 
-            if (buffer == IntPtr.Zero) {
-                throw new InvalidOperationException("Internal error. Somehow a buffer is null");
+            if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
+                Allocate(Count);
             }
+            
+            // if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
+            //     throw new InvalidOperationException("Must call Allocate the same frame before modifying a streaming buffer");
+            // }
+            
+            IntPtr buffer = _buffers[_activeIndex];
+
+            // if (buffer == IntPtr.Zero) {
+            //     throw new InvalidOperationException("Internal error. Somehow a buffer is null");
+            // }
 
             MetalBufferUtil.CopyBuffer(buffer, offset, elements, count, Count);
         }
