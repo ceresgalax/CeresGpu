@@ -15,7 +15,7 @@ namespace CeresGpu.Graphics.Metal
             Sampler
         }
 
-        private readonly List<(DescriptorType, object)> _descriptors;
+        private readonly List<(DescriptorType, object, uint extraIndex)> _descriptors;
         
         public readonly ShaderStage Stage;
         public readonly uint BufferIndex; 
@@ -27,7 +27,7 @@ namespace CeresGpu.Graphics.Metal
         public MetalDescriptorSet(MetalRenderer renderer, IntPtr function, ShaderStage stage, int index, in DescriptorSetCreationHints hints)
         {
             _renderer = renderer;
-            _descriptors = new List<(DescriptorType, object)>(hints.DescriptorCount);
+            _descriptors = new List<(DescriptorType, object, uint)>(hints.DescriptorCount);
             Stage = stage;
             BufferIndex = MetalBufferTableConstants.INDEX_ARGUMENT_BUFFER_0 + (uint)index;
             _argumentEncoder = MetalApi.metalbinding_new_argument_encoder(function, BufferIndex); 
@@ -53,12 +53,12 @@ namespace CeresGpu.Graphics.Metal
             ReleaseUnmanagedResources();
         }
         
-        private void SetDescriptor(int index, DescriptorType descriptorType, object resource)
+        private void SetDescriptor(int index, DescriptorType descriptorType, object resource, uint extraIndex = 0)
         {
             while (index >= _descriptors.Count) {
-                _descriptors.Add((DescriptorType.Unset, string.Empty));
+                _descriptors.Add((DescriptorType.Unset, string.Empty, 0));
             }
-            _descriptors[index] = (descriptorType, resource);
+            _descriptors[index] = (descriptorType, resource, extraIndex);
         }
         
         public void SetUniformBufferDescriptor<T>(IBuffer<T> buffer, in DescriptorInfo info) where T : unmanaged
@@ -82,7 +82,7 @@ namespace CeresGpu.Graphics.Metal
                 throw new ArgumentException("Incompatible texture", nameof(texture));
             }
 
-            SetDescriptor(info.BindingIndex, DescriptorType.Texture, metalTexture);
+            SetDescriptor(info.BindingIndex, DescriptorType.Texture, metalTexture, (uint)info.SamplerIndex);
         }
 
         public void SetSamplerDescriptor(ISampler sampler, in DescriptorInfo info)
@@ -91,17 +91,30 @@ namespace CeresGpu.Graphics.Metal
                 throw new ArgumentException("Incompatible sampler", nameof(sampler));
             }
             
-            SetDescriptor(info.SamplerIndex, DescriptorType.Sampler, metalSampler);
+            SetDescriptor(info.SamplerIndex, DescriptorType.Sampler, metalSampler, (uint)info.BindingIndex);
         }
 
+        private readonly HashSet<int> _texturesWithSetSamplers = new();
+        
         public void UpdateArgumentBuffer(IntPtr renderCommandEncoder)
         {
+            _texturesWithSetSamplers.Clear();
+            for (int i = 0, ilen = _descriptors.Count; i < ilen; ++i) {
+                (DescriptorType descriptorType, object resource, uint extraIndex) = _descriptors[i];
+                if (descriptorType == DescriptorType.Sampler) {
+                    _texturesWithSetSamplers.Add((int)extraIndex);
+                }
+            }
+            
             uint stages = Stage == ShaderStage.Vertex ? 0b01u : 0b10u;
+            
+            // TODO: NEED TO KNOW THE DESCRIPTOR SET LAYOUT SO THAT WE CAN ALWAYS SET EVERYTHING.
+            // ITS REALLY BAD TO SKIP ENCODING SPOTS IN THE ARGUMENT BUFFER.
             
             ArgumentBuffer.PrepareToUpdateExternally();
             MetalApi.metalbinding_set_argument_buffer(_argumentEncoder, ArgumentBuffer.GetHandleForCurrentFrame());
             for (int i = 0, ilen = _descriptors.Count; i < ilen; ++i) {
-                (DescriptorType descriptorType, object resource) = _descriptors[i];
+                (DescriptorType descriptorType, object resource, uint extraIndex) = _descriptors[i];
                 switch (descriptorType) {
                     case DescriptorType.Buffer:
                         IMetalBuffer buffer = (IMetalBuffer)resource;
@@ -112,13 +125,14 @@ namespace CeresGpu.Graphics.Metal
                         IntPtr handle = ((MetalTexture)resource).Handle;
                         // We _must_ encode a texture argument, I believe the argument buffer has an arbitrary value
                         // if not encoded, which can cause crashes / corruption in Metal when used.
-                        if (handle == IntPtr.Zero) {
-                            // TODO: Keep an actual fallback texture around instead of throwing? 
-                            // I'm scared of a complicated exception 'exploit' where handling this exception leaves the
-                            // argument buffer in an incompelte state, then is somehow used again. :/
-                            throw new InvalidOperationException("Texture has either not been set or has been disposed.");
+                        // But even more importantly, we need CeresGPU to behave consistently across all graphics APIs.
+                        
+                        if (handle == IntPtr.Zero || !_texturesWithSetSamplers.Contains(i)) {
+                            MetalApi.metalbinding_encode_texture_argument(_argumentEncoder, renderCommandEncoder, _renderer.FallbackTexture.Handle, (uint)i, stages);
+                            MetalApi.metalbinding_encode_sampler_argument(_argumentEncoder, _renderer.FallbackSampler.Handle, (uint)i);
+                        } else {
+                            MetalApi.metalbinding_encode_texture_argument(_argumentEncoder, renderCommandEncoder, handle, (uint)i, stages);    
                         }
-                        MetalApi.metalbinding_encode_texture_argument(_argumentEncoder, renderCommandEncoder, handle, (uint)i, stages);
                         break;
                     case DescriptorType.Sampler:
                         MetalApi.metalbinding_encode_sampler_argument(_argumentEncoder, ((MetalSampler)resource).Handle, (uint)i);

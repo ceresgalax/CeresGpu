@@ -2,6 +2,7 @@
 {
     public interface IGLBuffer
     {
-        uint CommitAndGetHandle();
+        void Commit();
+        uint GetHandleForCurrentFrame();
     }
 }

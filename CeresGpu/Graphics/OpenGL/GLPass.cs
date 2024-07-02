@@ -88,7 +88,8 @@ namespace CeresGpu.Graphics.OpenGL
                 throw new ArgumentException("Incompatible buffer", nameof(indexBuffer));
             }
             GL gl = _renderer.GLProvider.Gl;
-            gl.BindBuffer(BufferTargetARB.ELEMENT_ARRAY_BUFFER, glIndexBuffer.CommitAndGetHandle());
+            glIndexBuffer.Commit();
+            gl.BindBuffer(BufferTargetARB.ELEMENT_ARRAY_BUFFER, glIndexBuffer.GetHandleForCurrentFrame());
             uint indexBufferOffset = (uint)Marshal.SizeOf<ushort>() * firstIndex;
             gl.glDrawElementsInstancedBaseVertexBaseInstance((uint)PrimitiveType.TRIANGLES, (int)indexCount, (uint)DrawElementsType.UNSIGNED_SHORT, new IntPtr(indexBufferOffset), (int)instanceCount, (int)vertexOffset, firstInstance);
         }
@@ -101,7 +102,8 @@ namespace CeresGpu.Graphics.OpenGL
                 throw new ArgumentException("Incompatible buffer", nameof(indexBuffer));
             }
             GL gl = _renderer.GLProvider.Gl;
-            gl.BindBuffer(BufferTargetARB.ELEMENT_ARRAY_BUFFER, glIndexBuffer.CommitAndGetHandle());
+            glIndexBuffer.Commit();
+            gl.BindBuffer(BufferTargetARB.ELEMENT_ARRAY_BUFFER, glIndexBuffer.GetHandleForCurrentFrame());
             uint indexBufferOffset = (uint)Marshal.SizeOf<uint>() * firstIndex;
             gl.glDrawElementsInstancedBaseVertexBaseInstance((uint)PrimitiveType.TRIANGLES, (int)indexCount, (uint)DrawElementsType.UNSIGNED_INT, new IntPtr(indexBufferOffset), (int)instanceCount, (int)vertexOffset, firstInstance);
         }

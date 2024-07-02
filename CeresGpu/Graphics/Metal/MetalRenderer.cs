@@ -19,6 +19,9 @@ namespace CeresGpu.Graphics.Metal
         private MetalPass? _currentPass;
 
         private ClearRenderer? _clearRenderer;
+
+        public readonly MetalTexture FallbackTexture;
+        public readonly MetalSampler FallbackSampler;
         
         public int FrameCount => 3; 
         public int WorkingFrame { get; private set; }
@@ -39,6 +42,9 @@ namespace CeresGpu.Graphics.Metal
             _glfwWindow = glfwWindow;
             Context = MetalApi.metalbinding_create(window, (uint)FrameCount);
             MetalApi.metalbinding_arp_drain(Context);
+
+            FallbackTexture = (MetalTexture)RendererUtil.CreateFallbackTexture(this);
+            FallbackSampler = (MetalSampler)CreateSampler(default);
         }
 
         public void Dispose()

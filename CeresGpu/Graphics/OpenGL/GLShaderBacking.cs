@@ -37,10 +37,10 @@ namespace CeresGpu.Graphics.OpenGL
             }
         }
 
-        private void SetShader(GL gl, uint handle, IShader shader, string name)
+        private void SetShader(GL gl, uint handle, IShader shader, string postfix)
         {
             //Span<uint> shaders = stackalloc uint[1] { handle };
-            byte[] spirv = GetSpirv(shader, name);
+            byte[] spirv = GetSource(shader, postfix);
             
             gl.ShaderSource(handle, spirv);
             gl.CompileShader(handle);
@@ -50,11 +50,11 @@ namespace CeresGpu.Graphics.OpenGL
             Console.WriteLine($"Shader Log: {GLUtil.GetShaderInfoLog(gl, handle)}"); // TODO: Needs more info
         }
         
-        private byte[] GetSpirv(IShader shader, string name)
+        private byte[] GetSource(IShader shader, string postfix)
         {
-            using Stream? stream = shader.GetShaderResource(name);
+            using Stream? stream = shader.GetShaderResource(postfix);
             if (stream == null) {
-                throw new InvalidOperationException($"Cannot find spriv resource for {name}");
+                throw new InvalidOperationException($"Cannot find resource with {postfix}");
             }
             long len = stream.Length;
             byte[] spirv = new byte[len];

@@ -43,10 +43,13 @@ namespace CeresGpu.Graphics.OpenGL
                     uint[] textures = new uint[1];
                     gl.GenTextures(textures.Length, textures);
                     gl.BindTexture(TextureTarget.TEXTURE_2D, textures[0]);
-                    gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_WRAP_S, (int)TextureWrapMode.CLAMP_TO_EDGE);
-                    gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_WRAP_T, (int)TextureWrapMode.CLAMP_TO_EDGE);
-                    gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_MIN_FILTER, (int)TextureMinFilter.NEAREST);
-                    gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_MAG_FILTER, (int)TextureMinFilter.NEAREST);
+                    
+                    // THIS IS NOW DONE BY SAMPLERS.
+                    // gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_WRAP_S, (int)TextureWrapMode.CLAMP_TO_EDGE);
+                    // gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_WRAP_T, (int)TextureWrapMode.CLAMP_TO_EDGE);
+                    // gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_MIN_FILTER, (int)TextureMinFilter.NEAREST);
+                    // gl.TexParameteri(TextureTarget.TEXTURE_2D, TextureParameterName.TEXTURE_MAG_FILTER, (int)TextureMinFilter.NEAREST);
+                    
                     _texture = textures[0];
                 }
             
@@ -141,7 +144,7 @@ namespace CeresGpu.Graphics.OpenGL
                     , InputFormat.R8G8_UINT => throw new NotImplementedException()
                     , InputFormat.R8G8_SINT => throw new NotImplementedException()
                     , InputFormat.R8G8_SRGB => throw new NotImplementedException()
-                    , InputFormat.R8G8B8_UNORM => throw new NotImplementedException()
+                    , InputFormat.R8G8B8_UNORM => (InternalFormat.RGB, PixelFormat.RGB, PixelType.UNSIGNED_BYTE)
                     , InputFormat.R8G8B8_SNORM => throw new NotImplementedException()
                     , InputFormat.R8G8B8_USCALED => throw new NotImplementedException()
                     , InputFormat.R8G8B8_SSCALED => throw new NotImplementedException()

@@ -26,15 +26,19 @@ namespace CeresGpu.Graphics.OpenGL
             _inner.Set(offset, elements, count);
         }
 
+        void IGLBuffer.Commit()
+        {
+            Commit();
+        }
+
+        public uint GetHandleForCurrentFrame()
+        {
+            return _inner.Handle;
+        }
+
         public override void Dispose()
         {
             _inner.Dispose();
-        }
-
-        public uint CommitAndGetHandle()
-        {
-            Commit();
-            return _inner.Handle;
         }
     }
 }

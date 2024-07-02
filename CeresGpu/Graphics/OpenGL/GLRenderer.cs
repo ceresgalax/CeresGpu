@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Threading;
 using CeresGL;
 using CeresGLFW;
@@ -16,12 +18,24 @@ namespace CeresGpu.Graphics.OpenGL
         
         private GLPass? _currentPass;
         
+        /// <summary>
+        /// This is arbitrary, but should always be more than one so that it's easy for users to rat out bugs with
+        /// mis-used streaming buffers while using the GL Renderer impl.
+        /// </summary>
+        public uint WorkingFrameCount => 3;
+        
+        public uint WorkingFrame { get; private set; }
         public uint UniqueFrameId { get; private set; }
         
         public IGLProvider GLProvider => _context;
         public GLPass? CurrentPass => _currentPass;
 
-        public GLRenderer(GLFWWindow window)
+        public readonly GLTexture FallbackTexture;
+        public readonly GLSampler FallbackSampler;
+        
+        private readonly DebugCallback? _debugCallback;
+
+        public GLRenderer(GLFWWindow window, bool isDebugContext = false)
         {
             GL gl = new();
             gl.Init(new GlfwGLLoader());
@@ -43,35 +57,23 @@ namespace CeresGpu.Graphics.OpenGL
             
             // TODO: Fix parameter validation in gl.GetIntegerv
             
-            // Get supported shader binary formats
-            int numShaderBinaryFormats = 0;
-            unsafe {
-                gl.glGetIntegerv((uint)GetPName.NUM_SHADER_BINARY_FORMATS, (IntPtr)(&numShaderBinaryFormats));
-            }
-            
-            int[] formats = new int[numShaderBinaryFormats];
-            unsafe {
-                fixed (int* pFormats = formats) {
-                    gl.glGetIntegerv((uint)GetPName.SHADER_BINARY_FORMATS, (IntPtr)(pFormats));
-                }
-            }
-
-            bool supportsSpirV = false;
-            
-            foreach(int formatInt in formats) {
-                ShaderBinaryFormat format = (ShaderBinaryFormat)formatInt;
-                Console.WriteLine($"OpenGLRenderer: Supports Shader Binary Format {Enum.GetName(format)}");
-                if (format == ShaderBinaryFormat.SHADER_BINARY_FORMAT_SPIR_V)
-                {
-                    supportsSpirV = true;
-                } 
-            }
-
-            if (!supportsSpirV) {
-                throw new InvalidOperationException("This device does not support SPIR-V shader binaries. As OpenGL does not support selecting GPUs, please set a different GPU for this app in your GPU settings.");
+            if (isDebugContext) {
+                _debugCallback = HandleDebugMessage;
+                gl.glDebugMessageCallback(Marshal.GetFunctionPointerForDelegate(_debugCallback), IntPtr.Zero);
             }
             
             gl.Enable(EnableCap.SCISSOR_TEST);
+
+            FallbackTexture = (GLTexture)RendererUtil.CreateFallbackTexture(this);
+            FallbackSampler = (GLSampler)CreateSampler(default);
+        }
+
+        private delegate void DebugCallback(DebugSource source, DebugType type, uint id, DebugSeverity severity, uint length, IntPtr message, IntPtr userParam); 
+
+        private void HandleDebugMessage(DebugSource source, DebugType type, uint id, DebugSeverity severity, uint length, IntPtr message, IntPtr userParam)
+        {
+            string? messageStr = Marshal.PtrToStringAnsi(message) ?? "";            
+            Console.WriteLine($"[Source:{source}][Type: {type}]: {id}: {severity}: {messageStr}");
         }
         
         public IStaticBuffer<T> CreateStaticBuffer<T>(int elementCount) where T : unmanaged
@@ -119,12 +121,12 @@ namespace CeresGpu.Graphics.OpenGL
 
         public IShaderInstanceBacking CreateShaderInstanceBacking(int vertexBufferCountHint, IShader shader)
         {
-            return new GLShaderInstanceBacking(_context, vertexBufferCountHint, shader);
+            return new GLShaderInstanceBacking(this, vertexBufferCountHint, shader);
         }
 
         public IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints)
         {
-            return new GLDescriptorSet(_context, in hints);
+            return new GLDescriptorSet(this, in hints);
         }
 
         public IPipeline<ShaderT> CreatePipeline<ShaderT>(PipelineDefinition definition, ShaderT shader) where ShaderT : IShader
@@ -188,6 +190,7 @@ namespace CeresGpu.Graphics.OpenGL
         {
             _window.SwapBuffers();
             ++UniqueFrameId;
+            WorkingFrame = (WorkingFrame + 1) % WorkingFrameCount;
             
             _context.ProcessFinalizerActions();
         }

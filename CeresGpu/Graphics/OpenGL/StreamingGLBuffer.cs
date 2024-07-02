@@ -30,14 +30,18 @@ public sealed class StreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer where T
         _inner.Set(offset, elements, count);
     }
 
+    void IGLBuffer.Commit()
+    {
+        Commit();
+    }
+
+    public uint GetHandleForCurrentFrame()
+    {
+        return _inner.Handle;
+    }
+
     public override void Dispose()
     {
         _inner.Dispose();
-    }
-
-    public uint CommitAndGetHandle()
-    {
-        Commit();
-        return _inner.Handle;
     }
 }

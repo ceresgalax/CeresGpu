@@ -12,7 +12,8 @@ public sealed class DebugStreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer wh
     private readonly GLRenderer _renderer;
     private readonly GLBuffer<T>[] _buffers;
 
-    const uint WORKING_BUFFER_COUNT = 3;
+    private uint _activeIndex;
+    private uint _lastAllocationFrameId = uint.MaxValue;
     
     /// <summary>
     /// Count of T elements the buffer is sized for.
@@ -22,9 +23,9 @@ public sealed class DebugStreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer wh
     public DebugStreamingGLBuffer(GLRenderer renderer)
     {
         _renderer = renderer;
-        _buffers = new GLBuffer<T>[WORKING_BUFFER_COUNT];
+        _buffers = new GLBuffer<T>[_renderer.WorkingFrameCount];
         IGLProvider provider = renderer.GLProvider;
-        for (int i = 0; i < WORKING_BUFFER_COUNT; ++i) {
+        for (int i = 0; i < _buffers.Length; ++i) {
             _buffers[i] = new GLBuffer<T>(provider);
         }
     }
@@ -36,14 +37,26 @@ public sealed class DebugStreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer wh
     public override void Allocate(uint elementCount)
     {
         base.Allocate(elementCount);
+        
+        if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
+            _lastAllocationFrameId = _renderer.UniqueFrameId;
+            _activeIndex = (_activeIndex + 1) % _renderer.WorkingFrameCount;    
+        }
+        
         _count = elementCount;
+        
+         RecreateBufferIfNecesary();
     }
 
     public override void Set(uint offset, Span<T> elements, uint count)
     {
         base.Set(offset, elements, count);
-        RecreateBufferIfNecesary();
-        _buffers[WorkingFrameIndex].Set(offset, elements, count);
+        
+        if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
+            Allocate(Count);
+        }
+        
+        _buffers[_activeIndex].Set(offset, elements, count);
     }
 
     public override void Dispose()
@@ -53,22 +66,27 @@ public sealed class DebugStreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer wh
         }
     }
 
-    public uint CommitAndGetHandle()
+    void IGLBuffer.Commit()
     {
+        if (GetIsCommited()) {
+            return;
+        }
+        
+        RecreateBufferIfNecesary();
         Commit();
-        return _buffers[WorkingFrameIndex].Handle;
     }
 
-    private uint WorkingFrameIndex => _renderer.UniqueFrameId % WORKING_BUFFER_COUNT;
+    public uint GetHandleForCurrentFrame()
+    {
+        return _buffers[_activeIndex].Handle;
+    }
     
     private void RecreateBufferIfNecesary()
     {
-        uint workingFrame = WorkingFrameIndex;
-            
-        bool needsNewBuffer = _buffers[workingFrame].Count != _count;
+        bool needsNewBuffer = _buffers[_activeIndex].Count != _count;
             
         if (needsNewBuffer) {
-            _buffers[workingFrame].Allocate(_count, BufferUsageARB.STREAM_DRAW);
+            _buffers[_activeIndex].Allocate(_count, BufferUsageARB.STREAM_DRAW);
         }
     }
 }
