@@ -119,6 +119,7 @@
             <ThisRid>%(BuildableRid.Identity)</ThisRid>
             <BuildDir>$(IntermediateOutputPath)glslang\%(BuildableRid.Identity)\</BuildDir>
             <BuildOutputDir>$(IntermediateOutputPath)glslang\%(BuildableRid.Identity)\StandAlone\%(BuildableRid.BuildOutputDir)</BuildOutputDir>
+            <ProcessorCount>$([System.Environment]::ProcessorCount)</ProcessorCount>
         </PropertyGroup>
 
         <PropertyGroup>
@@ -129,7 +130,8 @@
         
         <MakeDir Directories="$(BuildDir)" />
         <Exec WorkingDirectory="$(BuildDir)" Command="cmake &quot;$(GlslangSourceDir.TrimEnd('\'))&quot; &quot;-DCMAKE_OSX_ARCHITECTURES=$(CmakeOsxArchitectures)&quot;" />
-        <Exec WorkingDirectory="$(BuildDir)" Command="cmake --build . --config $(Configuration) -j" />
+        <!-- Don't use bare -j flag here. Their cmake file somehow causes too many processes to be spawned if a number is not also supplied. -->
+        <Exec WorkingDirectory="$(BuildDir)" Command="cmake --build . --config $(Configuration) -j $(ProcessorCount)" />
 
         <MakeDir Directories="$(MSBuildThisFileDirectory)..\ggen\binaries\%(BuildableRid.Identity)" />
         <Copy 
@@ -154,6 +156,7 @@
             <ThisRid>%(BuildableRid.Identity)</ThisRid>
             <BuildDir>$(IntermediateOutputPath)SPIRV-Cross\%(BuildableRid.Identity)\</BuildDir>
             <BuildOutputDir>$(IntermediateOutputPath)SPIRV-Cross\%(BuildableRid.Identity)\%(BuildableRid.BuildOutputDir)</BuildOutputDir>
+            <ProcessorCount>$([System.Environment]::ProcessorCount)</ProcessorCount>
         </PropertyGroup>
 
         <PropertyGroup>
@@ -164,7 +167,9 @@
 
         <MakeDir Directories="$(BuildDir)" />
         <Exec WorkingDirectory="$(BuildDir)" Command="cmake &quot;$(SpirVCrossSourceDir.TrimEnd('\'))&quot; &quot;-DCMAKE_OSX_ARCHITECTURES=$(CmakeOsxArchitectures)&quot;" />
-        <Exec WorkingDirectory="$(BuildDir)" Command="cmake --build . --config $(Configuration) -j" />
+        
+        <!-- Don't use bare -j flag here.. Their cmake file somehow causes too many processes to be spawned if a number is not also supplied. -->
+        <Exec WorkingDirectory="$(BuildDir)" Command="cmake --build . --config $(Configuration) -j $(ProcessorCount)" /> 
 
         <MakeDir Directories="$(MSBuildThisFileDirectory)..\ggen\binaries\%(BuildableRid.Identity)" />
         <Copy
