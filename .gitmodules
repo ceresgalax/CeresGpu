@@ -1,3 +1,6 @@
 [submodule "ggen/ext/glslang"]
 	path = ggen/ext/glslang
 	url = git@github.com:KhronosGroup/glslang.git
+[submodule "ggen/ext/SPIRV-Cross"]
+	path = ggen/ext/SPIRV-Cross
+	url = git@github.com:KhronosGroup/SPIRV-Cross.git

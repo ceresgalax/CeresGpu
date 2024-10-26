@@ -2,6 +2,7 @@ import argparse
 import glob
 import json
 import os
+import platform
 import re
 import sys
 import subprocess
@@ -28,8 +29,22 @@ argparser.add_argument('--output-dir',
                        help='Directory to output generated cs files to.')
 
 
-binaries_path = os.path.normpath(os.path.join(__file__, '..', 'binaries', sys.platform))
-EXE_POSTFIX = '.exe' if sys.platform == 'win32' else ''
+platform_to_rid_os = {
+    'win32': 'win',
+    'darwin': 'osx'
+}
+machine_to_rid_arch = {
+    'amd64': 'x64',
+    'x86_64': 'x64',
+    'arm64': 'arm64',
+    'aarch64': 'arm64'
+}
+
+rid_os = platform_to_rid_os[sys.platform.lower()]
+rid_arch = machine_to_rid_arch[platform.machine().lower()]
+
+binaries_path = os.path.normpath(os.path.join(__file__, '..', 'binaries', f'{rid_os}-{rid_arch}'))
+EXE_POSTFIX = '.exe' if rid_os == 'win' else ''
 GLSLANG_BINARY = os.path.join(binaries_path, 'glslangValidator' + EXE_POSTFIX)
 SPIRV_CROSS_BINARY = os.path.join(binaries_path, 'spirv-cross' + EXE_POSTFIX)
 
