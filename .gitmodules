@@ -1,0 +1,3 @@
+[submodule "ggen/ext/glslang"]
+	path = ggen/ext/glslang
+	url = git@github.com:KhronosGroup/glslang.git
