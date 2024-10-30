@@ -10,10 +10,18 @@
         <LangVersion>10</LangVersion>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <PrebuiltExternalToolsVersion>1.0.1</PrebuiltExternalToolsVersion>
+    </PropertyGroup>
+
     <ItemGroup>
         <PackageReference Include="CeresGL" Version="0.1.2" />
         <PackageReference Include="JetBrains.Annotations" Version="2022.1.0" />
         <PackageReference Include="SkiaSharp" Version="2.88.6" />
+
+        <!-- PrivateAssets="all" here to prevent the shader tools from ending up in the output directory of depending projects -->
+        <!-- PrivateAssets="runtime" didn't seem to work :/ -->
+        <PackageReference Include="CeresGpuPrebuiltExternalTools" Version="$(PrebuiltExternalToolsVersion)" PrivateAssets="all" /> 
     </ItemGroup>
 
     <ItemGroup>
@@ -30,6 +38,13 @@
 
     <Import Project="$(MSBuildProjectDirectory)\..\CeresGPU.targets" />
 
+    <PropertyGroup>
+        <HostRidOs Condition="$([MSBuild]::IsOSPlatform('OSX'))">osx</HostRidOs>
+        <HostRidOs Condition="$([MSBuild]::IsOSPlatform('Windows'))">win</HostRidOs>
+        <HostRidArch>$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLower())</HostRidArch>
+        <HostRid>$(HostRidOs)-$(HostRidArch)</HostRid>
+    </PropertyGroup>
+    
     <!-- Hack to support targeting multiple target frameworks https://github.com/dotnet/msbuild/issues/2781 -->
 
     <Target Name="MakeMetalBindingInner" Inputs="@(MetalBindingSrc);..\genmetal.py;..\makemetalbinding.py" Outputs="MetalBinding\Metal.Generated.cs;..\runtimes\osx-arm64\native\libmetalbinding.dylib;..\runtimes\osx-x64\native\libmetalbinding.dylib">
@@ -64,128 +79,41 @@
             <Link>runtimes/osx-x64/native/%(Filename)%(Extension)</Link>
         </Content>
     </ItemGroup>
-
-
-    <!-- Build the spirv / glsl binaries needed by "ggen" - our shader compilation tool -->
-
-    <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))" >
-        <BuildableRid Include="win-x64">
-            <BuildOutputDir>$(Configuration)\</BuildOutputDir>
-            <ExecutableExtension>.exe</ExecutableExtension>
-        </BuildableRid>
-    </ItemGroup>
-    <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))" >
-        <BuildableRid Include="osx-x64;osx-arm64">
-            <BuildOutputDir />
-            <ExecutableExtension />
-        </BuildableRid>
-    </ItemGroup>
-
-    <PropertyGroup>
-        <GgenDepsExt>$(MSBuildThisFileDirectory)..\ggen\ext\</GgenDepsExt>
-        <GlslangSourceDir>$(GgenDepsExt)glslang\</GlslangSourceDir>
-        <SpirVCrossSourceDir>$(GgenDepsExt)SPIRV-Cross\</SpirVCrossSourceDir>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <GlslangKnownGoodInput Include="$(GlslangSourceDir)*.json"/>
-        <GlslangKnownGoodInput Include="$(GlslangSourceDir)update_glslang_sources.py"/>
-    </ItemGroup>
     
-    <Target Name="UpdateGlslangExternalSources"
-            Inputs="@(GlslangKnownGoodInput)"
-            Outputs="$(IntermediateOutputPath)\glslang\update_sources.receipt"
-            BeforeTargets="MakeGlslangSingular"
-    >
-        <FindPythonTask>
-            <Output TaskParameter="PythonPath" PropertyName="Python" />
-        </FindPythonTask>
-        <Exec WorkingDirectory="$(GlslangSourceDir)" Command="$(Python) update_glslang_sources.py" />
-
-        <MakeDir Directories="$(IntermediateOutputPath)\glslang" />
-        <Touch Files="$(IntermediateOutputPath)\glslang\update_source.receipt" AlwaysCreate="true"/>
-        
+    <!--
+    Targets to copy the binaries we need from the prebuilt binaries nuget package, renaming them if necesary. 
+    -->
+    <Target Name="ComputePrebuiltToolsToPrepare" BeforeTargets="PreparePrebuiltTools" Condition="'$(TargetFramework)' == 'once'">
         <ItemGroup>
-            <!-- Now that we have all the sources files in place, we can determine the source file items. -->
-            <GlslangSrcFile Include="$(GlslangSourceDir)**\*" />
+            <_PrebuiltTool Include="$(NuGetPackageRoot)ceresgpuprebuiltexternaltools\$(PrebuiltExternalToolsVersion)\runtimes\$(HostRid)\native\*" />
+            <!-- Create the real items now that we can access the metadata. -->
+            <PrebuiltTool Include="@(_PrebuiltTool)">
+                <OutputDir>$(BaseIntermediateOutputPath)staged_tools\</OutputDir>
+                <OutputPath Condition="'$(HostRidOs)' != 'osx'">%(PrebuiltTool.OutputDir)%(Filename)%(Extension)</OutputPath>
+                <!-- Strip off the .bin extension for osx. -->
+                <OutputPath Condition="'$(HostRidOs)' == 'osx'">%(PrebuiltTool.OutputDir)%(Filename)</OutputPath>
+            </PrebuiltTool>
         </ItemGroup>
     </Target>
-    
-    <Target Name="MakeGlslangSingular"
-            Inputs="@(GlslangSrcFile)"
-            Outputs="$(MSBuildThisFileDirectory)..\ggen\binaries\%(BuildableRid.Identity)\glslangValidator%(BuildableRid.ExecutableExtension)"
+    <Target Name="PreparePrebuiltTools"
+            BeforeTargets="ggen"
+            AfterTargets="BeforeBuild"
+            Inputs="@(PrebuiltTool)"
+            Outputs="@(PrebuiltTool -> '%(OutputPath)')"
     >
-        <PropertyGroup>
-            <ThisRid>%(BuildableRid.Identity)</ThisRid>
-            <BuildDir>$(IntermediateOutputPath)glslang\%(BuildableRid.Identity)\</BuildDir>
-            <BuildOutputDir>$(IntermediateOutputPath)glslang\%(BuildableRid.Identity)\StandAlone\%(BuildableRid.BuildOutputDir)</BuildOutputDir>
-            <ProcessorCount>$([System.Environment]::ProcessorCount)</ProcessorCount>
-        </PropertyGroup>
-
-        <PropertyGroup>
-            <CmakeOsxArchitectures />
-            <CmakeOsxArchitectures Condition="'%(BuildableRid.Identity)' == 'osx-x64'">x86_64</CmakeOsxArchitectures>
-            <CmakeOsxArchitectures Condition="'%(BuildableRid.Identity)' == 'osx-arm64'">arm64</CmakeOsxArchitectures>
-        </PropertyGroup>
-        
-        <MakeDir Directories="$(BuildDir)" />
-        <Exec WorkingDirectory="$(BuildDir)" Command="cmake &quot;$(GlslangSourceDir.TrimEnd('\'))&quot; &quot;-DCMAKE_OSX_ARCHITECTURES=$(CmakeOsxArchitectures)&quot;" />
-        <!-- Don't use bare -j flag here. Their cmake file somehow causes too many processes to be spawned if a number is not also supplied. -->
-        <Exec WorkingDirectory="$(BuildDir)" Command="cmake --build . --config $(Configuration) -j $(ProcessorCount)" />
-
-        <MakeDir Directories="$(MSBuildThisFileDirectory)..\ggen\binaries\%(BuildableRid.Identity)" />
-        <Copy 
-                SourceFiles="$(BuildOutputDir)glslangValidator%(BuildableRid.ExecutableExtension)" 
-                DestinationFiles="$(MSBuildThisFileDirectory)..\ggen\binaries\%(BuildableRid.Identity)\glslangValidator%(BuildableRid.ExecutableExtension)" 
-        />
-
-        <ItemGroup>
-            <FileWrites Include="$(BuildDir)\**\*" />
-        </ItemGroup>
-    </Target>
-
-    <ItemGroup>
-        <SpirVCrossSrc Include="$(GlslangSourceDir)*.json"/>
-    </ItemGroup>
-    
-    <Target Name="MakeSpirVCrossSingular"
-            Inputs="@(SpirVCrossSrc)"
-            Outputs="$(MSBuildThisFileDirectory)..\ggen\binaries\%(BuildableRid.Identity)\spirv-cross%(BuildableRid.ExecutableExtension)"
-    >
-        <PropertyGroup>
-            <ThisRid>%(BuildableRid.Identity)</ThisRid>
-            <BuildDir>$(IntermediateOutputPath)SPIRV-Cross\%(BuildableRid.Identity)\</BuildDir>
-            <BuildOutputDir>$(IntermediateOutputPath)SPIRV-Cross\%(BuildableRid.Identity)\%(BuildableRid.BuildOutputDir)</BuildOutputDir>
-            <ProcessorCount>$([System.Environment]::ProcessorCount)</ProcessorCount>
-        </PropertyGroup>
-
-        <PropertyGroup>
-            <CmakeOsxArchitectures />
-            <CmakeOsxArchitectures Condition="'%(BuildableRid.Identity)' == 'osx-x64'">x86_64</CmakeOsxArchitectures>
-            <CmakeOsxArchitectures Condition="'%(BuildableRid.Identity)' == 'osx-arm64'">arm64</CmakeOsxArchitectures>
-        </PropertyGroup>
-
-        <MakeDir Directories="$(BuildDir)" />
-        <Exec WorkingDirectory="$(BuildDir)" Command="cmake &quot;$(SpirVCrossSourceDir.TrimEnd('\'))&quot; &quot;-DCMAKE_OSX_ARCHITECTURES=$(CmakeOsxArchitectures)&quot;" />
-        
-        <!-- Don't use bare -j flag here.. Their cmake file somehow causes too many processes to be spawned if a number is not also supplied. -->
-        <Exec WorkingDirectory="$(BuildDir)" Command="cmake --build . --config $(Configuration) -j $(ProcessorCount)" /> 
-
-        <MakeDir Directories="$(MSBuildThisFileDirectory)..\ggen\binaries\%(BuildableRid.Identity)" />
+        <MakeDir Directories="@(PrebuiltTool -> '%(OutputDir)')" />
         <Copy
-                SourceFiles="$(BuildOutputDir)spirv-cross%(BuildableRid.ExecutableExtension)"
-                DestinationFiles="$(MSBuildThisFileDirectory)..\ggen\binaries\%(BuildableRid.Identity)\spirv-cross%(BuildableRid.ExecutableExtension)"
+            SourceFiles="@(PrebuiltTool)"
+            DestinationFiles="@(PrebuiltTool -> '%(OutputPath)')"
         />
-
         <ItemGroup>
-            <FileWrites Include="$(BuildDir)\**\*" />
+            <FileWrites Include="@(PrebuiltTool -> '%(OutputPath)')" />
         </ItemGroup>
     </Target>
-
-    <Target Name="MakeGgenTools" BeforeTargets="BeforeBuild;DispatchToInnerBuilds">
+    
+    <Target Name="DispatchPreparePrebuiltTools" AfterTargets="BeforeBuild" BeforeTargets="ggen">
         <!--TargetFramework=once is critical here, as msbuild will not execute a task from same project with same properties twice. -->
-        <MSBuild Projects="$(MSBuildProjectFile)" Targets="MakeGlslangSingular" Properties="TargetFramework=once" />
-        <MSBuild Projects="$(MSBuildProjectFile)" Targets="MakeSpirVCrossSingular" Properties="TargetFramework=once" />
+        <MSBuild Projects="$(MSBuildProjectFile)" Targets="PreparePrebuiltTools" Properties="TargetFramework=once" />
     </Target>
 
 </Project>
