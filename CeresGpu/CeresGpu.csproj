@@ -11,7 +11,7 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <PrebuiltExternalToolsVersion>1.0.1</PrebuiltExternalToolsVersion>
+        <PrebuiltExternalToolsVersion>1.0.2</PrebuiltExternalToolsVersion>
     </PropertyGroup>
 
     <ItemGroup>
