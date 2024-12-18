@@ -59,11 +59,16 @@ namespace CeresGpu.Graphics.Metal
 
         private object? _previousPipeline;
 
-        public void SetPipeline<ShaderT>(IPipeline<ShaderT> pipeline, IShaderInstance<ShaderT> shaderInstance) where ShaderT : IShader
+        public void SetPipeline<TShader, TVertexBufferLayout>(
+            IPipeline<TShader, TVertexBufferLayout> pipeline,
+            IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
+        )
+            where TShader : IShader
+            where TVertexBufferLayout : IVertexBufferLayout<TShader> 
         {
             CheckCurrent();
             
-            if (pipeline is not MetalPipeline<ShaderT> metalPipeline) {
+            if (pipeline is not MetalPipeline<TShader, TVertexBufferLayout> metalPipeline) {
                 throw new ArgumentException("Incompatible pipeline", nameof(pipeline));
             }
             if (shaderInstance.Backing is not MetalShaderInstanceBacking shaderInstanceBacking) {

@@ -28,7 +28,13 @@ namespace CeresGpu.Graphics
         IShaderInstanceBacking CreateShaderInstanceBacking(int vertexBufferCountHint, IShader shader);
         IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints);
 
-        IPipeline<ShaderT> CreatePipeline<ShaderT>(PipelineDefinition definition, ShaderT shader) where ShaderT : IShader;
+        IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(
+            PipelineDefinition definition,
+            TShader shader,
+            TVertexBufferLayout vertexBufferLayout
+        )
+            where TShader : IShader
+            where TVertexBufferLayout : IVertexBufferLayout<TShader>;
         
         /// <summary>
         /// Create an IPass with the next swapchain texture as the attachments.

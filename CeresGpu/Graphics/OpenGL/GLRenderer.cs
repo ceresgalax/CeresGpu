@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -129,9 +128,15 @@ namespace CeresGpu.Graphics.OpenGL
             return new GLDescriptorSet(this, in hints);
         }
 
-        public IPipeline<ShaderT> CreatePipeline<ShaderT>(PipelineDefinition definition, ShaderT shader) where ShaderT : IShader
+        public IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(
+            PipelineDefinition definition,
+            TShader shader,
+            TVertexBufferLayout vertexBufferLayout
+        )
+            where TShader : IShader
+            where TVertexBufferLayout : IVertexBufferLayout<TShader>
         {
-            return new GLPipeline<ShaderT>(definition, shader);
+            return new GLPipeline<TShader, TVertexBufferLayout>(definition, shader, vertexBufferLayout);
         }
         
         /// <summary>

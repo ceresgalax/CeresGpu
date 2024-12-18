@@ -4,10 +4,17 @@ using Metalancer.Renderers;
 
 namespace CeresGpu.Graphics.Metal.Clearing
 {
+    // TODO: Get the auto-generated default layout from the shader.
+    class ClearRendererVertexBufferLayout : IVertexBufferLayout<ClearShader>
+    {
+        public ReadOnlySpan<VblBufferDescriptor> BufferDescriptors => throw new NotImplementedException();
+        public ReadOnlySpan<VblAttributeDescriptor> AttributeDescriptors => throw new NotImplementedException();
+    };
+    
     public sealed class ClearRenderer : IDisposable, Pool<ClearRenderer.Resources>.IFactory
     {
         private readonly IRenderer _renderer;
-        private readonly IPipeline<ClearShader> _pipeline;
+        private readonly IPipeline<ClearShader, ClearRendererVertexBufferLayout> _pipeline;
         private readonly ClearShader _shader = new();
         private readonly Pool<Resources> _pool;
         
@@ -23,7 +30,7 @@ namespace CeresGpu.Graphics.Metal.Clearing
             
             _renderer = renderer;
             _shader.Backing = renderer.CreateShaderBacking(_shader);
-            _pipeline = renderer.CreatePipeline(def, _shader);
+            _pipeline = renderer.CreatePipeline(def, _shader, new ClearRendererVertexBufferLayout());
             _pool = new Pool<Resources>(this);
         }
 

@@ -103,7 +103,7 @@ namespace CeresGpu.Graphics.OpenGL
             _glProvider.AddFinalizerAction(ReleaseUnmanagedResources);
         }
         
-         private void SetAttribute(GL gl, VertexAttributeDescriptor attrib, VertexBufferLayout layout)
+        private void SetAttribute(GL gl, VertexAttributeDescriptor attrib, VertexBufferLayout layout)
         {
             int size = attrib.Format switch {
                     VertexFormat.Char => 1,

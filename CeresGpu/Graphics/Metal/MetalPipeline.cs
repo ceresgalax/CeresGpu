@@ -10,7 +10,9 @@ namespace CeresGpu.Graphics.Metal
         public const uint INDEX_VERTEX_BUFFER_MAX = 30;
     }
     
-    public sealed class MetalPipeline<T> : IPipeline<T> where T : IShader
+    public sealed class MetalPipeline<TShader, TVertexBufferLayout> : IPipeline<TShader, TVertexBufferLayout> 
+        where TShader : IShader
+        where TVertexBufferLayout : IVertexBufferLayout<TShader>
     {
         public readonly CullMode CullMode;
         private IntPtr _pipelineState;
@@ -19,7 +21,7 @@ namespace CeresGpu.Graphics.Metal
         public IntPtr Handle => _pipelineState;
         public IntPtr DepthStencilState => _depthStencilState;
         
-        public MetalPipeline(MetalRenderer renderer, PipelineDefinition definition, IShader shader)
+        public MetalPipeline(MetalRenderer renderer, PipelineDefinition definition, IShader shader, TVertexBufferLayout vertexBufferLayout)
         {
             if (shader.Backing is not MetalShaderBacking backing) {
                 throw new ArgumentException("Incompatible shader backing", nameof(shader));
@@ -40,7 +42,7 @@ namespace CeresGpu.Graphics.Metal
                 );
                 MetalApi.metalbinding_set_rpd_functions(rpd, backing.VertexFunction, backing.FragmentFunction);
                 
-                SetupVertexDescriptor(renderer, rpd, shader);
+                SetupVertexDescriptor(renderer, rpd, shader, vertexBufferLayout);
 
                 _pipelineState = MetalApi.metalbinding_new_pipeline_state(renderer.Context, rpd);
                 if (_pipelineState == IntPtr.Zero) {
@@ -74,18 +76,37 @@ namespace CeresGpu.Graphics.Metal
             
         }
 
-        private static void SetupVertexDescriptor(MetalRenderer renderer, IntPtr rpd, IShader shader)
+        private static void SetupVertexDescriptor(MetalRenderer renderer, IntPtr rpd, IShader shader, TVertexBufferLayout vertexBufferLayout)
         {
             IntPtr vertexDescriptor = MetalApi.metalbinding_new_vertex_descriptor(renderer.Context);
             try {
-                foreach (VertexAttributeDescriptor vad in shader.GetVertexAttributeDescriptors()) {
-                    MetalApi.metalbinding_set_vertex_descriptor_vad(vertexDescriptor, vad.Index, TranslateVertexFormat(vad.Format), vad.Offset, MetalBufferTableConstants.INDEX_VERTEX_BUFFER_MAX - vad.BufferIndex);
-                }
 
-                ReadOnlySpan<VertexBufferLayout> vbls = shader.GetVertexBufferLayouts();
-                for (int i = 0, ilen = vbls.Length; i < ilen; ++i) {
-                    VertexBufferLayout layout = vbls[i];
-                    MetalApi.metalbinding_set_vertex_descriptor_vbl(vertexDescriptor, MetalBufferTableConstants.INDEX_VERTEX_BUFFER_MAX - (uint)i, TranslateStepFunction(layout.StepFunction), layout.Stride);   
+                ReadOnlySpan<VblAttributeDescriptor> vblAttributeDescriptors = vertexBufferLayout.AttributeDescriptors;
+                ReadOnlySpan<VblBufferDescriptor> vblBufferDescriptors = vertexBufferLayout.BufferDescriptors;
+                ReadOnlySpan<ShaderVertexAttributeDescriptor> shaderVads = shader.GetVertexAttributeDescriptors();
+                
+                foreach (ref readonly VblAttributeDescriptor vblAttributeDescriptor in vblAttributeDescriptors) {
+                    if (vblAttributeDescriptor.AttributeIndex < 0 || vblAttributeDescriptor.AttributeIndex >= shaderVads.Length) {
+                        // Uh oh! The vertex buffer layout refers to an attribute index that doesn't exist in the shader!
+                        // TODO: Can this be recovered instead of throwing?
+                        throw new InvalidOperationException("Vertex buffer layout refers to an attribute index that doesn't exist in the shader.");
+                    }
+
+                    ref readonly ShaderVertexAttributeDescriptor shaderVad = ref shaderVads[vblAttributeDescriptor.AttributeIndex];
+                    
+                    
+                    MetalApi.metalbinding_set_vertex_descriptor_vad(
+                        vertexDescriptor,
+                        shaderVad.Index,
+                        TranslateVertexFormat(shaderVad.Format),
+                        vblAttributeDescriptor.BufferOffset,
+                        MetalBufferTableConstants.INDEX_VERTEX_BUFFER_MAX - vblAttributeDescriptor.BufferIndex
+                    );
+                }
+                
+                for (int i = 0, ilen = vblBufferDescriptors.Length; i < ilen; ++i) {
+                    ref readonly VblBufferDescriptor vblBufferDescriptor = ref vblBufferDescriptors[i];
+                    MetalApi.metalbinding_set_vertex_descriptor_vbl(vertexDescriptor, MetalBufferTableConstants.INDEX_VERTEX_BUFFER_MAX - (uint)i, TranslateStepFunction(vblBufferDescriptor.StepFunction), vblBufferDescriptor.Stride);
                 }
 
                 MetalApi.metalbinding_set_rpd_vertex_descriptor(rpd, vertexDescriptor);

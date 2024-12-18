@@ -27,7 +27,12 @@ namespace CeresGpu.Graphics.OpenGL
             _attachmentHeight = attachmentHeight;
         }
         
-        public void SetPipeline<ShaderT>(IPipeline<ShaderT> pipeline, IShaderInstance<ShaderT> shaderInstance) where ShaderT : IShader
+        public void SetPipeline<TShader, TVertexBufferLayout>(
+            IPipeline<TShader, TVertexBufferLayout> pipeline,
+            IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
+        ) 
+            where TShader : IShader
+            where TVertexBufferLayout : IVertexBufferLayout<TShader>
         {
             if (pipeline is not IGLPipeline glPipe) {
                 throw new ArgumentException("Incompatible pipeline", nameof(pipeline));

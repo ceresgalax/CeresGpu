@@ -111,9 +111,15 @@ namespace CeresGpu.Graphics.Metal
             return new MetalDescriptorSet(this, function, stage, index, in hints);
         }
 
-        public IPipeline<ShaderT> CreatePipeline<ShaderT>(PipelineDefinition definition, ShaderT shader) where ShaderT : IShader
+        public IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(
+            PipelineDefinition definition,
+            TShader shader,
+            TVertexBufferLayout layout
+        )
+            where TShader : IShader
+            where TVertexBufferLayout : IVertexBufferLayout<TShader>
         {
-            return new MetalPipeline<ShaderT>(this, definition, shader);
+            return new MetalPipeline<TShader, TVertexBufferLayout>(this, definition, shader, layout);
         }
         
         private void AcquireCurrentFrameCommandBuffer()

@@ -7,8 +7,8 @@ namespace CeresGpu.Graphics.Shaders
     {
         IShaderBacking? Backing { get; set; }
         Stream? GetShaderResource(string postfix);
-        ReadOnlySpan<VertexAttributeDescriptor> GetVertexAttributeDescriptors();
-        ReadOnlySpan<VertexBufferLayout> GetVertexBufferLayouts();
+        ReadOnlySpan<ShaderVertexAttributeDescriptor> GetVertexAttributeDescriptors();
+        //ReadOnlySpan<VertexBufferLayout> GetVertexBufferLayouts();
         
         /// <summary>
         /// Meant for shader introspection. Not called internally by CeresGpu.

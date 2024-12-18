@@ -1,13 +1,16 @@
-using System.Reflection;
 
 namespace CeresGpu.Graphics
 {
-    public struct VertexAttributeDescriptor
+    /// <summary>
+    /// Describes a vertex attribute input of a shader.
+    /// </summary>
+    public struct ShaderVertexAttributeDescriptor
     {
         public uint Index;
         public VertexFormat Format;
-        public uint Offset;
-        public uint BufferIndex;
+        
+        // public uint Offset;
+        // public uint BufferIndex;
 
         /// <summary>
         /// Hint for the purpose of this attribute. For example, this may specify that the attribute is used for
