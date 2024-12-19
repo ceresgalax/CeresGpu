@@ -312,6 +312,17 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     class_name = full_name_parts[-1]
     namespace = '.'.join(namespace_parts)
 
+    input_attributes_by_structure: Dict[str, List[InputAttribute]] = {}
+    strides_by_structure: Dict[str, int] = {}
+    
+    vertex_reflection = shader.reflections_by_stage[ShaderStage.VERTEX]
+    for input in vertex_reflection.inputs:
+        directive = directives.input_directives_by_input_name.get(input.name, InputDirective())
+        input_attributes_by_structure.setdefault(directive.structure_name, []).append(InputAttribute(input, directive))
+    
+    for input_attributes in input_attributes_by_structure.values():
+        input_attributes.sort(key=lambda attrib: attrib.input.location)
+
     # Using statements
     f.write_line(
         '#nullable enable',
@@ -338,14 +349,57 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         f'public class {class_name} : IShader',
         '{',
         '    public IShaderBacking? Backing { get; set; }',
+        '    public readonly ShaderVertexAttributeDescriptor[] _vertexAttributeDescriptors;',
         '',
-        '    public void Dispose()',
-        '    {',
-        '        Backing?.Dispose();',
-        '    }',
-        ''
     )
     f.indent()
+    
+    # Begin Constructor
+
+    f.write_line(
+        f'public {class_name}()',
+        '{',
+    )
+    f.indent()
+
+    # Output initialization of _vertexAttributeDescriptors in constructor
+    f.write_line('_vertexAttributeDescriptors = new ShaderVertexAttributeDescriptor[] {')
+    f.indent()
+    
+    for structure_name, attributes in input_attributes_by_structure.items():
+        for attribute in attributes:
+            buffer_type = attribute.directive.buffer_type
+            if not buffer_type:
+                buffer_type = spirv_to_default_buffer_types[attribute.input.type]
+
+            f.write_line(
+                'new ShaderVertexAttributeDescriptor() {',
+                f'    Index = {attribute.input.location},',
+                f'    Format = VertexFormat.{buffer_type_to_mtlvertexformat[buffer_type]},',
+                # f'    Offset = {attribute.offset},',
+                # f'    BufferIndex = VERT_BUFFER_INDEX_{structure_name},',
+                f'    Hint = "{make_cs_string_literal(attribute.directive.hint)}"',
+                '},'
+            )
+    
+    f.deindent()
+    f.write_line('};')
+    
+    # End Constructor
+    f.deindent()
+    f.write_line(
+        '}',
+        ''
+    )
+        
+    # Output Dispose Method
+    f.write_line(
+        'public void Dispose()',
+        '{',
+        '    Backing?.Dispose();',
+        '}',
+        ''
+    )
 
     f.write_line(
         'public Stream? GetShaderResource(string postfix)',
@@ -361,17 +415,6 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     for reflection in shader.reflections_by_stage.values():
         for type in reflection.types.values():
             gen_structure(f, type, reflection, shader.directives.descriptor_field_hints_by_name)
-
-    input_attributes_by_structure: Dict[str, List[InputAttribute]] = {}
-    strides_by_structure: Dict[str, int] = {}
-
-    vertex_reflection = shader.reflections_by_stage[ShaderStage.VERTEX]
-    for input in vertex_reflection.inputs:
-        directive = directives.input_directives_by_input_name.get(input.name, InputDirective())
-        input_attributes_by_structure.setdefault(directive.structure_name, []).append(InputAttribute(input, directive))
-
-    for input_attributes in input_attributes_by_structure.values():
-        input_attributes.sort(key=lambda attrib: attrib.input.location)
 
     current_vert_buffer_index = 0
     for structure_name, attributes in input_attributes_by_structure.items():
@@ -403,57 +446,116 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
 
     # Output GetVertexAttributeDescriptors
     f.write_line(
-        'public ReadOnlySpan<VertexAttributeDescriptor> GetVertexAttributeDescriptors()',
+        'public ReadOnlySpan<ShaderVertexAttributeDescriptor> GetVertexAttributeDescriptors()',
         '{',
-        '    return new VertexAttributeDescriptor[] {'
+        '    return _vertexAttributeDescriptors;',
+        '}',
+        ''
+    )
+
+    # for structure_name, attributes in input_attributes_by_structure.items():
+    #     for attribute in attributes:
+    #         buffer_type = attribute.directive.buffer_type
+    #         if not buffer_type:
+    #             buffer_type = spirv_to_default_buffer_types[attribute.input.type]
+    # 
+    #         f.write_line(
+    #             'new VertexAttributeDescriptor() {',
+    #             f'    Index = {attribute.input.location},',
+    #             f'    Format = VertexFormat.{buffer_type_to_mtlvertexformat[buffer_type]},',
+    #             f'    Offset = {attribute.offset},',
+    #             f'    BufferIndex = VERT_BUFFER_INDEX_{structure_name},',
+    #             f'    Hint = "{make_cs_string_literal(attribute.directive.hint)}"',
+    #             '},'
+    #         )
+    # 
+    # f.deindent()
+    # f.write_line('};')
+    # f.deindent()
+    # f.write_line('}', '')
+
+    # Begin DefaultVertexStructureLayout child class
+    f.write_line(
+        f'public class DefaultVertexStructureLayoutImpl : IVertexBufferLayout<{class_name}>',
+        '{',
+        '    private readonly VblBufferDescriptor[] _bufferDescriptors;',
+        '    private readonly VblAttributeDescriptor[] _attributeDescriptors;',
+        '    public ReadOnlySpan<VblBufferDescriptor> BufferDescriptors => _bufferDescriptors;',
+        '    public ReadOnlySpan<VblAttributeDescriptor> AttributeDescriptors => _attributeDescriptors;',
+        ''
+    )
+    f.indent()
+    
+    # DefaultVertexStructureLayout child class Constructor
+    f.write_line(
+        'public DefaultVertexStructureLayoutImpl()',
+        '{',
+        '    _attributeDescriptors = new VblAttributeDescriptor[] {',
     )
     f.indent()
     f.indent()
-
     for structure_name, attributes in input_attributes_by_structure.items():
         for attribute in attributes:
-            buffer_type = attribute.directive.buffer_type
-            if not buffer_type:
-                buffer_type = spirv_to_default_buffer_types[attribute.input.type]
-
             f.write_line(
-                'new VertexAttributeDescriptor() {',
-                f'    Index = {attribute.input.location},',
-                f'    Format = VertexFormat.{buffer_type_to_mtlvertexformat[buffer_type]},',
-                f'    Offset = {attribute.offset},',
+                'new VblAttributeDescriptor() {',
+                f'    AttributeIndex = {attribute.input.location},',
+                f'    BufferOffset = {attribute.offset},',
                 f'    BufferIndex = VERT_BUFFER_INDEX_{structure_name},',
-                f'    Hint = "{make_cs_string_literal(attribute.directive.hint)}"',
                 '},'
             )
-
     f.deindent()
-    f.write_line('};')
-    f.deindent()
-    f.write_line('}', '')
-
-    # Output GetVertexBufferLayouts
     f.write_line(
-        'public ReadOnlySpan<VertexBufferLayout> GetVertexBufferLayouts()',
-        '{',
-        '    return new VertexBufferLayout[] {'
+        '};',
+        '',
+        '_bufferDescriptors = new VblBufferDescriptor[] {',
     )
     f.indent()
-    f.indent()
-
     for structure_name, attributes in input_attributes_by_structure.items():
         step_mode = 'PerVertex' if attributes[0].directive.step_mode == StepMode.PER_VERTEX else 'PerInstance'
         f.write_line(
-            'new VertexBufferLayout() {',
+            'new VblBufferDescriptor() {',
             f'    StepFunction = VertexStepFunction.{step_mode},',
             f'    Stride = {strides_by_structure[structure_name]},',
             f'    BufferType = typeof({structure_name})',
             '},'
         )
-
     f.deindent()
     f.write_line('};')
     f.deindent()
-    f.write_line('}', '')
+    f.write_line('}')
+    
+    # End DefaultVertexStructureLayout child class
+    f.deindent()
+    f.write_line(
+        '}',
+        '',
+        'public static readonly DefaultVertexStructureLayoutImpl DefaultVertexStructureLayout = new();',
+        ''
+    )
+
+    # # Output GetVertexBufferLayouts
+    # f.write_line(
+    #     'public ReadOnlySpan<VertexBufferLayout> GetVertexBufferLayouts()',
+    #     '{',
+    #     '    return new VertexBufferLayout[] {'
+    # )
+    # f.indent()
+    # f.indent()
+    # 
+    # for structure_name, attributes in input_attributes_by_structure.items():
+    #     step_mode = 'PerVertex' if attributes[0].directive.step_mode == StepMode.PER_VERTEX else 'PerInstance'
+    #     f.write_line(
+    #         'new VertexBufferLayout() {',
+    #         f'    StepFunction = VertexStepFunction.{step_mode},',
+    #         f'    Stride = {strides_by_structure[structure_name]},',
+    #         f'    BufferType = typeof({structure_name})',
+    #         '},'
+    #     )
+    # 
+    # f.deindent()
+    # f.write_line('};')
+    # f.deindent()
+    # f.write_line('}', '')
 
     # Begin fields
     global current_shader_id
@@ -538,7 +640,8 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
 
     # Begin Shader Instance Class
     f.write_line(
-        f'public class Instance : IShaderInstance<{class_name}>',
+        f'public class Instance<TVertexBufferLayout> : IShaderInstance<{class_name}, TVertexBufferLayout>',
+        f'    where TVertexBufferLayout : IVertexBufferLayout<{class_name}>',
         '{',
         '    private IShaderInstanceBacking _backing;'
     )
