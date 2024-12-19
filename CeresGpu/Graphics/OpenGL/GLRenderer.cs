@@ -118,9 +118,9 @@ namespace CeresGpu.Graphics.OpenGL
             return new GLShaderBacking(_context, shader);
         }
 
-        public IShaderInstanceBacking CreateShaderInstanceBacking(int vertexBufferCountHint, IShader shader)
+        public IShaderInstanceBacking CreateShaderInstanceBacking(IShader shader)
         {
-            return new GLShaderInstanceBacking(this, vertexBufferCountHint, shader);
+            return new GLShaderInstanceBacking(this, shader);
         }
 
         public IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints)

@@ -25,7 +25,7 @@ namespace CeresGpu.Graphics
         ITexture CreateTexture();
         ISampler CreateSampler(in SamplerDescription description);
         IShaderBacking CreateShaderBacking(IShader shader);
-        IShaderInstanceBacking CreateShaderInstanceBacking(int vertexBufferCountHint, IShader shader);
+        IShaderInstanceBacking CreateShaderInstanceBacking(IShader shader);
         IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints);
 
         IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(

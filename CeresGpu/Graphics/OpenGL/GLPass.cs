@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Numerics;
 using System.Runtime.InteropServices;
 using CeresGL;
 using CeresGpu.Graphics.Shaders;
@@ -10,6 +9,7 @@ namespace CeresGpu.Graphics.OpenGL
     {
         private GLRenderer _renderer;
 
+        private IGLPipeline? _currentPipeline;
         private object? _previousPipeline;
         private IUntypedShaderInstance? _shaderInstance;
         private GLShaderInstanceBacking? _shaderInstanceBacking;
@@ -46,7 +46,8 @@ namespace CeresGpu.Graphics.OpenGL
                 glPipe.Setup(gl);
                 _previousPipeline = pipeline;
             }
-            
+
+            _currentPipeline = glPipe;
             _shaderInstance = shaderInstance;
             _shaderInstanceBacking = shaderInstanceBacking;
             _instanceUpdated = false;
@@ -133,11 +134,11 @@ namespace CeresGpu.Graphics.OpenGL
                 return;
             }
             
-            if (_shaderInstanceBacking == null) {
-                throw new InvalidOperationException("No shader instance set. Must call SetPipeline first!");
+            if (_shaderInstanceBacking == null || _shaderInstance == null || _currentPipeline == null) {
+                throw new InvalidOperationException("Must call SetPipeline first!");
             }
 
-            _shaderInstanceBacking.PrepareAndBindVertexArrayObject();
+            _shaderInstanceBacking.PrepareAndBindVertexArrayObject(_currentPipeline.VertexBufferLayout, _shaderInstance.VertexBufferAdapter);
 
             if (_shaderInstance != null) {
                 foreach (IDescriptorSet set in _shaderInstance.GetDescriptorSets()) {

@@ -48,7 +48,15 @@ public struct VblBufferDescriptor
 /// can be compatible with.  
 /// </summary>
 /// <typeparam name="TShader"></typeparam>
-public interface IVertexBufferLayout<TShader> where TShader : IShader
+public interface IVertexBufferLayout<TShader> : IVertexBufferLayout where TShader : IShader
+{
+}
+
+/// <summary>
+/// The non-generic interface to a vertex buffer layout which is not tied to a specific shader.
+/// Typically used internally within CeresGpu.
+/// </summary>
+public interface IVertexBufferLayout
 {
     ReadOnlySpan<VblBufferDescriptor> BufferDescriptors { get; }
     ReadOnlySpan<VblAttributeDescriptor> AttributeDescriptors { get; }

@@ -175,23 +175,26 @@ namespace CeresGpu.Graphics.Metal
                 return;
             }
             
-            if (_shaderInstanceBacking == null) {
+            if (_shaderInstanceBacking == null || _shaderInstance == null) {
                 throw new InvalidOperationException("No shader instance set. Must call SetPipeline first!");
             }
 
-            for (int i = 0, ilen = _shaderInstanceBacking.VertexBuffers.Count; i < ilen; ++i) {
-                IMetalBuffer? buffer = _shaderInstanceBacking.VertexBuffers[i];
-                if (buffer != null) {
+            ReadOnlySpan<object> vertexBuffers = _shaderInstance.VertexBufferAdapter.VertexBuffers;
+            
+            for (int i = 0, ilen = vertexBuffers.Length; i < ilen; ++i) {
+                if (vertexBuffers[i] is IMetalBuffer buffer) {
+                    buffer.Commit();
                     MetalApi.metalbinding_command_encoder_set_vertex_buffer(_encoder, buffer.GetHandleForCurrentFrame(), 0, MetalBufferTableConstants.INDEX_VERTEX_BUFFER_MAX - (uint)i);    
+                } else {
+                    throw new InvalidOperationException($"Buffer returned by vertex buffer adapter at index {i} is not compatible with MetalPass.");
                 }
             }
             
-            if (_shaderInstance != null) {
-                foreach (IDescriptorSet set in _shaderInstance.GetDescriptorSets()) {
-                    MetalDescriptorSet metalSet = (MetalDescriptorSet)set;
-                    metalSet.UpdateArgumentBuffer(_encoder);
-                }
+            foreach (IDescriptorSet set in _shaderInstance.GetDescriptorSets()) {
+                MetalDescriptorSet metalSet = (MetalDescriptorSet)set;
+                metalSet.UpdateArgumentBuffer(_encoder);
             }
+            
 
             _instanceUpdated = true;
         }

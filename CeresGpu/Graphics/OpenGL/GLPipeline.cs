@@ -10,11 +10,13 @@ namespace CeresGpu.Graphics.OpenGL
     {
         private readonly PipelineDefinition _definition;
         private readonly TShader _shader;
+        public IVertexBufferLayout VertexBufferLayout { get; } 
         
         public GLPipeline(PipelineDefinition definition, TShader shader, TVertexBufferLayout vertexBufferLayout)
         {
             _definition = definition;
             _shader = shader;
+            VertexBufferLayout = vertexBufferLayout;
         }
 
         public void Dispose() { }

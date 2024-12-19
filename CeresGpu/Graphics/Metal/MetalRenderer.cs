@@ -91,9 +91,9 @@ namespace CeresGpu.Graphics.Metal
             return new MetalShaderBacking(this, shader);
         }
 
-        public IShaderInstanceBacking CreateShaderInstanceBacking(int vertexBufferCountHint, IShader shader)
+        public IShaderInstanceBacking CreateShaderInstanceBacking(IShader shader)
         {
-            return new MetalShaderInstanceBacking(vertexBufferCountHint);
+            return new MetalShaderInstanceBacking();
         }
 
         public IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints)
