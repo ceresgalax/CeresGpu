@@ -26,7 +26,7 @@ namespace CeresGpu.Graphics.OpenGL
         {
             GL gl = _glProvider.Gl;
 
-            ReadOnlySpan<object> buffers = adapter.VertexBuffers;
+            ReadOnlySpan<object?> buffers = adapter.VertexBuffers;
             
             if (_prevVertexBufferHandles.Count == buffers.Length) {
                 bool same = true;

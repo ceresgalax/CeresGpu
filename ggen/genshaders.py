@@ -637,7 +637,27 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         '}',
         ''
     )
-
+    
+    # DefaultVertexBufferAdapter class
+    f.write_line(
+        f'public class DefaultVertexBufferAdapter : IVertexBufferAdapter<{class_name}, DefaultVertexStructureLayoutImpl>',
+        '{',
+        f'    private readonly object[] _buffers = new object[{len(input_attributes_by_structure)}];',
+        '',
+        '    ReadOnlySpan<object?> IUntypedVertexBufferAdapter.VertexBuffers => _buffers;',
+        ''
+    )
+    f.indent()
+    for structure_name, attributes in input_attributes_by_structure.items():
+        f.write_line(
+            f'public void Set{structure_name}(IBuffer<{structure_name}> buffer)',
+            '{',
+            f'    _buffers[VERT_BUFFER_INDEX_{structure_name}] = buffer;',
+            '}'
+        )
+    f.deindent()
+    f.write_line('}', '')
+    
     # Begin Shader Instance Class
     f.write_line(
         f'public class Instance<TVertexBufferLayout> : IShaderInstance<{class_name}, TVertexBufferLayout>',
@@ -677,6 +697,11 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         '{',
         '    return new ReadOnlySpan<IDescriptorSet>(_descriptorSets);',
         '}',
+        '',
+        f'public IVertexBufferAdapter<{class_name}, TVertexBufferLayout> VertexBuffers;',
+        '',
+        f'IVertexBufferAdapter<{class_name}, TVertexBufferLayout> IShaderInstance<{class_name}, TVertexBufferLayout>.VertexBuffers => VertexBuffers;',
+        'IUntypedVertexBufferAdapter IUntypedShaderInstance.VertexBufferAdapter => VertexBuffers;',
         ''
     )
 
@@ -684,11 +709,11 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     # Generate ShaderInstanceConstructor
     #
     f.write_line(
-        f'public Instance(IRenderer renderer, {class_name} shader)',
+        f'public Instance(IRenderer renderer, {class_name} shader, IVertexBufferAdapter<{class_name}, TVertexBufferLayout> buffers)',
         '{',
-        '    // TODO: Actually use a correct vertex buffer count hint',
-        '    _backing = renderer.CreateShaderInstanceBacking(0, shader);',
+        '    _backing = renderer.CreateShaderInstanceBacking(shader);',
         f'    _descriptorSets = new IDescriptorSet[{len(descriptor_set_variable_names)}];',
+        '    VertexBuffers = buffers;',
         ''
     )
     f.indent()
@@ -720,17 +745,17 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     f.deindent()
     f.write_line('}', '')
 
-    #
-    # Vertex Buffer Setters
-    #
-    for structure_name, attributes in input_attributes_by_structure.items():
-        f.write_line(
-            f'public void Set{structure_name}(IBuffer<{structure_name}> buffer)',
-            '{',
-            f'    _backing.SetVertexBuffer(buffer, VERT_BUFFER_INDEX_{structure_name});',
-            '}'
-        )
-
+    # #
+    # # Vertex Buffer Setters
+    # #
+    # for structure_name, attributes in input_attributes_by_structure.items():
+    #     f.write_line(
+    #         f'public void Set{structure_name}(IBuffer<{structure_name}> buffer)',
+    #         '{',
+    #         f'    _backing.SetVertexBuffer(buffer, VERT_BUFFER_INDEX_{structure_name});',
+    #         '}'
+    #     )
+    
     #
     # Buffer Setters
     #

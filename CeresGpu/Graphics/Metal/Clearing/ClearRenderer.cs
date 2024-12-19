@@ -4,23 +4,23 @@ using Metalancer.Renderers;
 
 namespace CeresGpu.Graphics.Metal.Clearing
 {
-    // TODO: Get the auto-generated default layout from the shader.
-    class ClearRendererVertexBufferLayout : IVertexBufferLayout<ClearShader>
-    {
-        public ReadOnlySpan<VblBufferDescriptor> BufferDescriptors => throw new NotImplementedException();
-        public ReadOnlySpan<VblAttributeDescriptor> AttributeDescriptors => throw new NotImplementedException();
-    };
+    // // TODO: Get the auto-generated default layout from the shader.
+    // class ClearRendererVertexBufferLayout : IVertexBufferLayout<ClearShader>
+    // {
+    //     public ReadOnlySpan<VblBufferDescriptor> BufferDescriptors => throw new NotImplementedException();
+    //     public ReadOnlySpan<VblAttributeDescriptor> AttributeDescriptors => throw new NotImplementedException();
+    // };
     
     public sealed class ClearRenderer : IDisposable, Pool<ClearRenderer.Resources>.IFactory
     {
         private readonly IRenderer _renderer;
-        private readonly IPipeline<ClearShader, ClearRendererVertexBufferLayout> _pipeline;
+        private readonly IPipeline<ClearShader, ClearShader.DefaultVertexStructureLayoutImpl> _pipeline;
         private readonly ClearShader _shader = new();
         private readonly Pool<Resources> _pool;
         
         public struct Resources
         {
-            public ClearShader.Instance ShaderInstance;
+            public ClearShader.Instance<ClearShader.DefaultVertexStructureLayoutImpl> ShaderInstance;
             public IBuffer<ClearShader.FragUniforms> UniformBuffer;
         }
         
@@ -30,14 +30,14 @@ namespace CeresGpu.Graphics.Metal.Clearing
             
             _renderer = renderer;
             _shader.Backing = renderer.CreateShaderBacking(_shader);
-            _pipeline = renderer.CreatePipeline(def, _shader, new ClearRendererVertexBufferLayout());
+            _pipeline = renderer.CreatePipeline(def, _shader, ClearShader.DefaultVertexStructureLayout);
             _pool = new Pool<Resources>(this);
         }
 
         public Resources Make()
         {
             return new Resources {
-                ShaderInstance = new ClearShader.Instance(_renderer, _shader),
+                ShaderInstance = new ClearShader.Instance<ClearShader.DefaultVertexStructureLayoutImpl>(_renderer, _shader, new ClearShader.DefaultVertexBufferAdapter()),
                 UniformBuffer = _renderer.CreateStreamingBuffer<ClearShader.FragUniforms>(1)
             };
         }

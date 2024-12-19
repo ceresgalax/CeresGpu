@@ -179,10 +179,16 @@ namespace CeresGpu.Graphics.Metal
                 throw new InvalidOperationException("No shader instance set. Must call SetPipeline first!");
             }
 
-            ReadOnlySpan<object> vertexBuffers = _shaderInstance.VertexBufferAdapter.VertexBuffers;
+            ReadOnlySpan<object?> vertexBuffers = _shaderInstance.VertexBufferAdapter.VertexBuffers;
             
             for (int i = 0, ilen = vertexBuffers.Length; i < ilen; ++i) {
-                if (vertexBuffers[i] is IMetalBuffer buffer) {
+                // No vertex buffer set.
+                // TODO: log to let the user know they didn't set a vertex buffer.
+                object? untypedVertexBuffer = vertexBuffers[i];
+                if (untypedVertexBuffer == null) {
+                    continue;
+                }
+                if (untypedVertexBuffer is IMetalBuffer buffer) {
                     buffer.Commit();
                     MetalApi.metalbinding_command_encoder_set_vertex_buffer(_encoder, buffer.GetHandleForCurrentFrame(), 0, MetalBufferTableConstants.INDEX_VERTEX_BUFFER_MAX - (uint)i);    
                 } else {

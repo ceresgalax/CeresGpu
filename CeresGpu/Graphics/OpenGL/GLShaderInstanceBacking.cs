@@ -49,8 +49,8 @@ namespace CeresGpu.Graphics.OpenGL
             // Note: This will throw a cast exception if any of the buffers are not a GLBuffer.
             // Which is correct, mixing buffers meant for different renderer types is bad.
             // TODO: However, maybe we could surface this issue a bit more gracefully?
-            foreach (IGLBuffer buffer in adapter.VertexBuffers) {
-                buffer.Commit();
+            foreach (IGLBuffer? buffer in adapter.VertexBuffers) {
+                buffer?.Commit();
             }
 
             vao.RecreateIfNecesaryAndBind(_shader, layout, adapter);
