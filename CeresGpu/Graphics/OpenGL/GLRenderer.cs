@@ -10,7 +10,7 @@ using Metalancer.Graphcs.OpenGL;
 
 namespace CeresGpu.Graphics.OpenGL
 {
-    public class GLRenderer : IRenderer
+    public sealed class GLRenderer : IRenderer
     {
         private readonly GLContext _context;
         private readonly GLFWWindow _window;

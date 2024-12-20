@@ -4,7 +4,6 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using CeresGLFW;
-using CeresGpu.Graphics.Metal.Clearing;
 using CeresGpu.Graphics.Shaders;
 using CeresGpu.MetalBinding;
 
@@ -17,9 +16,7 @@ namespace CeresGpu.Graphics.Metal
         private IntPtr _currentFrameCommandBuffer;
 
         private MetalPass? _currentPass;
-
-        private ClearRenderer? _clearRenderer;
-
+        
         public readonly MetalTexture FallbackTexture;
         public readonly MetalSampler FallbackSampler;
         
@@ -27,15 +24,6 @@ namespace CeresGpu.Graphics.Metal
         public int WorkingFrame { get; private set; }
         public uint UniqueFrameId { get; private set; }
         public MetalPass? CurrentPass => _currentPass;
-        
-        public ClearRenderer ClearRenderer {
-            get {
-                if (_clearRenderer == null) {
-                    _clearRenderer = new ClearRenderer(this);
-                }
-                return _clearRenderer;
-            }
-        }
 
         public MetalRenderer(IntPtr window, GLFWWindow glfwWindow)
         {
@@ -263,9 +251,6 @@ namespace CeresGpu.Graphics.Metal
             
             WorkingFrame = (WorkingFrame + 1) % FrameCount;
             ++UniqueFrameId;
-
-            // New frame actions
-            _clearRenderer?.NewFrame();
             
             //MetalApi.metalbinding_stop_capture(Context);
 

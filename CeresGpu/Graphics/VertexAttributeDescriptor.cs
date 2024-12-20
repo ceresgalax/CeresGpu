@@ -6,11 +6,8 @@ namespace CeresGpu.Graphics
     /// </summary>
     public struct ShaderVertexAttributeDescriptor
     {
-        public uint Index;
+        // public uint Index;
         public VertexFormat Format;
-        
-        // public uint Offset;
-        // public uint BufferIndex;
 
         /// <summary>
         /// Hint for the purpose of this attribute. For example, this may specify that the attribute is used for

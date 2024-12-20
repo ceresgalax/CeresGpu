@@ -8,11 +8,7 @@ namespace CeresGpu.Graphics.OpenGL
     {
         private readonly GLRenderer _renderer;
         private readonly IShader _shader;
-
-        //private readonly List<uint> _prevVertexBufferHandles;
-        //private readonly List<IGLBuffer?> _currentVertexBuffers;
-
-        //private uint _vao;
+        
         private readonly VertexArray[] _vaos;
         
         public GLShaderInstanceBacking(GLRenderer renderer, IShader shader)
@@ -26,21 +22,7 @@ namespace CeresGpu.Graphics.OpenGL
             for (int i = 0, ilen = _vaos.Length; i < ilen; ++i) {
                 _vaos[i] = new VertexArray(provider);
             }
-            //_prevVertexBufferHandles = new(vertexBufferCountHint);
-            //_currentVertexBuffers = new(vertexBufferCountHint);
         }
-        
-        // public void SetVertexBuffer<T>(IBuffer<T> buffer, int index) where T : unmanaged
-        // {
-        //     if (buffer is not IGLBuffer glBuffer) {
-        //         throw new ArgumentException("Incompatible buffer", nameof(buffer));
-        //     }
-        //     
-        //     while (index >= _currentVertexBuffers.Count) {
-        //         _currentVertexBuffers.Add(null);
-        //     }
-        //     _currentVertexBuffers[index] = glBuffer;
-        // }
 
         public void PrepareAndBindVertexArrayObject(IVertexBufferLayout layout, IUntypedVertexBufferAdapter adapter)
         {

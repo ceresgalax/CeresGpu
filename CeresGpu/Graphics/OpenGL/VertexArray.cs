@@ -7,7 +7,7 @@ namespace CeresGpu.Graphics.OpenGL
 {
     public sealed class VertexArray : IVertexDescriptor, IDisposable
     {
-        private IGLProvider _glProvider;
+        private readonly IGLProvider _glProvider;
         private uint _handle;
 
         public uint Handle => _handle;
@@ -58,8 +58,8 @@ namespace CeresGpu.Graphics.OpenGL
             ReadOnlySpan<VblBufferDescriptor> bufferDescriptors = layout.BufferDescriptors;
             
             foreach (ref readonly VblAttributeDescriptor attributeDescriptor in layout.AttributeDescriptors) {
-                int shaderAttributeIndex = attributeDescriptor.AttributeIndex;
-                if (shaderAttributeIndex < 0 || shaderAttributeIndex >= shaderAttributes.Length) {
+                uint shaderAttributeIndex = attributeDescriptor.AttributeIndex;
+                if (shaderAttributeIndex >= shaderAttributes.Length) {
                     // TODO: Should this log an error or something?
                     continue;
                 }
@@ -79,32 +79,13 @@ namespace CeresGpu.Graphics.OpenGL
                 }
                 
                 ref readonly VblBufferDescriptor bufferDescriptor = ref bufferDescriptors[(int)attributeDescriptor.BufferIndex];
-                ref readonly ShaderVertexAttributeDescriptor shaderAttributeDescriptor = ref shaderAttributes[shaderAttributeIndex];
+                ref readonly ShaderVertexAttributeDescriptor shaderAttributeDescriptor = ref shaderAttributes[(int)shaderAttributeIndex];
                 
-                gl.EnableVertexAttribArray((uint)shaderAttributeIndex);
+                gl.EnableVertexAttribArray(shaderAttributeIndex);
                 gl.BindBuffer(BufferTargetARB.ARRAY_BUFFER, buffer.GetHandleForCurrentFrame());
-                SetAttribute(gl, shaderAttributes[shaderAttributeIndex], attributeDescriptor, bufferDescriptor);
-                gl.VertexAttribDivisor(shaderAttributeDescriptor.Index, bufferDescriptor.StepFunction == VertexStepFunction.PerInstance ? 1u : 0u);
+                SetAttribute(gl, shaderAttributeIndex, shaderAttributeDescriptor, attributeDescriptor, bufferDescriptor);
+                gl.VertexAttribDivisor(shaderAttributeIndex, bufferDescriptor.StepFunction == VertexStepFunction.PerInstance ? 1u : 0u);
             }
-            
-            // foreach (VertexAttributeDescriptor attrib in shader.GetVertexAttributeDescriptors()) {
-            //     if (attrib.BufferIndex > buffers.Count) {
-            //         continue;
-            //     }
-            //     IGLBuffer? buffer = buffers[(int)attrib.BufferIndex];
-            //     if (buffer == null) {
-            //         continue;
-            //     }
-            //     if (attrib.BufferIndex > layouts.Length) {
-            //         continue;
-            //     }
-            //
-            //     VertexBufferLayout layout = layouts[(int)attrib.BufferIndex];
-            //     gl.EnableVertexAttribArray(attrib.Index);
-            //     gl.BindBuffer(BufferTargetARB.ARRAY_BUFFER, buffer.GetHandleForCurrentFrame());
-            //     SetAttribute(gl, attrib, layout);
-            //     gl.VertexAttribDivisor(attrib.Index, layout.StepFunction == VertexStepFunction.PerInstance ? 1u : 0u);
-            // }
 
             _prevVertexBufferHandles.Clear();
             foreach (IGLBuffer? buffer in buffers) {
@@ -138,7 +119,7 @@ namespace CeresGpu.Graphics.OpenGL
             _glProvider.AddFinalizerAction(ReleaseUnmanagedResources);
         }
         
-        private void SetAttribute(GL gl, ShaderVertexAttributeDescriptor attrib, VblAttributeDescriptor vblAttributeDescriptor, VblBufferDescriptor bufferDescriptor)
+        private void SetAttribute(GL gl, uint index, ShaderVertexAttributeDescriptor attrib, VblAttributeDescriptor vblAttributeDescriptor, VblBufferDescriptor bufferDescriptor)
         {
             int size = attrib.Format switch {
                 VertexFormat.Char => 1,
@@ -199,7 +180,7 @@ namespace CeresGpu.Graphics.OpenGL
                 , VertexFormat.Invalid => 0
                 , _ => throw new ArgumentOutOfRangeException()
             };
-
+            
             int stride = (int)bufferDescriptor.Stride;
             IntPtr offset = new IntPtr(vblAttributeDescriptor.BufferOffset);
             
@@ -209,42 +190,42 @@ namespace CeresGpu.Graphics.OpenGL
                 case VertexFormat.Char2:
                 case VertexFormat.Char3:
                 case VertexFormat.Char4:
-                    gl.glVertexAttribIPointer(attrib.Index, size, (uint)VertexAttribIType.BYTE, stride, offset);
+                    gl.glVertexAttribIPointer(index, size, (uint)VertexAttribIType.BYTE, stride, offset);
                     break;
                     
                 case VertexFormat.UChar:
                 case VertexFormat.UChar2:
                 case VertexFormat.UChar3:
                 case VertexFormat.UChar4:
-                    gl.glVertexAttribIPointer(attrib.Index, size, (uint)VertexAttribIType.UNSIGNED_BYTE, stride, offset);
+                    gl.glVertexAttribIPointer(index, size, (uint)VertexAttribIType.UNSIGNED_BYTE, stride, offset);
                     break;
                     
                 case VertexFormat.Short:
                 case VertexFormat.Short2:
                 case VertexFormat.Short3:
                 case VertexFormat.Short4:
-                    gl.glVertexAttribIPointer(attrib.Index, size, (uint)VertexAttribIType.SHORT, stride, offset);
+                    gl.glVertexAttribIPointer(index, size, (uint)VertexAttribIType.SHORT, stride, offset);
                     break;
                     
                 case VertexFormat.UShort:
                 case VertexFormat.UShort2:
                 case VertexFormat.UShort3:
                 case VertexFormat.UShort4:
-                    gl.glVertexAttribIPointer(attrib.Index, size, (uint)VertexAttribIType.UNSIGNED_SHORT, stride, offset);
+                    gl.glVertexAttribIPointer(index, size, (uint)VertexAttribIType.UNSIGNED_SHORT, stride, offset);
                     break;
                     
                 case VertexFormat.Int:
                 case VertexFormat.Int2:
                 case VertexFormat.Int3:
                 case VertexFormat.Int4:
-                    gl.glVertexAttribIPointer(attrib.Index, size, (uint)VertexAttribIType.INT, stride, offset);
+                    gl.glVertexAttribIPointer(index, size, (uint)VertexAttribIType.INT, stride, offset);
                     break;
                 
                 case VertexFormat.UInt:
                 case VertexFormat.UInt2:
                 case VertexFormat.UInt3:
                 case VertexFormat.UInt4:
-                    gl.glVertexAttribIPointer(attrib.Index, size, (uint)VertexAttribIType.UNSIGNED_INT, stride, offset);
+                    gl.glVertexAttribIPointer(index, size, (uint)VertexAttribIType.UNSIGNED_INT, stride, offset);
                     break;
                 
                 // Float
@@ -253,54 +234,54 @@ namespace CeresGpu.Graphics.OpenGL
                 case VertexFormat.Char2Normalized:
                 case VertexFormat.Char3Normalized:
                 case VertexFormat.Char4Normalized:
-                    gl.glVertexAttribPointer(attrib.Index, size, (uint)VertexAttribType.BYTE, true, stride, offset);
+                    gl.glVertexAttribPointer(index, size, (uint)VertexAttribType.BYTE, true, stride, offset);
                     break;
                 
                 case VertexFormat.UCharNormalized:
                 case VertexFormat.UChar2Normalized:
                 case VertexFormat.UChar3Normalized:
                 case VertexFormat.UChar4Normalized:
-                    gl.glVertexAttribPointer(attrib.Index, size, (uint)VertexAttribType.UNSIGNED_BYTE, true, stride, offset);
+                    gl.glVertexAttribPointer(index, size, (uint)VertexAttribType.UNSIGNED_BYTE, true, stride, offset);
                     break;
                 
                 case VertexFormat.ShortNormalized:
                 case VertexFormat.Short2Normalized:
                 case VertexFormat.Short3Normalized:
                 case VertexFormat.Short4Normalized:
-                    gl.glVertexAttribPointer(attrib.Index, size, (uint)VertexAttribType.SHORT, true, stride, offset);
+                    gl.glVertexAttribPointer(index, size, (uint)VertexAttribType.SHORT, true, stride, offset);
                     break;
                 
                 case VertexFormat.UShortNormalized:
                 case VertexFormat.UShort2Normalized:
                 case VertexFormat.UShort3Normalized:
                 case VertexFormat.UShort4Normalized:
-                    gl.glVertexAttribPointer(attrib.Index, size, (uint)VertexAttribType.SHORT, true, stride, offset);
+                    gl.glVertexAttribPointer(index, size, (uint)VertexAttribType.SHORT, true, stride, offset);
                     break;
                 
                 case VertexFormat.Half:
                 case VertexFormat.Half2:
                 case VertexFormat.Half3:
                 case VertexFormat.Half4:
-                    gl.glVertexAttribPointer(attrib.Index, size, (uint)VertexAttribType.HALF_FLOAT, false, stride, offset);
+                    gl.glVertexAttribPointer(index, size, (uint)VertexAttribType.HALF_FLOAT, false, stride, offset);
                     break;
                 
                 case VertexFormat.Float:
                 case VertexFormat.Float2:
                 case VertexFormat.Float3:
                 case VertexFormat.Float4:
-                    gl.glVertexAttribPointer(attrib.Index, size, (uint)VertexAttribType.FLOAT, false, stride, offset);
+                    gl.glVertexAttribPointer(index, size, (uint)VertexAttribType.FLOAT, false, stride, offset);
                     break;
 
                 case VertexFormat.Invalid:
                     break;
                 case VertexFormat.Int1010102Normalized:
-                    gl.glVertexAttribPointer(attrib.Index, size, (uint)VertexAttribType.INT_2_10_10_10_REV, true, stride, offset);
+                    gl.glVertexAttribPointer(index, size, (uint)VertexAttribType.INT_2_10_10_10_REV, true, stride, offset);
                     break;
                 case VertexFormat.UInt1010102Normalized:
-                    gl.glVertexAttribPointer(attrib.Index, size, (uint)VertexAttribType.UNSIGNED_INT_2_10_10_10_REV, true, stride, offset);
+                    gl.glVertexAttribPointer(index, size, (uint)VertexAttribType.UNSIGNED_INT_2_10_10_10_REV, true, stride, offset);
                     break;
                 case VertexFormat.UChar4Normalized_BGRA:
-                    gl.glVertexAttribPointer(attrib.Index, size, (uint)VertexAttribType.FLOAT, true, stride, offset);
+                    gl.glVertexAttribPointer(index, size, (uint)VertexAttribType.FLOAT, true, stride, offset);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();

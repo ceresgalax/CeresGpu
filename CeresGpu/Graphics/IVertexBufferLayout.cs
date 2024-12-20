@@ -9,7 +9,7 @@ public struct VblAttributeDescriptor
     /// <summary>
     /// The index of the vertex attribute in the shader. 
     /// </summary>
-    public int AttributeIndex;
+    public uint AttributeIndex;
 
     /// <summary>
     /// The index of the vertex buffer in the BufferAdapter that vertex data will be pulled from. we will use from the BufferAdapter 

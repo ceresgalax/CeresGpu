@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Numerics;
 using System.Runtime.InteropServices;
 using CeresGpu.Graphics.Shaders;
 using CeresGpu.MetalBinding;
@@ -17,7 +16,7 @@ namespace CeresGpu.Graphics.Metal
 
         private IUntypedShaderInstance? _shaderInstance;
         private MetalShaderInstanceBacking? _shaderInstanceBacking;
-        private bool _instanceUpdated;
+        // private bool _instanceUpdated;
 
         public MetalPass(MetalRenderer renderer, IntPtr commandBuffer, IntPtr passDescriptor)
         {
@@ -97,7 +96,7 @@ namespace CeresGpu.Graphics.Metal
 
             _shaderInstance = shaderInstance;
             _shaderInstanceBacking = shaderInstanceBacking;
-            _instanceUpdated = false;
+            UpdateShaderInstance();
 
             MetalApi.MTLCullMode cullMode = metalPipeline.CullMode switch {
                 CullMode.None => MetalApi.MTLCullMode.None
@@ -109,6 +108,11 @@ namespace CeresGpu.Graphics.Metal
             MetalApi.metalbinding_command_encoder_set_cull_mode(_encoder, cullMode);
             
             MetalApi.metalbinding_command_encoder_set_dss(_encoder, metalPipeline.DepthStencilState);
+        }
+
+        public void RefreshPipeline()
+        {
+            UpdateShaderInstance();
         }
 
         public void SetScissor(ScissorRect scissor)
@@ -128,14 +132,12 @@ namespace CeresGpu.Graphics.Metal
         public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
         {
             CheckCurrent();
-            UpdateShaderInstance();
             MetalApi.metalbinding_command_encoder_draw(_encoder, vertexCount, instanceCount, firstVertex, firstInstance);
         }
 
         public void DrawIndexedUshort(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset, uint firstInstance)
         {
             CheckCurrent();
-            UpdateShaderInstance();
             if (indexBuffer is not IMetalBuffer metalBuffer) {
                 throw new ArgumentException("Incompatible buffer", nameof(indexBuffer));
             }
@@ -153,7 +155,6 @@ namespace CeresGpu.Graphics.Metal
         public void DrawIndexedUint(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset, uint firstInstance)
         {
             CheckCurrent();
-            UpdateShaderInstance();
             if (indexBuffer is not IMetalBuffer metalBuffer) {
                 throw new ArgumentException("Incompatible buffer", nameof(indexBuffer));
             }
@@ -163,18 +164,9 @@ namespace CeresGpu.Graphics.Metal
             MetalApi.metalbinding_command_encoder_draw_indexed(_encoder, MetalApi.MTLIndexType.UInt32, 
                 metalBuffer.GetHandleForCurrentFrame(), indexCount, instanceCount, indexBufferOffset, vertexOffset, firstInstance);
         }
-        
-        public void Clear(Viewport rect, Vector4 color)
-        {
-            _renderer.ClearRenderer.Clear(this, rect, color);
-        }
 
         private void UpdateShaderInstance()
         {
-            if (_instanceUpdated) {
-                return;
-            }
-            
             if (_shaderInstanceBacking == null || _shaderInstance == null) {
                 throw new InvalidOperationException("No shader instance set. Must call SetPipeline first!");
             }
@@ -200,9 +192,6 @@ namespace CeresGpu.Graphics.Metal
                 MetalDescriptorSet metalSet = (MetalDescriptorSet)set;
                 metalSet.UpdateArgumentBuffer(_encoder);
             }
-            
-
-            _instanceUpdated = true;
         }
         
         public void Finish()

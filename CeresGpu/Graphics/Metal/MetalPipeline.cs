@@ -86,18 +86,17 @@ namespace CeresGpu.Graphics.Metal
                 ReadOnlySpan<ShaderVertexAttributeDescriptor> shaderVads = shader.GetVertexAttributeDescriptors();
                 
                 foreach (ref readonly VblAttributeDescriptor vblAttributeDescriptor in vblAttributeDescriptors) {
-                    if (vblAttributeDescriptor.AttributeIndex < 0 || vblAttributeDescriptor.AttributeIndex >= shaderVads.Length) {
+                    if (vblAttributeDescriptor.AttributeIndex >= shaderVads.Length) {
                         // Uh oh! The vertex buffer layout refers to an attribute index that doesn't exist in the shader!
                         // TODO: Can this be recovered instead of throwing?
                         throw new InvalidOperationException("Vertex buffer layout refers to an attribute index that doesn't exist in the shader.");
                     }
 
-                    ref readonly ShaderVertexAttributeDescriptor shaderVad = ref shaderVads[vblAttributeDescriptor.AttributeIndex];
-                    
+                    ref readonly ShaderVertexAttributeDescriptor shaderVad = ref shaderVads[(int)vblAttributeDescriptor.AttributeIndex];
                     
                     MetalApi.metalbinding_set_vertex_descriptor_vad(
                         vertexDescriptor,
-                        shaderVad.Index,
+                        vblAttributeDescriptor.AttributeIndex,
                         TranslateVertexFormat(shaderVad.Format),
                         vblAttributeDescriptor.BufferOffset,
                         MetalBufferTableConstants.INDEX_VERTEX_BUFFER_MAX - vblAttributeDescriptor.BufferIndex

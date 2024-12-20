@@ -7,13 +7,12 @@ namespace CeresGpu.Graphics.OpenGL
 {
     public sealed class GLPass : IPass
     {
-        private GLRenderer _renderer;
+        private readonly GLRenderer _renderer;
 
         private IGLPipeline? _currentPipeline;
         private object? _previousPipeline;
         private IUntypedShaderInstance? _shaderInstance;
         private GLShaderInstanceBacking? _shaderInstanceBacking;
-        private bool _instanceUpdated;
 
         private readonly uint _attachmentWidth, _attachmentHeight;
         
@@ -50,7 +49,13 @@ namespace CeresGpu.Graphics.OpenGL
             _currentPipeline = glPipe;
             _shaderInstance = shaderInstance;
             _shaderInstanceBacking = shaderInstanceBacking;
-            _instanceUpdated = false;
+            
+            UpdateShaderInstance();
+        }
+
+        public void RefreshPipeline()
+        {
+            UpdateShaderInstance();
         }
         
         private void CheckCurrent()
@@ -81,7 +86,6 @@ namespace CeresGpu.Graphics.OpenGL
         public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
         {
             CheckCurrent();
-            UpdateShaderInstance();
             GL gl = _renderer.GLProvider.Gl;
             gl.DrawArraysInstancedBaseInstance(PrimitiveType.TRIANGLES, (int)firstVertex, (int)vertexCount, (int)instanceCount, firstInstance);
         }
@@ -89,7 +93,6 @@ namespace CeresGpu.Graphics.OpenGL
         public void DrawIndexedUshort(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset, uint firstInstance)
         {
             CheckCurrent();
-            UpdateShaderInstance();
             if (indexBuffer is not IGLBuffer glIndexBuffer) {
                 throw new ArgumentException("Incompatible buffer", nameof(indexBuffer));
             }
@@ -103,7 +106,6 @@ namespace CeresGpu.Graphics.OpenGL
         public void DrawIndexedUint(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset, uint firstInstance)
         {
             CheckCurrent();
-            UpdateShaderInstance();
             if (indexBuffer is not IGLBuffer glIndexBuffer) {
                 throw new ArgumentException("Incompatible buffer", nameof(indexBuffer));
             }
@@ -114,15 +116,6 @@ namespace CeresGpu.Graphics.OpenGL
             gl.glDrawElementsInstancedBaseVertexBaseInstance((uint)PrimitiveType.TRIANGLES, (int)indexCount, (uint)DrawElementsType.UNSIGNED_INT, new IntPtr(indexBufferOffset), (int)instanceCount, (int)vertexOffset, firstInstance);
         }
 
-        // public void Clear(Viewport rect, Vector4 color)
-        // {
-        //     CheckCurrent();
-        //     GL gl = _renderer.GLProvider.Gl;
-        //     gl.Viewport((int)rect.X, (int)rect.Y, (int)rect.Width, (int)rect.Height);
-        //     gl.ClearColor(color.X, color.Y, color.Z, color.W);
-        //     gl.Clear(ClearBufferMask.COLOR_BUFFER_BIT);
-        // }
-
         public void Finish()
         {
             _renderer.FinishPass();
@@ -130,10 +123,6 @@ namespace CeresGpu.Graphics.OpenGL
         
         private void UpdateShaderInstance()
         {
-            if (_instanceUpdated) {
-                return;
-            }
-            
             if (_shaderInstanceBacking == null || _shaderInstance == null || _currentPipeline == null) {
                 throw new InvalidOperationException("Must call SetPipeline first!");
             }
@@ -146,8 +135,6 @@ namespace CeresGpu.Graphics.OpenGL
                     glSet.Apply();
                 }
             }
-
-            _instanceUpdated = true;
         }
 
         public void Dispose()

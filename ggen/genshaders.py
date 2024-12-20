@@ -108,7 +108,8 @@ class Shader(object):
 
 
 class InputAttribute(object):
-    def __init__(self, input: StageInput, directive: InputDirective):
+    def __init__(self, name: str, input: StageInput, directive: InputDirective):
+        self.name = name
         self.input = input
         self.directive = directive
         self.offset = 0
@@ -318,7 +319,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     vertex_reflection = shader.reflections_by_stage[ShaderStage.VERTEX]
     for input in vertex_reflection.inputs:
         directive = directives.input_directives_by_input_name.get(input.name, InputDirective())
-        input_attributes_by_structure.setdefault(directive.structure_name, []).append(InputAttribute(input, directive))
+        input_attributes_by_structure.setdefault(directive.structure_name, []).append(InputAttribute(input.name, input, directive))
     
     for input_attributes in input_attributes_by_structure.values():
         input_attributes.sort(key=lambda attrib: attrib.input.location)
@@ -365,16 +366,27 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     # Output initialization of _vertexAttributeDescriptors in constructor
     f.write_line('_vertexAttributeDescriptors = new ShaderVertexAttributeDescriptor[] {')
     f.indent()
-    
+
+    attributes_by_index: List[Optional[InputAttribute]] = []
     for structure_name, attributes in input_attributes_by_structure.items():
         for attribute in attributes:
+            while attribute.input.location >= len(attributes_by_index):
+                attributes_by_index.append(None)
+            attributes_by_index[attribute.input.location] = attribute
+            
+    for i, attribute in enumerate(attributes_by_index):
+        if attribute is None:
+            # The shader has gaps in the attribute location indices.
+            f.write_line('default,')
+        else:
             buffer_type = attribute.directive.buffer_type
             if not buffer_type:
                 buffer_type = spirv_to_default_buffer_types[attribute.input.type]
 
             f.write_line(
                 'new ShaderVertexAttributeDescriptor() {',
-                f'    Index = {attribute.input.location},',
+                # f'    Index = {attribute.input.location},',
+                f'    Name = "{make_cs_string_literal(attribute.name)}",',
                 f'    Format = VertexFormat.{buffer_type_to_mtlvertexformat[buffer_type]},',
                 # f'    Offset = {attribute.offset},',
                 # f'    BufferIndex = VERT_BUFFER_INDEX_{structure_name},',
@@ -476,7 +488,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
 
     # Begin DefaultVertexStructureLayout child class
     f.write_line(
-        f'public class DefaultVertexStructureLayoutImpl : IVertexBufferLayout<{class_name}>',
+        f'public class DefaultVertexBufferLayout : IVertexBufferLayout<{class_name}>',
         '{',
         '    private readonly VblBufferDescriptor[] _bufferDescriptors;',
         '    private readonly VblAttributeDescriptor[] _attributeDescriptors;',
@@ -488,7 +500,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     
     # DefaultVertexStructureLayout child class Constructor
     f.write_line(
-        'public DefaultVertexStructureLayoutImpl()',
+        'public DefaultVertexBufferLayout()',
         '{',
         '    _attributeDescriptors = new VblAttributeDescriptor[] {',
     )
@@ -522,40 +534,15 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     f.deindent()
     f.write_line('};')
     f.deindent()
-    f.write_line('}')
+    f.write_line('}', '')
     
     # End DefaultVertexStructureLayout child class
     f.deindent()
     f.write_line(
+        '    public static readonly DefaultVertexBufferLayout Instance = new();'
         '}',
-        '',
-        'public static readonly DefaultVertexStructureLayoutImpl DefaultVertexStructureLayout = new();',
         ''
     )
-
-    # # Output GetVertexBufferLayouts
-    # f.write_line(
-    #     'public ReadOnlySpan<VertexBufferLayout> GetVertexBufferLayouts()',
-    #     '{',
-    #     '    return new VertexBufferLayout[] {'
-    # )
-    # f.indent()
-    # f.indent()
-    # 
-    # for structure_name, attributes in input_attributes_by_structure.items():
-    #     step_mode = 'PerVertex' if attributes[0].directive.step_mode == StepMode.PER_VERTEX else 'PerInstance'
-    #     f.write_line(
-    #         'new VertexBufferLayout() {',
-    #         f'    StepFunction = VertexStepFunction.{step_mode},',
-    #         f'    Stride = {strides_by_structure[structure_name]},',
-    #         f'    BufferType = typeof({structure_name})',
-    #         '},'
-    #     )
-    # 
-    # f.deindent()
-    # f.write_line('};')
-    # f.deindent()
-    # f.write_line('}', '')
 
     # Begin fields
     global current_shader_id
@@ -640,7 +627,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     
     # DefaultVertexBufferAdapter class
     f.write_line(
-        f'public class DefaultVertexBufferAdapter : IVertexBufferAdapter<{class_name}, DefaultVertexStructureLayoutImpl>',
+        f'public class DefaultVertexBufferAdapter : IVertexBufferAdapter<{class_name}, DefaultVertexBufferLayout>',
         '{',
         f'    private readonly object[] _buffers = new object[{len(input_attributes_by_structure)}];',
         '',
@@ -660,8 +647,9 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     
     # Begin Shader Instance Class
     f.write_line(
-        f'public class Instance<TVertexBufferLayout> : IShaderInstance<{class_name}, TVertexBufferLayout>',
+        f'public class Instance<TVertexBufferLayout, TVertexBufferAdapter> : IShaderInstance<{class_name}, TVertexBufferLayout>',
         f'    where TVertexBufferLayout : IVertexBufferLayout<{class_name}>',
+        f'    where TVertexBufferAdapter : IVertexBufferAdapter<{class_name}, TVertexBufferLayout>',
         '{',
         '    private IShaderInstanceBacking _backing;'
     )
@@ -698,7 +686,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         '    return new ReadOnlySpan<IDescriptorSet>(_descriptorSets);',
         '}',
         '',
-        f'public IVertexBufferAdapter<{class_name}, TVertexBufferLayout> VertexBuffers;',
+        f'public TVertexBufferAdapter VertexBuffers;',
         '',
         f'IVertexBufferAdapter<{class_name}, TVertexBufferLayout> IShaderInstance<{class_name}, TVertexBufferLayout>.VertexBuffers => VertexBuffers;',
         'IUntypedVertexBufferAdapter IUntypedShaderInstance.VertexBufferAdapter => VertexBuffers;',
@@ -709,7 +697,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     # Generate ShaderInstanceConstructor
     #
     f.write_line(
-        f'public Instance(IRenderer renderer, {class_name} shader, IVertexBufferAdapter<{class_name}, TVertexBufferLayout> buffers)',
+        f'public Instance(IRenderer renderer, {class_name} shader, TVertexBufferAdapter buffers)',
         '{',
         '    _backing = renderer.CreateShaderInstanceBacking(shader);',
         f'    _descriptorSets = new IDescriptorSet[{len(descriptor_set_variable_names)}];',
@@ -803,8 +791,20 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             )
             descriptor_index += 1
 
+    # End Instance class
     f.deindent()
     f.write_line('}', '')
+
+    # DefaultVertexLayoutInstance class
+    f.write_line(
+        'public class DefaultVertexLayoutInstance : Instance<DefaultVertexBufferLayout, DefaultVertexBufferAdapter>',
+        '{',
+        f'    public DefaultVertexLayoutInstance(IRenderer renderer, {class_name} shader)',
+        '        : base(renderer, shader, new DefaultVertexBufferAdapter())',
+        '    {}',
+        '}',
+        ''
+    )
 
     # Close class and namespace
     f.deindent()
