@@ -7,12 +7,13 @@ namespace CeresGpu.Graphics;
 public struct VblAttributeDescriptor
 {
     /// <summary>
-    /// The index of the vertex attribute in the shader. 
+    /// The index of the vertex attribute in the shader, specifying the index of the vertex attribute
+    /// in <see cref="IShader.VertexAttributeDescriptors"/>.
     /// </summary>
     public uint AttributeIndex;
 
     /// <summary>
-    /// The index of the vertex buffer in the BufferAdapter that vertex data will be pulled from. we will use from the BufferAdapter 
+    /// The index of the vertex buffer in the BufferAdapter that vertex data will be pulled from. 
     /// </summary>
     public uint BufferIndex;
 
@@ -47,7 +48,6 @@ public struct VblBufferDescriptor
 /// Each instantiation of this generic type represents a buffer layout that a pipeline targeting <see cref="TShader"/>
 /// can be compatible with.  
 /// </summary>
-/// <typeparam name="TShader"></typeparam>
 public interface IVertexBufferLayout<TShader> : IVertexBufferLayout where TShader : IShader
 {
 }

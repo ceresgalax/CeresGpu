@@ -6,7 +6,6 @@ namespace CeresGpu.Graphics
     /// </summary>
     public struct ShaderVertexAttributeDescriptor
     {
-        // public uint Index;
         public VertexFormat Format;
 
         /// <summary>
@@ -16,7 +15,7 @@ namespace CeresGpu.Graphics
         ///
         /// CeresGpu doesn't use this attribute for anything itself. 
         /// </summary>
-        public string Hint;
+        public string? Hint;
 
         /// <summary>
         /// Name of the attribute. This may be used for displaying information about the shader to the user.
@@ -24,6 +23,6 @@ namespace CeresGpu.Graphics
         ///
         /// CeresGpu doesn't use this attribute for anything itself. 
         /// </summary>
-        public string Name;
+        public string? Name;
     }
 }

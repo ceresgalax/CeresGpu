@@ -385,12 +385,9 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
 
             f.write_line(
                 'new ShaderVertexAttributeDescriptor() {',
-                # f'    Index = {attribute.input.location},',
                 f'    Name = "{make_cs_string_literal(attribute.name)}",',
-                f'    Format = VertexFormat.{buffer_type_to_mtlvertexformat[buffer_type]},',
-                # f'    Offset = {attribute.offset},',
-                # f'    BufferIndex = VERT_BUFFER_INDEX_{structure_name},',
-                f'    Hint = "{make_cs_string_literal(attribute.directive.hint)}"',
+                f'    Hint = "{make_cs_string_literal(attribute.directive.hint)}",',
+                f'    Format = VertexFormat.{buffer_type_to_mtlvertexformat[buffer_type]}',
                 '},'
             )
     
@@ -458,33 +455,9 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
 
     # Output GetVertexAttributeDescriptors
     f.write_line(
-        'public ReadOnlySpan<ShaderVertexAttributeDescriptor> GetVertexAttributeDescriptors()',
-        '{',
-        '    return _vertexAttributeDescriptors;',
-        '}',
+        'public ReadOnlySpan<ShaderVertexAttributeDescriptor> VertexAttributeDescriptors => _vertexAttributeDescriptors;',
         ''
     )
-
-    # for structure_name, attributes in input_attributes_by_structure.items():
-    #     for attribute in attributes:
-    #         buffer_type = attribute.directive.buffer_type
-    #         if not buffer_type:
-    #             buffer_type = spirv_to_default_buffer_types[attribute.input.type]
-    # 
-    #         f.write_line(
-    #             'new VertexAttributeDescriptor() {',
-    #             f'    Index = {attribute.input.location},',
-    #             f'    Format = VertexFormat.{buffer_type_to_mtlvertexformat[buffer_type]},',
-    #             f'    Offset = {attribute.offset},',
-    #             f'    BufferIndex = VERT_BUFFER_INDEX_{structure_name},',
-    #             f'    Hint = "{make_cs_string_literal(attribute.directive.hint)}"',
-    #             '},'
-    #         )
-    # 
-    # f.deindent()
-    # f.write_line('};')
-    # f.deindent()
-    # f.write_line('}', '')
 
     # Begin DefaultVertexStructureLayout child class
     f.write_line(
@@ -732,17 +705,6 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         f.write_line(f'{var_name}.Dispose();')
     f.deindent()
     f.write_line('}', '')
-
-    # #
-    # # Vertex Buffer Setters
-    # #
-    # for structure_name, attributes in input_attributes_by_structure.items():
-    #     f.write_line(
-    #         f'public void Set{structure_name}(IBuffer<{structure_name}> buffer)',
-    #         '{',
-    #         f'    _backing.SetVertexBuffer(buffer, VERT_BUFFER_INDEX_{structure_name});',
-    #         '}'
-    #     )
     
     #
     # Buffer Setters

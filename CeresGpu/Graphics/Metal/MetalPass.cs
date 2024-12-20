@@ -16,7 +16,6 @@ namespace CeresGpu.Graphics.Metal
 
         private IUntypedShaderInstance? _shaderInstance;
         private MetalShaderInstanceBacking? _shaderInstanceBacking;
-        // private bool _instanceUpdated;
 
         public MetalPass(MetalRenderer renderer, IntPtr commandBuffer, IntPtr passDescriptor)
         {

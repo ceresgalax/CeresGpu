@@ -53,8 +53,7 @@ namespace CeresGpu.Graphics.OpenGL
             
             gl.BindVertexArray(_handle);
 
-            //ReadOnlySpan<VertexBufferLayout> layouts = shader.GetVertexBufferLayouts();
-            ReadOnlySpan<ShaderVertexAttributeDescriptor> shaderAttributes = shader.GetVertexAttributeDescriptors();
+            ReadOnlySpan<ShaderVertexAttributeDescriptor> shaderAttributes = shader.VertexAttributeDescriptors;
             ReadOnlySpan<VblBufferDescriptor> bufferDescriptors = layout.BufferDescriptors;
             
             foreach (ref readonly VblAttributeDescriptor attributeDescriptor in layout.AttributeDescriptors) {

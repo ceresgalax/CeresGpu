@@ -83,7 +83,7 @@ namespace CeresGpu.Graphics.Metal
 
                 ReadOnlySpan<VblAttributeDescriptor> vblAttributeDescriptors = vertexBufferLayout.AttributeDescriptors;
                 ReadOnlySpan<VblBufferDescriptor> vblBufferDescriptors = vertexBufferLayout.BufferDescriptors;
-                ReadOnlySpan<ShaderVertexAttributeDescriptor> shaderVads = shader.GetVertexAttributeDescriptors();
+                ReadOnlySpan<ShaderVertexAttributeDescriptor> shaderVads = shader.VertexAttributeDescriptors;
                 
                 foreach (ref readonly VblAttributeDescriptor vblAttributeDescriptor in vblAttributeDescriptors) {
                     if (vblAttributeDescriptor.AttributeIndex >= shaderVads.Length) {

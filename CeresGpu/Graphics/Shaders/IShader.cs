@@ -14,9 +14,7 @@ namespace CeresGpu.Graphics.Shaders
         /// For shaders with sparse attribute indices, each unused attribute index should still have an element in the
         /// returned span with a default-initialized descriptor.
         /// </summary>
-        // TODO: This should be a property - We expect to call this a lot and the implementation shouldn't be doing
-        //       anything expensive when returning the descriptors. 
-        ReadOnlySpan<ShaderVertexAttributeDescriptor> GetVertexAttributeDescriptors();
+        ReadOnlySpan<ShaderVertexAttributeDescriptor> VertexAttributeDescriptors { get; }
         
         /// <summary>
         /// Meant for shader introspection. Not called internally by CeresGpu.
