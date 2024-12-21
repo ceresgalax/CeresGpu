@@ -16,5 +16,8 @@ namespace CeresGpu.Graphics
         void Set(uint offset, Span<T> elements, uint count);
         void Set(in T element);
         void Set(uint offset, in T element);
+
+        public delegate void DirectSetter(Span<T> elements);
+        void SetDirect(DirectSetter setter);
     }
 }

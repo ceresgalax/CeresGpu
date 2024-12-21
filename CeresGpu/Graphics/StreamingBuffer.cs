@@ -53,6 +53,11 @@ public abstract class StreamingBuffer<T> : IStreamingBuffer<T> where T : unmanag
         //_validRegionTracker.SetRegionValid(offset, offset + count);
     }
 
+    public virtual void SetDirect(IBuffer<T>.DirectSetter setter)
+    {
+        PrepareToModify();
+    }
+
     protected virtual void Commit()
     {
         // Early out if already commited for this unique frame. 

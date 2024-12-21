@@ -58,6 +58,7 @@ id<MTLBuffer> metalbinding_new_buffer(MetalBindingContext* context, uint32_t len
 void metalbinding_release_buffer(id<MTLBuffer> NS_RELEASES_ARGUMENT buffer);
 void metalbinding_copy_to_buffer(id<MTLBuffer> buffer, void* source, uint32_t offset, uint32_t size);
 void metalbinding_buffer_did_modify_range(id<MTLBuffer> buffer, uint32_t offset, uint32_t size);
+void* metalbinding_buffer_get_contents(id<MTLBuffer> buffer);
 
 //
 // Textures

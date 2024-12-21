@@ -100,6 +100,21 @@ namespace CeresGpu.Graphics.Metal
             MetalBufferUtil.CopyBuffer(buffer, offset, elements, count, Count);
         }
 
+        public override void SetDirect(IBuffer<T>.DirectSetter setter)
+        {
+            base.SetDirect(setter);
+            IntPtr buffer = _buffers[_activeIndex];
+
+            Span<T> directBuffer;
+            unsafe {
+                directBuffer = new Span<T>((void*)MetalApi.metalbinding_buffer_get_contents(buffer), (int)_count);
+            }
+
+            setter(directBuffer);
+            
+            MetalApi.metalbinding_buffer_did_modify_range(buffer, 0, (uint)Marshal.SizeOf<T>() * _count);
+        }
+
         public void PrepareToUpdateExternally()
         {
             RecreateBufferIfNecesary();

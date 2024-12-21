@@ -26,6 +26,12 @@ namespace CeresGpu.Graphics.OpenGL
             _inner.Set(offset, elements, count);
         }
 
+        public override void SetDirect(IBuffer<T>.DirectSetter setter)
+        {
+            base.SetDirect(setter);
+            
+        }
+
         void IGLBuffer.Commit()
         {
             Commit();

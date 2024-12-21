@@ -341,6 +341,10 @@ void metalbinding_buffer_did_modify_range(id<MTLBuffer> buffer, uint32_t offset,
     //[buffer didModifyRange:NSMakeRange(offset, size)];
 }
 
+void* metalbinding_buffer_get_contents(id<MTLBuffer> buffer) {
+    return [buffer contents];
+}
+
 //
 // Textures
 //

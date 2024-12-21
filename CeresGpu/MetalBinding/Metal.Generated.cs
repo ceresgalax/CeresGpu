@@ -109,6 +109,9 @@ namespace CeresGpu.MetalBinding
         public static extern void metalbinding_buffer_did_modify_range(IntPtr buffer, uint offset, uint size);
         
         [DllImport(DLL_NAME)]
+        public static extern IntPtr metalbinding_buffer_get_contents(IntPtr buffer);
+        
+        [DllImport(DLL_NAME)]
         public static extern IntPtr metalbinding_new_texture(IntPtr context, uint width, uint height, MTLPixelFormat format);
         
         [DllImport(DLL_NAME)]

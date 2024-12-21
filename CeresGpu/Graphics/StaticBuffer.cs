@@ -47,6 +47,11 @@ public abstract class StaticBuffer<T> : IStaticBuffer<T> where T : unmanaged
         CheckCanModify();
     }
 
+    public virtual void SetDirect(IBuffer<T>.DirectSetter setter)
+    {
+        CheckCanModify();
+    }
+
     protected virtual void Commit()
     {
         IsCommited = true;
