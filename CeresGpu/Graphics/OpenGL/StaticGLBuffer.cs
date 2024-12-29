@@ -26,9 +26,20 @@ namespace CeresGpu.Graphics.OpenGL
             _inner.Set(offset, elements, count);
         }
 
+        private T[] _directBuffer = Array.Empty<T>();
+        
         public override void SetDirect(IBuffer<T>.DirectSetter setter)
         {
             base.SetDirect(setter);
+            
+            // TODO: This is pretty inefficient. We should memory map the buffer instead?
+        
+            if (_directBuffer.Length != Count) {
+                _directBuffer = new T[Count];
+            }
+
+            setter(_directBuffer);
+            _inner.Set(0, _directBuffer, Count);
             
         }
 

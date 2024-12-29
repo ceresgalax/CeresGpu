@@ -115,10 +115,15 @@ def gen_cs(node: Node):
             
         reflections[stage] = reflection
 
-    # Find the vert source input
-    vert_source_input = [input for t, input in source_inputs if t == 'vert'][0]
-    # Parse directives from the vert shader source
-    directives = genshaders.parse_shader_directives(vert_source_input.filepath)
+    # Parse directives in all files
+    directives_by_tag = {t: genshaders.parse_shader_directives(input.filepath) for t, input in source_inputs}
+
+    # Merge the directives.
+    directives = directives_by_tag['vert']
+    for t, other_directives in sorted(directives_by_tag.items(), key=lambda x: x[0]):
+        if t == 'vert':
+            continue
+        directives.descriptor_field_hints_by_name.update(other_directives.descriptor_field_hints_by_name)    
         
     shader = genshaders.Shader(shader_name, directives, reflections)
     genshaders.generate_shader_file(output_path, shader)

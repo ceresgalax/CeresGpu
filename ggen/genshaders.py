@@ -564,16 +564,20 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
                 # For some reason spirv-cross reflects the Uniform typename as the name.
                 if abb.name == name:
                     return abb.index
+            return 0
 
         texture_binding = get_binding_index(texture.name)
         sampler_binding = get_binding_index(texture.name + 'Smplr')
+
+        hint = shader.directives.descriptor_field_hints_by_name.get(texture.name, '')
 
         f.write_line(
             f'new DescriptorInfo {{',
             f'    BindingIndex = {texture_binding},',
             f'    SamplerIndex = {sampler_binding},',
             '    DescriptorType = DescriptorType.Texture,',
-            f'    Name = "{make_cs_string_literal(texture.name)}"',
+            f'    Name = "{make_cs_string_literal(texture.name)}",',
+            f'    Hint = "{make_cs_string_literal(hint)}",',
             '},'
         )
     
@@ -620,7 +624,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     
     # Begin Shader Instance Class
     f.write_line(
-        f'public class Instance<TVertexBufferLayout, TVertexBufferAdapter> : IShaderInstance<{class_name}, TVertexBufferLayout>',
+        f'public class Instance<TVertexBufferLayout, TVertexBufferAdapter> : IShaderInstanceWithAdapter<{class_name}, TVertexBufferLayout, TVertexBufferAdapter>',
         f'    where TVertexBufferLayout : IVertexBufferLayout<{class_name}>',
         f'    where TVertexBufferAdapter : IVertexBufferAdapter<{class_name}, TVertexBufferLayout>',
         '{',
@@ -663,6 +667,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         '',
         f'IVertexBufferAdapter<{class_name}, TVertexBufferLayout> IShaderInstance<{class_name}, TVertexBufferLayout>.VertexBuffers => VertexBuffers;',
         'IUntypedVertexBufferAdapter IUntypedShaderInstance.VertexBufferAdapter => VertexBuffers;',
+        f'TVertexBufferAdapter IShaderInstanceWithAdapter<{class_name}, TVertexBufferLayout, TVertexBufferAdapter>.Adapter => VertexBuffers;',
         ''
     )
 

@@ -36,5 +36,7 @@ namespace CeresGpu.Graphics.Shaders
         /// </summary>
         public string? Name;
 
+        public string? Hint;
+
     }
 }
