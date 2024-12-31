@@ -3,7 +3,10 @@ namespace CeresGpu.Graphics
     public record PipelineDefinition
     {
         public bool Blend;
-        public BlendEquation BlendEquation;
+        
+        public BlendOp ColorBlendOp;
+        public BlendOp AlphaBlendOp;
+        
         public BlendFunction BlendFunction;
         public CullMode CullMode;
         public DepthStencilDefinition DepthStencil = new();

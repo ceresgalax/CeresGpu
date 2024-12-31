@@ -25,13 +25,10 @@ namespace CeresGpu.Graphics.OpenGL
         {
             PipelineDefinition def = _definition;
             
-            // public bool Blend;
             SetCap(gl, EnableCap.BLEND, def.Blend);
             
-            // public BlendEquation BlendEquation;
-            gl.BlendEquation(TranslateBlendEquation(def.BlendEquation));
+            gl.BlendEquationSeparate(TranslateBlendOp(def.ColorBlendOp), TranslateBlendOp(def.AlphaBlendOp));
             
-            // public BlendFunction BlendFunction;
             gl.BlendFuncSeparate(
                 sfactorRGB: TranslateBlendingFactor(def.BlendFunction.SourceRGB),
                 dfactorRGB: TranslateBlendingFactor(def.BlendFunction.DestinationRGB),
@@ -39,7 +36,6 @@ namespace CeresGpu.Graphics.OpenGL
                 dfactorAlpha: TranslateBlendingFactor(def.BlendFunction.DestinationAlpha)
             );
             
-            // public CullMode CullMode;
             SetCap(gl, EnableCap.CULL_FACE, def.CullMode != CullMode.None);
             gl.CullFace(def.CullMode == CullMode.Front ? CullFaceMode.FRONT : CullFaceMode.BACK);
             
@@ -94,14 +90,14 @@ namespace CeresGpu.Graphics.OpenGL
             }
         }
 
-        private static BlendEquationModeEXT TranslateBlendEquation(BlendEquation equ)
+        private static BlendEquationModeEXT TranslateBlendOp(BlendOp equ)
         {
             return equ switch {
-                BlendEquation.FUNC_ADD => BlendEquationModeEXT.FUNC_ADD
-                , BlendEquation.MIN => BlendEquationModeEXT.MIN
-                , BlendEquation.MAX => BlendEquationModeEXT.MAX
-                , BlendEquation.FUNC_SUBTRACT => BlendEquationModeEXT.FUNC_SUBTRACT
-                , BlendEquation.FUNC_REVERSE_SUBTRACT => BlendEquationModeEXT.FUNC_REVERSE_SUBTRACT
+                BlendOp.ADD => BlendEquationModeEXT.FUNC_ADD
+                , BlendOp.MIN => BlendEquationModeEXT.MIN
+                , BlendOp.MAX => BlendEquationModeEXT.MAX
+                , BlendOp.SUBTRACT => BlendEquationModeEXT.FUNC_SUBTRACT
+                , BlendOp.REVERSE_SUBTRACT => BlendEquationModeEXT.FUNC_REVERSE_SUBTRACT
                 , _ => throw new ArgumentOutOfRangeException(nameof(equ), equ, null)
             };
         }

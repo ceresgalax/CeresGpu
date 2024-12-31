@@ -34,7 +34,8 @@ namespace CeresGpu.Graphics.Metal
                 MetalApi.metalbinding_set_rpd_common(
                     descriptor: rpd,
                     blend: definition.Blend,
-                    blendOp: TranslateBlendEquation(definition.BlendEquation),
+                    colorBlendOp: TranslateBlendOp(definition.ColorBlendOp),
+                    alphaBlendOp: TranslateBlendOp(definition.AlphaBlendOp),
                     sourceRgb: TranslateBlendFactor(definition.BlendFunction.SourceRGB),
                     destRgb: TranslateBlendFactor(definition.BlendFunction.DestinationRGB),
                     sourceAlpha: TranslateBlendFactor(definition.BlendFunction.SourceAlpha),
@@ -127,14 +128,14 @@ namespace CeresGpu.Graphics.Metal
             );
         }
 
-        private static MetalApi.MTLBlendOperation TranslateBlendEquation(BlendEquation eq)
+        private static MetalApi.MTLBlendOperation TranslateBlendOp(BlendOp eq)
         {
             return eq switch {
-                BlendEquation.FUNC_ADD => MetalApi.MTLBlendOperation.Add
-                , BlendEquation.MIN => MetalApi.MTLBlendOperation.Min
-                , BlendEquation.MAX => MetalApi.MTLBlendOperation.Max
-                , BlendEquation.FUNC_SUBTRACT => MetalApi.MTLBlendOperation.Subtract
-                , BlendEquation.FUNC_REVERSE_SUBTRACT => MetalApi.MTLBlendOperation.ReverseSubtract
+                BlendOp.ADD => MetalApi.MTLBlendOperation.Add
+                , BlendOp.MIN => MetalApi.MTLBlendOperation.Min
+                , BlendOp.MAX => MetalApi.MTLBlendOperation.Max
+                , BlendOp.SUBTRACT => MetalApi.MTLBlendOperation.Subtract
+                , BlendOp.REVERSE_SUBTRACT => MetalApi.MTLBlendOperation.ReverseSubtract
                 , _ => throw new ArgumentOutOfRangeException(nameof(eq), eq, null)
             };
         }

@@ -410,22 +410,14 @@ void metalbinding_set_rpd_functions(MTLRenderPipelineDescriptor* descriptor, id<
     [descriptor setFragmentFunction:fragment];
 }
 
-void metalbinding_set_rpd_common(MTLRenderPipelineDescriptor* descriptor, BOOL blend, MTLBlendOperation blendOp, MTLBlendFactor sourceRgb,
-                                 MTLBlendFactor destRgb, MTLBlendFactor sourceAlpha, MTLBlendFactor destAlpha
+void metalbinding_set_rpd_common(MTLRenderPipelineDescriptor* descriptor, BOOL blend,
+                                 MTLBlendOperation colorBlendOp, MTLBlendOperation alphaBlendOp, 
+                                 MTLBlendFactor sourceRgb, MTLBlendFactor destRgb,
+                                 MTLBlendFactor sourceAlpha, MTLBlendFactor destAlpha
 ) {
-    //MTLRenderPipelineColorAttachmentDescriptor* cad = [[MTLRenderPipelineColorAttachmentDescriptor alloc] init];
-//    [cad setBlendingEnabled:blend];
-//    [cad setRgbBlendOperation:blendOp];
-//    [cad setAlphaBlendOperation:blendOp];
-//    [cad setSourceRGBBlendFactor:sourceRgb];
-//    [cad setDestinationRGBBlendFactor:destRgb];
-//    [cad setSourceAlphaBlendFactor:sourceAlpha];
-//    [cad setDestinationAlphaBlendFactor:destAlpha];
-//    [[descriptor colorAttachments] setObject:cad atIndexedSubscript:0];
-    
     descriptor.colorAttachments[0].blendingEnabled = blend;
-    descriptor.colorAttachments[0].rgbBlendOperation = blendOp;
-    descriptor.colorAttachments[0].alphaBlendOperation = blendOp;
+    descriptor.colorAttachments[0].rgbBlendOperation = colorBlendOp;
+    descriptor.colorAttachments[0].alphaBlendOperation = alphaBlendOp;
     descriptor.colorAttachments[0].sourceRGBBlendFactor = sourceRgb;
     descriptor.colorAttachments[0].destinationRGBBlendFactor = destRgb;
     descriptor.colorAttachments[0].sourceAlphaBlendFactor = sourceAlpha;

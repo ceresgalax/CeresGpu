@@ -1,5 +1,11 @@
 ﻿namespace CeresGpu.Graphics
 {
+    /// <summary>
+    /// Char/Short/Int are unsigned integer values.
+    /// UChar/Short/Int are signed integer values.
+    /// Integer values with Normalized are interpreted as values between 0 and 1 for unsigned integers,
+    /// or -1 to 1 for signed integers.
+    /// </summary>
     public enum VertexFormat
     {
         Invalid = 0,
@@ -42,8 +48,17 @@
         UInt2 = 37,
         UInt3 = 38,
         UInt4 = 39,
+        
+        /// <summary>
+        /// One packed 32-bit value with four normalized signed two's complement integer values, arranged as 10 bits, 10 bits, 10 bits, and 2 bits.
+        /// </summary>
         Int1010102Normalized = 40,
+        
+        /// <summary>
+        /// ne packed 32-bit value with four normalized unsigned integer values, arranged as 10 bits, 10 bits, 10 bits, and 2 bits.
+        /// </summary>
         UInt1010102Normalized = 41,
+        
         UChar4Normalized_BGRA = 42,
         UChar = 45,
         Char = 46,

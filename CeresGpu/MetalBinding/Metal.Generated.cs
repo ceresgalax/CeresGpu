@@ -142,7 +142,7 @@ namespace CeresGpu.MetalBinding
         public static extern void metalbinding_set_rpd_functions(IntPtr descriptor, IntPtr vertex, IntPtr fragment);
         
         [DllImport(DLL_NAME)]
-        public static extern void metalbinding_set_rpd_common(IntPtr descriptor, bool blend, MTLBlendOperation blendOp, MTLBlendFactor sourceRgb, MTLBlendFactor destRgb, MTLBlendFactor sourceAlpha, MTLBlendFactor destAlpha);
+        public static extern void metalbinding_set_rpd_common(IntPtr descriptor, bool blend, MTLBlendOperation colorBlendOp, MTLBlendOperation alphaBlendOp, MTLBlendFactor sourceRgb, MTLBlendFactor destRgb, MTLBlendFactor sourceAlpha, MTLBlendFactor destAlpha);
         
         [DllImport(DLL_NAME)]
         public static extern void metalbinding_set_rpd_vertex_descriptor(IntPtr descriptor, IntPtr vertexDescriptor);

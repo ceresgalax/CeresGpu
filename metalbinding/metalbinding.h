@@ -85,7 +85,7 @@ void metalbinding_release_function(id<MTLFunction> NS_RELEASES_ARGUMENT function
 MTLRenderPipelineDescriptor* metalbinding_new_rpd(MetalBindingContext* context) NS_RETURNS_RETAINED;
 void metalbinding_release_rpd(MTLRenderPipelineDescriptor* NS_RELEASES_ARGUMENT descriptor);
 void metalbinding_set_rpd_functions(MTLRenderPipelineDescriptor* descriptor, id<MTLFunction> vertex, id<MTLFunction> fragment);
-void metalbinding_set_rpd_common(MTLRenderPipelineDescriptor* descriptor, BOOL blend, MTLBlendOperation blendOp, MTLBlendFactor sourceRgb, MTLBlendFactor destRgb, MTLBlendFactor sourceAlpha, MTLBlendFactor destAlpha);
+void metalbinding_set_rpd_common(MTLRenderPipelineDescriptor* descriptor, BOOL blend, MTLBlendOperation colorBlendOp, MTLBlendOperation alphaBlendOp, MTLBlendFactor sourceRgb, MTLBlendFactor destRgb, MTLBlendFactor sourceAlpha, MTLBlendFactor destAlpha);
 void metalbinding_set_rpd_vertex_descriptor(MTLRenderPipelineDescriptor* descriptor, MTLVertexDescriptor* vertexDescriptor);
 
 //

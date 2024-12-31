@@ -1,5 +1,7 @@
 namespace CeresGpu.Graphics
 {
+    // TODO: Should this be renamed to 'TextureFormat' or something else more specific than 'Input'?
+    // Btw, Vertex attribute descriptors use a different enum than this (VertexFormat).
     public enum InputFormat
     { 
         R4G4_UNORM_PACK8,
