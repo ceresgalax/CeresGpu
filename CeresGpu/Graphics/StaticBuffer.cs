@@ -8,10 +8,13 @@ public abstract class StaticBuffer<T> : IStaticBuffer<T> where T : unmanaged
     
     public abstract uint Count { get; }
 
-    public virtual void Allocate(uint elementCount)
+    public void Allocate(uint elementCount)
     {
         CheckCanModify();
+        AllocateImpl(elementCount);
     }
+
+    protected abstract void AllocateImpl(uint elementCount);
 
     public void Set(uint offset, Span<T> elements)
     {
@@ -42,15 +45,21 @@ public abstract class StaticBuffer<T> : IStaticBuffer<T> where T : unmanaged
         }
     }
     
-    public virtual void Set(uint offset, Span<T> elements, uint count)
+    public void Set(uint offset, Span<T> elements, uint count)
     {
         CheckCanModify();
+        SetImpl(offset, elements, count);
     }
 
-    public virtual void SetDirect(IBuffer<T>.DirectSetter setter)
+    protected abstract void SetImpl(uint offset, Span<T> elements, uint count);
+
+    public void SetDirect(IBuffer<T>.DirectSetter setter)
     {
         CheckCanModify();
+        SetDirectImpl(setter);
     }
+
+    protected abstract void SetDirectImpl(IBuffer<T>.DirectSetter setter); 
 
     protected virtual void Commit()
     {

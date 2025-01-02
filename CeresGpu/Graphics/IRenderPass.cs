@@ -5,18 +5,45 @@ namespace CeresGpu.Graphics;
 
 public struct ColorAttachment
 {
-    public InputFormat Format;
+    public ColorFormat Format;
     public LoadAction LoadAction;
-    public Vector4 ClearColor;
 }
 
 public struct DepthStencilAttachment
 {
+    public DepthStencilFormat Format;
     public LoadAction LoadAction;
 }
 
-public interface IRenderPass
+public struct RenderPassDefinition
 {
-    public ReadOnlySpan<ColorAttachment> ColorAttachments { get; }
-    public ReadOnlySpan<DepthStencilAttachment> DepthStencilAttachments { get; }
+    public ColorAttachment[] ColorAttachments;
+    public DepthStencilAttachment? DepthStencilAttachment;
+}
+
+public struct FramebufferAttachments
+{
+    
+}
+
+public interface IRenderPass : IDisposable
+{
+    IFramebuffer Framebuffer { get; }
+}
+
+public interface IFramebuffer
+{
+}
+
+/// <summary>
+/// Create an instance from <see cref="IRenderer"/>
+/// Will typically only be used inside of an implementation of IRenderPass, as the render pass implementation will know
+/// how to where to set up each attachment in the framebuffer.
+/// </summary>
+public interface IMutableFramebuffer : IFramebuffer, IDisposable
+    //where TRenderPass : IRenderPass
+{
+    void Setup(uint width, uint height);
+    void SetColorAttachment(int index, ITexture texture, Vector4 clearColor);
+    void SetDepthStencilAttachment(ITexture depthStencil, double clearDepth, uint clearStencil);
 }

@@ -5,13 +5,16 @@ using VkBlendOp = Silk.NET.Vulkan.BlendOp;
 
 namespace CeresGpu.Graphics.Vulkan;
 
-public class VulkanPipeline<TShader, TVertexBufferLayout> : IPipeline<TShader, TVertexBufferLayout>
+public class VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout> : IPipeline<TRenderPass, TShader, TVertexBufferLayout>
+    where TRenderPass : IRenderPass
     where TShader : IShader
     where TVertexBufferLayout : IVertexBufferLayout<TShader>
 {
-    public readonly VulkanRenderer _renderer;
+    private readonly VulkanRenderer _renderer;
+
+    public readonly Pipeline Pipeline;
     
-    public unsafe VulkanPipeline(VulkanRenderer renderer, PipelineDefinition definition, TShader shader, TVertexBufferLayout vertexBufferLayout)
+    public unsafe VulkanPipeline(VulkanRenderer renderer, PipelineDefinition definition, VulkanPassBacking pass, TShader shader, TVertexBufferLayout vertexBufferLayout)
     {
         _renderer = renderer;
         Vk vk = renderer.Vk;
@@ -180,25 +183,16 @@ public class VulkanPipeline<TShader, TVertexBufferLayout> : IPipeline<TShader, T
                     pColorBlendState: &colorBlendStateCreateInfo,
                     pDynamicState: &dynamicStateCreateInfo,
                     layout: shaderBacking.PipelineLayout,
-                    
-                    
-                    
-            
+                    renderPass: pass.RenderPass,
+                    subpass: 0,
+                    basePipelineHandle: null,
+                    basePipelineIndex: -1
                 );
-        
-                //vk.CreateGraphicsPipelines(renderer.Device, default,  )}
+
+                vk.CreateGraphicsPipelines(renderer.Device, default, 1, &createInfo, null, out Pipeline)
+                    .AssertSuccess("Failed to create pipeline");
             }
-            
-            
         }
-
-        
-        
-       
-
-
-
-
     }
 
     private void CreateVertexBindingAndAttributeDescriptions(
@@ -242,7 +236,8 @@ public class VulkanPipeline<TShader, TVertexBufferLayout> : IPipeline<TShader, T
     {
         return stepFunction switch {
             VertexStepFunction.PerVertex => VertexInputRate.Vertex,
-            VertexStepFunction.PerInstance => VertexInputRate.Instance
+            VertexStepFunction.PerInstance => VertexInputRate.Instance,
+            _ => throw new ArgumentOutOfRangeException(nameof(stepFunction), stepFunction, null)
         };
     }
 
@@ -400,13 +395,10 @@ public class VulkanPipeline<TShader, TVertexBufferLayout> : IPipeline<TShader, T
     
     private unsafe void ReleaseUnmanagedResources()
     {
-        // TODO: Destroy pipeline layout, but must be defered in case there are currently any command buffers that
-        //  have seen this pipeline layout and are still in the recording state (See Valid Usage of Vulkan Spec)
+        // TODO: Dispose needs to do defered disposal by placing this managed object into a queue to be deleted
+        //  after we're sure no recording render buffers could possible be referencing this pipeline.
         
-        if (_pipelineLayout.Handle != 0) {
-            _renderer.Vk.DestroyPipelineLayout(_renderer.Device, _pipelineLayout, null);
-        }
-        
+        _renderer.Vk.DestroyPipeline(_renderer.Device, Pipeline, null);
     }
 
     public void Dispose()

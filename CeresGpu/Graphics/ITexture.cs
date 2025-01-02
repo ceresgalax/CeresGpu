@@ -12,7 +12,7 @@ namespace CeresGpu.Graphics
 
         public IntPtr WeakHandle { get; }
         
-        public void Set(ReadOnlySpan<byte> data, uint width, uint height, InputFormat format);
+        public void Set(ReadOnlySpan<byte> data, uint width, uint height, ColorFormat format);
         
         
         /// <summary>

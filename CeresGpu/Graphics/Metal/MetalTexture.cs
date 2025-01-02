@@ -25,7 +25,7 @@ namespace CeresGpu.Graphics.Metal
             _weakHandle = GCHandle.ToIntPtr(GCHandle.Alloc(this, GCHandleType.Weak));
         }
 
-        public void Set(ReadOnlySpan<byte> data, uint width, uint height, InputFormat format)
+        public void Set(ReadOnlySpan<byte> data, uint width, uint height, ColorFormat format)
         {
             uint bytesPerPixel = (uint)format.GetBytesPerPixel();
 
@@ -61,12 +61,12 @@ namespace CeresGpu.Graphics.Metal
             MagFilter = mag;
         }
 
-        private MetalApi.MTLPixelFormat GetMetalPixelFormat(InputFormat format)
+        private MetalApi.MTLPixelFormat GetMetalPixelFormat(ColorFormat format)
         {
             return format switch { 
-                InputFormat.R8G8B8A8_UNORM => MetalApi.MTLPixelFormat.RGBA8Unorm,
-                InputFormat.B8G8R8A8_UNORM => MetalApi.MTLPixelFormat.BGRA8Unorm,
-                InputFormat.R8_UNORM => MetalApi.MTLPixelFormat.R8Unorm,
+                ColorFormat.R8G8B8A8_UNORM => MetalApi.MTLPixelFormat.RGBA8Unorm,
+                ColorFormat.B8G8R8A8_UNORM => MetalApi.MTLPixelFormat.BGRA8Unorm,
+                ColorFormat.R8_UNORM => MetalApi.MTLPixelFormat.R8Unorm,
                 _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
             };
         }

@@ -17,28 +17,28 @@ namespace CeresGpu.Graphics
 
             // TODO: Have not double checked that these map correctly
             
-            InputFormat format = bitmap.ColorType switch {
+            ColorFormat format = bitmap.ColorType switch {
                 SKColorType.Unknown => throw new ArgumentException()
-                , SKColorType.Alpha8 => InputFormat.R8_UNORM
-                , SKColorType.Rgb565 => InputFormat.R5G6B5_UNORM_PACK16
-                , SKColorType.Argb4444 => InputFormat.B4G4R4A4_UNORM_PACK16
-                , SKColorType.Rgba8888 => InputFormat.R8G8B8A8_UNORM
-                , SKColorType.Rgb888x => InputFormat.R8G8B8A8_UNORM
-                , SKColorType.Bgra8888 => InputFormat.B8G8R8A8_UNORM
-                , SKColorType.Rgba1010102 => InputFormat.A2B10G10R10_UNORM_PACK32
-                , SKColorType.Rgb101010x => InputFormat.A2B10G10R10_UNORM_PACK32
-                , SKColorType.Gray8 => InputFormat.R8_UNORM
-                , SKColorType.RgbaF16 => InputFormat.R16G16B16A16_SFLOAT
-                , SKColorType.RgbaF16Clamped => InputFormat.R16G16B16A16_SFLOAT
-                , SKColorType.RgbaF32 => InputFormat.R32G32B32A32_SFLOAT
-                , SKColorType.Rg88 => InputFormat.R8G8_UNORM
-                , SKColorType.AlphaF16 => InputFormat.R16_SFLOAT
-                , SKColorType.RgF16 => InputFormat.R16G16_SFLOAT
-                , SKColorType.Alpha16 => InputFormat.R16_UNORM
-                , SKColorType.Rg1616 => InputFormat.R16G16_UNORM
-                , SKColorType.Rgba16161616 => InputFormat.R16G16B16A16_UNORM
-                , SKColorType.Bgra1010102 => InputFormat.A2R10G10B10_UNORM_PACK32
-                , SKColorType.Bgr101010x => InputFormat.A2R10G10B10_UNORM_PACK32
+                , SKColorType.Alpha8 => ColorFormat.R8_UNORM
+                , SKColorType.Rgb565 => ColorFormat.R5G6B5_UNORM_PACK16
+                , SKColorType.Argb4444 => ColorFormat.B4G4R4A4_UNORM_PACK16
+                , SKColorType.Rgba8888 => ColorFormat.R8G8B8A8_UNORM
+                , SKColorType.Rgb888x => ColorFormat.R8G8B8A8_UNORM
+                , SKColorType.Bgra8888 => ColorFormat.B8G8R8A8_UNORM
+                , SKColorType.Rgba1010102 => ColorFormat.A2B10G10R10_UNORM_PACK32
+                , SKColorType.Rgb101010x => ColorFormat.A2B10G10R10_UNORM_PACK32
+                , SKColorType.Gray8 => ColorFormat.R8_UNORM
+                , SKColorType.RgbaF16 => ColorFormat.R16G16B16A16_SFLOAT
+                , SKColorType.RgbaF16Clamped => ColorFormat.R16G16B16A16_SFLOAT
+                , SKColorType.RgbaF32 => ColorFormat.R32G32B32A32_SFLOAT
+                , SKColorType.Rg88 => ColorFormat.R8G8_UNORM
+                , SKColorType.AlphaF16 => ColorFormat.R16_SFLOAT
+                , SKColorType.RgF16 => ColorFormat.R16G16_SFLOAT
+                , SKColorType.Alpha16 => ColorFormat.R16_UNORM
+                , SKColorType.Rg1616 => ColorFormat.R16G16_UNORM
+                , SKColorType.Rgba16161616 => ColorFormat.R16G16B16A16_UNORM
+                , SKColorType.Bgra1010102 => ColorFormat.A2R10G10B10_UNORM_PACK32
+                , SKColorType.Bgr101010x => ColorFormat.A2R10G10B10_UNORM_PACK32
                 , _ => throw new ArgumentOutOfRangeException()
             };
 

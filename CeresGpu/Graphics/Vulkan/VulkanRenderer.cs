@@ -13,10 +13,16 @@ public sealed class VulkanRenderer : IRenderer
     public readonly Vk Vk = Vk.GetApi();
 
     public readonly Instance Instance;
+    public readonly PhysicalDevice PhysicalDevice;
     public readonly Device Device;
     public readonly Queue GraphicsQueue;
     public readonly CommandPool CommandPool;
 
+    private Dictionary<Type, VulkanPassBacking> _passBackings = [];
+
+    public int FrameCount => 3; 
+    public int WorkingFrame { get; private set; }
+    
     public unsafe VulkanRenderer()
     {
         //
@@ -127,6 +133,8 @@ public sealed class VulkanRenderer : IRenderer
         if (chosenPhysicalDevice.Handle == IntPtr.Zero) {
             throw new InvalidOperationException("Failed to find a suitable physical device.");
         }
+
+        PhysicalDevice = chosenPhysicalDevice;
         
         //
         // Create the logical device.
@@ -205,7 +213,7 @@ public sealed class VulkanRenderer : IRenderer
 
     public IShaderBacking CreateShaderBacking(IShader shader)
     {
-        throw new NotImplementedException();
+        return new VulkanShaderBacking(this, shader);
     }
 
     public IShaderInstanceBacking CreateShaderInstanceBacking(IShader shader)
@@ -219,14 +227,30 @@ public sealed class VulkanRenderer : IRenderer
         throw new NotImplementedException();
     }
 
-    public IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(PipelineDefinition definition, TShader shader,
-        TVertexBufferLayout vertexBufferLayout) where TShader : IShader where TVertexBufferLayout : IVertexBufferLayout<TShader>
+    public void RegisterPassType<TRenderPass>(RenderPassDefinition definition) where TRenderPass : IRenderPass
     {
-        throw new NotImplementedException();
+        _passBackings.Add(typeof(TRenderPass), new VulkanPassBacking(this, definition));
+    }
+    
+    public IPipeline<TRenderPass, TShader, TVertexBufferLayout> CreatePipeline<TRenderPass, TShader, TVertexBufferLayout>(
+        PipelineDefinition definition, 
+        TShader shader,
+        TVertexBufferLayout vertexBufferLayout
+    )
+        where TRenderPass : IRenderPass
+        where TShader : IShader
+        where TVertexBufferLayout : IVertexBufferLayout<TShader>
+    {
+        if (!_passBackings.TryGetValue(typeof(TRenderPass), out VulkanPassBacking? passBacking)) {
+            throw new InvalidOperationException(
+                $"Pass of type {typeof(TRenderPass)} has not been registered. You must call RegisterPassType first.");
+        }
+
+        return new VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout>(this, definition, passBacking, shader, vertexBufferLayout);
     }
 
-    public IPass CreatePass(ReadOnlySpan<IPass> dependentPasses, ReadOnlySpan<ColorAttachment> colorAttachments, ITexture? depthStencilAttachment,
-        LoadAction depthLoadAction, double depthClearValue, LoadAction stencilLoadAction, uint stenclClearValue)
+    public IPass<TRenderPass> CreatePass<TRenderPass>(ReadOnlySpan<IPass> dependentPasses, TRenderPass pass)
+        where TRenderPass : IRenderPass
     {
         throw new NotImplementedException();
     }
@@ -268,6 +292,10 @@ public sealed class VulkanRenderer : IRenderer
         _disposed = true;
         
         // Call managed disposed methods here
+        foreach (VulkanPassBacking passBacking in _passBackings.Values) {
+            passBacking.Dispose();
+        }
+        
         GC.SuppressFinalize(this);
         ReleaseUnmanagedResources();
     }

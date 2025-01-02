@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Numerics;
 using CeresGpu.Graphics.Shaders;
-using CeresGpu.MetalBinding;
 
 namespace CeresGpu.Graphics
 {
@@ -27,46 +25,38 @@ namespace CeresGpu.Graphics
         IShaderBacking CreateShaderBacking(IShader shader);
         IShaderInstanceBacking CreateShaderInstanceBacking(IShader shader);
         IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints);
+
+        void RegisterPassType<TRenderPass>(RenderPassDefinition definition) where TRenderPass : IRenderPass;
         
-        IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(
+        IPipeline<TRenderPass, TShader, TVertexBufferLayout> CreatePipeline<TRenderPass, TShader, TVertexBufferLayout>(
             PipelineDefinition definition,
             TShader shader,
             TVertexBufferLayout vertexBufferLayout
         )
+            where TRenderPass : IRenderPass
             where TShader : IShader
             where TVertexBufferLayout : IVertexBufferLayout<TShader>;
         
-        // /// <summary>
-        // /// Create an IPass with the next swapchain texture as the attachments.
-        // /// </summary>
-        // /// <param name="clear">
-        // /// If true, the pass will be configued so that the attachment textures are cleared before rendering.
-        // /// </param>
-        // /// <param name="clearColor">
-        // /// The color that the color attachments will be cleared with if <see cref="clear"/> is true.
-        // /// </param>
-        // /// <returns>The created pass.</returns>
-        // IPass CreateFramebufferPass(
-        //     LoadAction colorLoadAction,
-        //     Vector4 clearColor,
-        //     bool withDepthStencil,
-        //     double depthClearValue,
-        //     uint stencilClearValue
-        // );
+        IMutableFramebuffer CreateFramebuffer<TRenderPass>();
         
+        // TODO: Rename IPass to something else? Like IPassEncoder?
         /// <summary>
         /// Create a pass which renders to the given attachments.
         /// </summary>
         /// <returns>The created pass</returns>
-        IPass CreatePass(
+        IPass<TRenderPass> CreatePassEncoder<TRenderPass>(
             ReadOnlySpan<IPass> dependentPasses,
-            ReadOnlySpan<ColorAttachment> colorAttachments,
-            ITexture? depthStencilAttachment,
-            LoadAction depthLoadAction,
-            double depthClearValue,
-            LoadAction stencilLoadAction,
-            uint stenclClearValue 
-        );
+            TRenderPass pass
+
+            // All of this is retrieved from the TRenderPass instance:
+            // ReadOnlySpan<ColorAttachment> colorAttachments,
+            // ITexture? depthStencilAttachment,
+            // LoadAction depthLoadAction,
+            // double depthClearValue,
+            // LoadAction stencilLoadAction,
+            // uint stenclClearValue 
+        )
+            where TRenderPass : IRenderPass;
 
         void Present(float minimumElapsedSeocnds);
 

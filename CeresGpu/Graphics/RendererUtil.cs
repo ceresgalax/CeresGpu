@@ -22,7 +22,7 @@ public static class RendererUtil
             data[i + 3] = 0xFF;
         }
         
-        texture.Set(data, 4, 4, InputFormat.R8G8B8A8_UNORM);
+        texture.Set(data, 4, 4, ColorFormat.R8G8B8A8_UNORM);
         return texture;
     }
 }

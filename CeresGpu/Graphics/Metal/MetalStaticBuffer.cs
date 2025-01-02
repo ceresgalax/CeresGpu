@@ -32,9 +32,8 @@ namespace CeresGpu.Graphics.Metal
         {
         }
 
-        public override void Allocate(uint elementCount)
+        protected override void AllocateImpl(uint elementCount)
         {
-            base.Allocate(elementCount);
             if (_buffer != IntPtr.Zero) {
                 MetalApi.metalbinding_release_buffer(_buffer);
                 _buffer = IntPtr.Zero;
@@ -44,16 +43,13 @@ namespace CeresGpu.Graphics.Metal
             _count = elementCount;
         }
         
-        public override void Set(uint offset, Span<T> elements, uint count)
+        protected override void SetImpl(uint offset, Span<T> elements, uint count)
         {
-            base.Set(offset, elements, count);
             MetalBufferUtil.CopyBuffer(_buffer, offset, elements, count, Count);
         }
 
-        public override void SetDirect(IBuffer<T>.DirectSetter setter)
+        protected override void SetDirectImpl(IBuffer<T>.DirectSetter setter)
         {
-            base.SetDirect(setter);
-
             Span<T> directBuffer;
             unsafe {
                 directBuffer = new Span<T>((void*)MetalApi.metalbinding_buffer_get_contents(_buffer), (int)_count);
