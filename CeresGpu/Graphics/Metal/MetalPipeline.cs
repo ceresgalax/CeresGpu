@@ -10,7 +10,8 @@ namespace CeresGpu.Graphics.Metal
         public const uint INDEX_VERTEX_BUFFER_MAX = 30;
     }
     
-    public sealed class MetalPipeline<TShader, TVertexBufferLayout> : IPipeline<TShader, TVertexBufferLayout> 
+    public sealed class MetalPipeline<TRenderPass, TShader, TVertexBufferLayout> : IPipeline<TRenderPass, TShader, TVertexBufferLayout> 
+        where TRenderPass : IRenderPass
         where TShader : IShader
         where TVertexBufferLayout : IVertexBufferLayout<TShader>
     {

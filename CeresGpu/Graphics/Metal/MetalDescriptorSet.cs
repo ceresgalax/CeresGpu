@@ -53,12 +53,12 @@ namespace CeresGpu.Graphics.Metal
             ReleaseUnmanagedResources();
         }
         
-        private void SetDescriptor(int index, DescriptorType descriptorType, object resource, uint extraIndex = 0)
+        private void SetDescriptor(uint index, DescriptorType descriptorType, object resource, uint extraIndex = 0)
         {
             while (index >= _descriptors.Count) {
                 _descriptors.Add((DescriptorType.Unset, string.Empty, 0));
             }
-            _descriptors[index] = (descriptorType, resource, extraIndex);
+            _descriptors[(int)index] = (descriptorType, resource, extraIndex);
         }
         
         public void SetUniformBufferDescriptor<T>(IBuffer<T> buffer, in DescriptorInfo info) where T : unmanaged

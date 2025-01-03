@@ -36,8 +36,8 @@ namespace CeresGpu.Graphics
             where TRenderPass : IRenderPass
             where TShader : IShader
             where TVertexBufferLayout : IVertexBufferLayout<TShader>;
-        
-        IMutableFramebuffer CreateFramebuffer<TRenderPass>();
+
+        IMutableFramebuffer CreateFramebuffer<TRenderPass>() where TRenderPass : IRenderPass;
         
         // TODO: Rename IPass to something else? Like IPassEncoder?
         /// <summary>

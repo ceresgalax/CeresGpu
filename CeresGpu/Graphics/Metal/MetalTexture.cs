@@ -55,6 +55,16 @@ namespace CeresGpu.Graphics.Metal
             }
         }
 
+        public void DeclareMutationInPass()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DeclareReadInPass()
+        {
+            throw new NotImplementedException();
+        }
+
         public void SetFilter(MinMagFilter min, MinMagFilter mag)
         {
             MinFilter = min;

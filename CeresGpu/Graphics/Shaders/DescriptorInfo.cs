@@ -9,7 +9,7 @@ namespace CeresGpu.Graphics.Shaders
         /// <summary>
         /// If the descriptor is for a texture, this index is the argument buffer index for it's related sampler.
         /// </summary>
-        public int SamplerIndex;
+        public uint SamplerIndex;
 
         // Note: More information may be required for Vulkan in order for it to properly set up it's descriptor sets.
 

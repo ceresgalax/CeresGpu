@@ -87,6 +87,16 @@ namespace CeresGpu.Graphics.OpenGL
             });
         }
 
+        public void DeclareMutationInPass()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void DeclareReadInPass()
+        {
+            throw new NotImplementedException();
+        }
+
         public void SetFilter(MinMagFilter min, MinMagFilter mag)
         {
             // TODO: Move this validation to be common for all impl types.

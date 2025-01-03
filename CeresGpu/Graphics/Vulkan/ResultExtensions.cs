@@ -8,7 +8,7 @@ public static class ResultExtensions
     public static void AssertSuccess(this Result result, string failMessage)
     {
         if (result != Result.Success) {
-            throw new InvalidOperationException(failMessage);
+            throw new InvalidOperationException(failMessage + ": " + result);
         }
     }
 }

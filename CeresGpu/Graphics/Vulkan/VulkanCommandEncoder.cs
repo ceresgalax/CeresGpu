@@ -121,19 +121,29 @@ public sealed class VulkanCommandEncoder<TRenderPass> : IPass<TRenderPass> where
         vk.CmdDraw(_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
-    public void DrawIndexedUshort(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset,
-        uint firstInstance)
+    public void DrawIndexedUshort(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
+    {
+        DrawIndexed(indexBuffer, IndexType.Uint16, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+    }
+
+    public void DrawIndexedUint(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
+    {
+        DrawIndexed(indexBuffer, IndexType.Uint32, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+    }
+
+    private void DrawIndexed(object indexBuffer, IndexType indexType, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         // TODO: Need to assert that a pipeline has been set. Any way that could be done in CeresGPU's non-api-specific code?
         
-        Vk vk = _renderer.Vk;
-        vk.CmdBindIndexBuffer(_commandBuffer, );
-        vk.CmdDrawIndexed();
-    }
+        if (indexBuffer is not IVulkanBuffer vkIndexBuffer) {
+            throw new ArgumentException("Incompatible index buffer", nameof(indexBuffer));
+        }
 
-    public void DrawIndexedUint(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset,
-        uint firstInstance)
-    {
-        throw new NotImplementedException();
+        vkIndexBuffer.Commit();
+        
+        Vk vk = _renderer.Vk;
+        vk.CmdBindIndexBuffer(_commandBuffer, vkIndexBuffer.GetBufferForCurrentFrame(), 0, indexType);
+        vk.CmdDrawIndexed(_commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
+    
 }

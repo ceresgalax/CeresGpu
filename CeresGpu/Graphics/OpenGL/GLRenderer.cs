@@ -15,7 +15,7 @@ namespace CeresGpu.Graphics.OpenGL
         private readonly GLContext _context;
         private readonly GLFWWindow _window;
         
-        private GLPass? _currentPass;
+        //private GLPass? _currentPass;
         
         /// <summary>
         /// This is arbitrary, but should always be more than one so that it's easy for users to rat out bugs with
@@ -27,7 +27,7 @@ namespace CeresGpu.Graphics.OpenGL
         public uint UniqueFrameId { get; private set; }
         
         public IGLProvider GLProvider => _context;
-        public GLPass? CurrentPass => _currentPass;
+        // public GLPass? CurrentPass => _currentPass;
 
         public readonly GLTexture FallbackTexture;
         public readonly GLSampler FallbackSampler;
@@ -128,68 +128,84 @@ namespace CeresGpu.Graphics.OpenGL
             return new GLDescriptorSet(this, in hints);
         }
 
-        public IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(
+        public void RegisterPassType<TRenderPass>(RenderPassDefinition definition) where TRenderPass : IRenderPass
+        {
+            throw new NotImplementedException();
+        }
+
+        public IPipeline<TRenderPass, TShader, TVertexBufferLayout> CreatePipeline<TRenderPass, TShader, TVertexBufferLayout>(
             PipelineDefinition definition,
             TShader shader,
             TVertexBufferLayout vertexBufferLayout
         )
+            where TRenderPass : IRenderPass
             where TShader : IShader
             where TVertexBufferLayout : IVertexBufferLayout<TShader>
         {
-            return new GLPipeline<TShader, TVertexBufferLayout>(definition, shader, vertexBufferLayout);
+            return new GLPipeline<TRenderPass, TShader, TVertexBufferLayout>(definition, shader, vertexBufferLayout);
         }
-        
+
+        public IMutableFramebuffer CreateFramebuffer<TRenderPass>() where TRenderPass : IRenderPass
+        {
+            throw new NotImplementedException();
+        }
+
+        public IPass<TRenderPass> CreatePassEncoder<TRenderPass>(ReadOnlySpan<IPass> dependentPasses, TRenderPass pass) where TRenderPass : IRenderPass
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// To be called by GLPass when encoding has finished.
         /// </summary>
         public void FinishPass()
         {
-            _currentPass = null;
+            //_currentPass = null;
         }
 
-        private GLPass SetCurrentPass(GLPass pass)
-        {
-            _currentPass?.Finish();
-            _currentPass = pass;
-            return pass;
-        }
+        // private GLPass SetCurrentPass(GLPass pass)
+        // {
+        //     _currentPass?.Finish();
+        //     _currentPass = pass;
+        //     return pass;
+        // }
 
-        public IPass CreateFramebufferPass(LoadAction colorLoadAction, Vector4 clearColor, bool withDepthStencil, double depthClearValue, uint stencilClearValue)
-        {
-            _window.GetFramebufferSize(out int width, out int height);
-            GLPass pass = SetCurrentPass(new GLPass(this, (uint)width, (uint)height));
-            
-            // TODO: Need to better clarify which methods CeresGPU API allows to be performed outside of the main thread.
-            // If the CeresGPU API allows CreateFramebuffer pass to be called outside of the main thread, We will need
-            // to serially queue the GL commands here to the GL thread.
-            GL gl = GLProvider.Gl;
-            gl.Viewport(0, 0, width, height);
-
-            ClearBufferMask clearMask = 0;
-            if (colorLoadAction == LoadAction.Clear) {
-                gl.ClearColor(clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
-                clearMask |= ClearBufferMask.COLOR_BUFFER_BIT;
-            }
-            if (withDepthStencil) {
-                gl.ClearDepth(depthClearValue);
-                gl.ClearStencil((int)stencilClearValue);
-                clearMask |= ClearBufferMask.DEPTH_BUFFER_BIT | ClearBufferMask.STENCIL_BUFFER_BIT;
-            }
-
-            pass.SetScissor(new ScissorRect(0, 0, (uint)width, (uint)height));
-
-            if (clearMask != 0) {
-                gl.Clear(clearMask);    
-            }
-            
-            return pass;
-        }
-
-        public IPass CreatePass(ReadOnlySpan<ColorAttachment> colorAttachments, ITexture? depthStencilAttachment, LoadAction depthLoadAction
-            , double depthClearValue, LoadAction stencilLoadAction, uint stenclClearValue)
-        {
-            throw new NotImplementedException();
-        }
+        // public IPass CreateFramebufferPass(LoadAction colorLoadAction, Vector4 clearColor, bool withDepthStencil, double depthClearValue, uint stencilClearValue)
+        // {
+        //     _window.GetFramebufferSize(out int width, out int height);
+        //     GLPass pass = SetCurrentPass(new GLPass(this, (uint)width, (uint)height));
+        //     
+        //     // TODO: Need to better clarify which methods CeresGPU API allows to be performed outside of the main thread.
+        //     // If the CeresGPU API allows CreateFramebuffer pass to be called outside of the main thread, We will need
+        //     // to serially queue the GL commands here to the GL thread.
+        //     GL gl = GLProvider.Gl;
+        //     gl.Viewport(0, 0, width, height);
+        //
+        //     ClearBufferMask clearMask = 0;
+        //     if (colorLoadAction == LoadAction.Clear) {
+        //         gl.ClearColor(clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
+        //         clearMask |= ClearBufferMask.COLOR_BUFFER_BIT;
+        //     }
+        //     if (withDepthStencil) {
+        //         gl.ClearDepth(depthClearValue);
+        //         gl.ClearStencil((int)stencilClearValue);
+        //         clearMask |= ClearBufferMask.DEPTH_BUFFER_BIT | ClearBufferMask.STENCIL_BUFFER_BIT;
+        //     }
+        //
+        //     pass.SetScissor(new ScissorRect(0, 0, (uint)width, (uint)height));
+        //
+        //     if (clearMask != 0) {
+        //         gl.Clear(clearMask);    
+        //     }
+        //     
+        //     return pass;
+        // }
+        //
+        // public IPass CreatePass(ReadOnlySpan<ColorAttachment> colorAttachments, ITexture? depthStencilAttachment, LoadAction depthLoadAction
+        //     , double depthClearValue, LoadAction stencilLoadAction, uint stenclClearValue)
+        // {
+        //     throw new NotImplementedException();
+        // }
 
         public void Present(float minimumElapsedSeocnds)
         {

@@ -68,13 +68,8 @@ namespace CeresGpu.Graphics.Metal
             }
         }
 
-        public override void Dispose()
+        protected override void Dispose(bool isDisposing)
         {
-            ReleaseUnmanagedResources();
-            GC.SuppressFinalize(this);
-        }
-
-        ~MetalStaticBuffer() {
             ReleaseUnmanagedResources();
         }
     }

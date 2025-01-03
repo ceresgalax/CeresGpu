@@ -6,7 +6,8 @@ using CeresGpu.MetalBinding;
 
 namespace CeresGpu.Graphics.Metal
 {
-    public sealed class MetalPass : IPass
+    public sealed class MetalPass<TRenderPass> : IPass<TRenderPass> 
+        where TRenderPass : IRenderPass
     {
         private readonly MetalRenderer _renderer;
         private IntPtr _encoder;
@@ -36,9 +37,10 @@ namespace CeresGpu.Graphics.Metal
 
         public void Dispose()
         {
-            if (_renderer.CurrentPass == this) {
-                Finish();
-            }
+            // TODO: Finish encoding if not already finished?
+            // if (_renderer.CurrentPass == this) {
+            //     Finish();
+            // }
             
             ReleaseUnmanagedResources();
             GC.SuppressFinalize(this);
@@ -50,15 +52,16 @@ namespace CeresGpu.Graphics.Metal
 
         private void CheckCurrent()
         {
-            if (_renderer.CurrentPass != this) {
-                throw new InvalidOperationException("Pass is no longer current");
-            }
+            throw new NotImplementedException();
+            // if (_renderer.CurrentPass != this) {
+            //     throw new InvalidOperationException("Pass is no longer current");
+            // }
         }
 
         private object? _previousPipeline;
 
         public void SetPipeline<TShader, TVertexBufferLayout>(
-            IPipeline<TShader, TVertexBufferLayout> pipeline,
+            IPipeline<TRenderPass, TShader, TVertexBufferLayout> pipeline,
             IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
         )
             where TShader : IShader
@@ -66,7 +69,7 @@ namespace CeresGpu.Graphics.Metal
         {
             CheckCurrent();
             
-            if (pipeline is not MetalPipeline<TShader, TVertexBufferLayout> metalPipeline) {
+            if (pipeline is not MetalPipeline<TRenderPass, TShader, TVertexBufferLayout> metalPipeline) {
                 throw new ArgumentException("Incompatible pipeline", nameof(pipeline));
             }
             if (shaderInstance.Backing is not MetalShaderInstanceBacking shaderInstanceBacking) {
@@ -134,7 +137,7 @@ namespace CeresGpu.Graphics.Metal
             MetalApi.metalbinding_command_encoder_draw(_encoder, vertexCount, instanceCount, firstVertex, firstInstance);
         }
 
-        public void DrawIndexedUshort(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset, uint firstInstance)
+        public void DrawIndexedUshort(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
         {
             CheckCurrent();
             if (indexBuffer is not IMetalBuffer metalBuffer) {
@@ -151,7 +154,7 @@ namespace CeresGpu.Graphics.Metal
                 metalBuffer.GetHandleForCurrentFrame(), indexCount, instanceCount, indexBufferOffset, vertexOffset, firstInstance);
         }
 
-        public void DrawIndexedUint(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset, uint firstInstance)
+        public void DrawIndexedUint(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
         {
             CheckCurrent();
             if (indexBuffer is not IMetalBuffer metalBuffer) {

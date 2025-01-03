@@ -94,7 +94,7 @@ namespace CeresGpu.MetalBinding
         public static extern void metalbinding_command_encoder_draw(IntPtr encoder, uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance);
         
         [DllImport(DLL_NAME)]
-        public static extern void metalbinding_command_encoder_draw_indexed(IntPtr encoder, MTLIndexType indexType, IntPtr indexBuffer, uint indexCount, uint instanceCount, uint indexBufferOffset, uint vertexOffset, uint firstInstance);
+        public static extern void metalbinding_command_encoder_draw_indexed(IntPtr encoder, MTLIndexType indexType, IntPtr indexBuffer, uint indexCount, uint instanceCount, uint indexBufferOffset, int vertexOffset, uint firstInstance);
         
         [DllImport(DLL_NAME)]
         public static extern IntPtr metalbinding_new_buffer(IntPtr context, uint length);

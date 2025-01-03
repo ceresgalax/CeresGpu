@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <!-- Null-related warnings are errors -->
         <WarningsAsErrors>CS8603,CS8618,CS8600,CS8625,CS8604,CS8602,CS8634</WarningsAsErrors>
-        <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+        <TargetFramework>net8.0</TargetFramework>
         <LangVersion>12</LangVersion>
     </PropertyGroup>
 
@@ -19,6 +19,9 @@
         <PackageReference Include="JetBrains.Annotations" Version="2022.1.0" />
         <PackageReference Include="Silk.NET.Vulkan" Version="2.22.0" />
         <PackageReference Include="SkiaSharp" Version="2.88.6" />
+        
+        <!-- CeresGpu doesn't use this part of the BCL, but upgrade it to supress vulnerability warnings -->
+        <PackageReference Include="System.Text.Json" Version="8.0.5" />
 
         <!-- PrivateAssets="all" here to prevent the shader tools from ending up in the output directory of depending projects -->
         <!-- PrivateAssets="runtime" didn't seem to work :/ -->

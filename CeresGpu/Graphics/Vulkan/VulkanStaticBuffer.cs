@@ -1,16 +1,17 @@
 ﻿using System;
-using System.Runtime.InteropServices;
-using CeresGpu.MetalBinding;
 using Silk.NET.Vulkan;
+using Buffer = System.Buffer;
 using VkBuffer = Silk.NET.Vulkan.Buffer;
 
 namespace CeresGpu.Graphics.Vulkan;
 
-public class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer where T : unmanaged  
+public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer where T : unmanaged  
 {
     private readonly VulkanRenderer _renderer;
 
     private VkBuffer _buffer;
+    private DeviceMemory _memory;
+    
     private uint _count;
         
     public override uint Count => _count;
@@ -18,6 +19,29 @@ public class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer where T : un
     public VulkanStaticBuffer(VulkanRenderer renderer)
     {
         _renderer = renderer;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        if (disposing) {
+            // Dispose owned IDisposable objects here.
+        }
+        
+        // Release unmanaged resources here.
+        Vk vk = _renderer.Vk;
+        unsafe {
+            if (_memory.Handle != 0) {
+                vk.FreeMemory(_renderer.Device, _memory, null);
+                _memory = default;
+            }
+
+            if (_buffer.Handle != 0) {
+                vk.DestroyBuffer(_renderer.Device, _buffer, null);
+                _buffer = default;
+            }
+        }
     }
 
     protected override unsafe void AllocateImpl(uint elementCount)
@@ -61,28 +85,120 @@ public class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer where T : un
         // Now put some actual memory behind that buffer.
 
         vk.GetBufferMemoryRequirements(_renderer.Device, _buffer, out MemoryRequirements requirements);
+
+        // TODO: Should we always required host visible memory?
+        MemoryPropertyFlags requiredProperties = MemoryPropertyFlags.DeviceLocalBit | MemoryPropertyFlags.HostVisibleBit;
         
+        if (!_renderer.MemoryHelper.FindMemoryType(requirements.MemoryTypeBits, requiredProperties, out uint memoryTypeIndex)) {
+            throw new InvalidOperationException("Failed to find a suitable memory type for allocation");
+        }
         
+        // Align up to match non-coherent atom size.
+        // TODO: Does GetBufferMemoryRequirements already take the non-coherent atom size into account for size?
+        ulong allocationSize = AlignUtil.AlignUp(requirements.Size, _renderer.PhysicalDeviceLimits.NonCoherentAtomSize);
         
-        vk.BindBufferMemory(_renderer.Device, _buffer, );
+        // TODO: WE CAN'T MAKE AN ALLOCATION FOR EVERY BUFFER.
         
+        MemoryAllocateInfo allocateInfo = new(
+            sType: StructureType.MemoryAllocateInfo,
+            pNext: null,
+            allocationSize: allocationSize,
+            memoryTypeIndex: memoryTypeIndex
+        );
+        vk.AllocateMemory(_renderer.Device, in allocateInfo, null, out _memory)
+            .AssertSuccess("Failed to allocate memory for buffer");
         
+        vk.BindBufferMemory(_renderer.Device, _buffer, _memory, 0)
+            .AssertSuccess("Failed to bind buffer memory");
         
         _count = elementCount;
     }
 
     protected override void SetImpl(uint offset, Span<T> elements, uint count)
     {
-        throw new NotImplementedException();
+        Vk vk = _renderer.Vk;
+
+        unsafe {
+
+            ulong atomSize = _renderer.PhysicalDeviceLimits.NonCoherentAtomSize;
+            ulong unalignedStart = offset * (uint)sizeof(T);
+            ulong unalignedEnd = unalignedStart + count * (uint)sizeof(T);
+            ulong alignedStart = AlignUtil.AlignDown(unalignedStart, atomSize);
+            ulong alignedEnd = AlignUtil.AlignUp(unalignedEnd, atomSize);
+            ulong mappingOffset = unalignedStart - alignedStart;
+            ulong mappingSize = alignedEnd - alignedStart;
+            
+            void* mapped = null;
+            vk.MapMemory(_renderer.Device, _memory, alignedStart, mappingSize, MemoryMapFlags.None, ref mapped)
+                .AssertSuccess("Failed to map memory");
+            try {
+                // Copy the elements
+                fixed (T* pElements = elements) {
+                    Buffer.MemoryCopy(pElements, (byte*)mapped + mappingOffset, mappingSize - mappingOffset, (uint)elements.Length * (uint)sizeof(T));    
+                }
+                
+                // Flush the writen memory.
+                MappedMemoryRange range = new(
+                    sType: StructureType.MappedMemoryRange,
+                    pNext: null,
+                    memory: _memory,
+                    offset: alignedStart,
+                    size: mappingSize
+                );
+                vk.FlushMappedMemoryRanges(_renderer.Device, 1, in range)
+                    .AssertSuccess("Failed to flush memory");
+            } finally {
+                vk.UnmapMemory(_renderer.Device, _memory);
+            }
+        }
+        
     }
 
     protected override void SetDirectImpl(IBuffer<T>.DirectSetter setter)
     {
-        throw new NotImplementedException();
+        Vk vk = _renderer.Vk;
+
+        unsafe {
+
+            ulong atomSize = _renderer.PhysicalDeviceLimits.NonCoherentAtomSize;
+            ulong unalignedEnd = _count * (uint)sizeof(T);
+            ulong alignedEnd = AlignUtil.AlignUp(unalignedEnd, atomSize); ;
+            
+            void* mapped = null;
+            vk.MapMemory(_renderer.Device, _memory, 0, alignedEnd, MemoryMapFlags.None, ref mapped)
+                .AssertSuccess("Failed to map memory");
+            try {
+                // Operate on the mapped memory.
+                setter(new Span<T>(mapped, (int)_count));
+                
+                // Flush the writen memory.
+                MappedMemoryRange range = new(
+                    sType: StructureType.MappedMemoryRange,
+                    pNext: null,
+                    memory: _memory,
+                    offset: 0,
+                    size: alignedEnd
+                );
+                vk.FlushMappedMemoryRanges(_renderer.Device, 1, in range)
+                    .AssertSuccess("Failed to flush memory");
+            } finally {
+                vk.UnmapMemory(_renderer.Device, _memory);
+            }
+        }
     }
 
-    public override void Dispose()
+    public VkBuffer GetBufferForCurrentFrame()
     {
-        throw new System.NotImplementedException();
+        return _buffer;
+    }
+
+    void IVulkanBuffer.Commit()
+    {
+        Commit();
+    }
+
+    public void PrepareToUpdateExternally()
+    {
+        throw new NotImplementedException();
     }
 }

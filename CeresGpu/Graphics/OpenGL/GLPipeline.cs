@@ -4,7 +4,8 @@ using CeresGpu.Graphics.Shaders;
 
 namespace CeresGpu.Graphics.OpenGL
 {
-    public class GLPipeline<TShader, TVertexBufferLayout> : IGLPipeline, IPipeline<TShader, TVertexBufferLayout> 
+    public class GLPipeline<TRenderPass, TShader, TVertexBufferLayout> : IGLPipeline, IPipeline<TRenderPass, TShader, TVertexBufferLayout> 
+        where TRenderPass : IRenderPass
         where TShader : IShader
         where TVertexBufferLayout : IVertexBufferLayout<TShader>
     {

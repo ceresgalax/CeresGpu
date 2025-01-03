@@ -3,6 +3,7 @@ using CeresGLFW;
 using CeresGpu.Graphics;
 using CeresGpu.Graphics.Metal;
 using CeresGpu.Graphics.OpenGL;
+using CeresGpu.Graphics.Vulkan;
 
 namespace CeresGpu
 {
@@ -76,7 +77,10 @@ namespace CeresGpu
             }
             
             GLFW.SwapInterval(1);
-            return new GLRenderer(window);
+            
+            // TODO: Better API selection.
+            // return new GLRenderer(window);
+            return new VulkanRenderer();
         }
         
         public static (IRenderer, GLFWWindow) MakeRenderer(WindowHints hints, int width, int height, string title)

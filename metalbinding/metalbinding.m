@@ -306,7 +306,7 @@ void metalbinding_command_encoder_draw(id<MTLRenderCommandEncoder> encoder, uint
                baseInstance:firstInstance];
 }
 
-void metalbinding_command_encoder_draw_indexed(id<MTLRenderCommandEncoder> encoder, MTLIndexType indexType, id<MTLBuffer> indexBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t indexBufferOffset, uint32_t vertexOffset, uint32_t firstInstance
+void metalbinding_command_encoder_draw_indexed(id<MTLRenderCommandEncoder> encoder, MTLIndexType indexType, id<MTLBuffer> indexBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t indexBufferOffset, int32_t vertexOffset, uint32_t firstInstance
 ) {
     [encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
                         indexCount:indexCount

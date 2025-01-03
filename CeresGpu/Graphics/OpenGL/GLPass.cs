@@ -5,7 +5,8 @@ using CeresGpu.Graphics.Shaders;
 
 namespace CeresGpu.Graphics.OpenGL
 {
-    public sealed class GLPass : IPass
+    public sealed class GLPass<TRenderPass> : IPass<TRenderPass> 
+        where TRenderPass : IRenderPass
     {
         private readonly GLRenderer _renderer;
 
@@ -27,7 +28,7 @@ namespace CeresGpu.Graphics.OpenGL
         }
         
         public void SetPipeline<TShader, TVertexBufferLayout>(
-            IPipeline<TShader, TVertexBufferLayout> pipeline,
+            IPipeline<TRenderPass, TShader, TVertexBufferLayout> pipeline,
             IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
         ) 
             where TShader : IShader
@@ -60,9 +61,10 @@ namespace CeresGpu.Graphics.OpenGL
         
         private void CheckCurrent()
         {
-            if (_renderer.CurrentPass != this) {
-                throw new InvalidOperationException("Pass is no longer current");
-            }
+            throw new NotImplementedException();
+            // if (_renderer.CurrentPass != this) {
+            //     throw new InvalidOperationException("Pass is no longer current");
+            // }
         }
 
         public void SetScissor(ScissorRect scissor)
@@ -90,7 +92,7 @@ namespace CeresGpu.Graphics.OpenGL
             gl.DrawArraysInstancedBaseInstance(PrimitiveType.TRIANGLES, (int)firstVertex, (int)vertexCount, (int)instanceCount, firstInstance);
         }
 
-        public void DrawIndexedUshort(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset, uint firstInstance)
+        public void DrawIndexedUshort(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
         {
             CheckCurrent();
             if (indexBuffer is not IGLBuffer glIndexBuffer) {
@@ -100,10 +102,10 @@ namespace CeresGpu.Graphics.OpenGL
             glIndexBuffer.Commit();
             gl.BindBuffer(BufferTargetARB.ELEMENT_ARRAY_BUFFER, glIndexBuffer.GetHandleForCurrentFrame());
             uint indexBufferOffset = (uint)Marshal.SizeOf<ushort>() * firstIndex;
-            gl.glDrawElementsInstancedBaseVertexBaseInstance((uint)PrimitiveType.TRIANGLES, (int)indexCount, (uint)DrawElementsType.UNSIGNED_SHORT, new IntPtr(indexBufferOffset), (int)instanceCount, (int)vertexOffset, firstInstance);
+            gl.glDrawElementsInstancedBaseVertexBaseInstance((uint)PrimitiveType.TRIANGLES, (int)indexCount, (uint)DrawElementsType.UNSIGNED_SHORT, new IntPtr(indexBufferOffset), (int)instanceCount, vertexOffset, firstInstance);
         }
 
-        public void DrawIndexedUint(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, uint vertexOffset, uint firstInstance)
+        public void DrawIndexedUint(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
         {
             CheckCurrent();
             if (indexBuffer is not IGLBuffer glIndexBuffer) {
@@ -113,7 +115,7 @@ namespace CeresGpu.Graphics.OpenGL
             glIndexBuffer.Commit();
             gl.BindBuffer(BufferTargetARB.ELEMENT_ARRAY_BUFFER, glIndexBuffer.GetHandleForCurrentFrame());
             uint indexBufferOffset = (uint)Marshal.SizeOf<uint>() * firstIndex;
-            gl.glDrawElementsInstancedBaseVertexBaseInstance((uint)PrimitiveType.TRIANGLES, (int)indexCount, (uint)DrawElementsType.UNSIGNED_INT, new IntPtr(indexBufferOffset), (int)instanceCount, (int)vertexOffset, firstInstance);
+            gl.glDrawElementsInstancedBaseVertexBaseInstance((uint)PrimitiveType.TRIANGLES, (int)indexCount, (uint)DrawElementsType.UNSIGNED_INT, new IntPtr(indexBufferOffset), (int)instanceCount, vertexOffset, firstInstance);
         }
 
         public void Finish()

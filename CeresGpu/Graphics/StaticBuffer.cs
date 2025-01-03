@@ -48,6 +48,9 @@ public abstract class StaticBuffer<T> : IStaticBuffer<T> where T : unmanaged
     public void Set(uint offset, Span<T> elements, uint count)
     {
         CheckCanModify();
+        if (count + offset > Count) {
+            throw new IndexOutOfRangeException();
+        }
         SetImpl(offset, elements, count);
     }
 
@@ -66,12 +69,27 @@ public abstract class StaticBuffer<T> : IStaticBuffer<T> where T : unmanaged
         IsCommited = true;
     }
 
-    public abstract void Dispose();
+    
 
     private void CheckCanModify()
     {
         if (IsCommited) {
             throw new InvalidOperationException("Static buffer cannnot be updated after use.");    
         }
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    ~StaticBuffer()
+    {
+        Dispose(false);
     }
 }

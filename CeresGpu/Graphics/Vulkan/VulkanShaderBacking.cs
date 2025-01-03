@@ -71,7 +71,7 @@ public class VulkanShaderBacking : IShaderBacking
                 pBindings: pLayoutBindings
             );
             
-            vk.CreateDescriptorSetLayout(renderer.Device, layoutCreateInfo, null, out DescriptorSetLayout)
+            vk.CreateDescriptorSetLayout(renderer.Device, in layoutCreateInfo, null, out DescriptorSetLayout)
                 .AssertSuccess("Failed to create descriptor set layout");
         }
         

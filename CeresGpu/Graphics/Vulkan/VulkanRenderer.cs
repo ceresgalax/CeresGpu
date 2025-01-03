@@ -11,14 +11,17 @@ public sealed class VulkanRenderer : IRenderer
     public uint UniqueFrameId { get; }
 
     public readonly Vk Vk = Vk.GetApi();
-
+    
     public readonly Instance Instance;
     public readonly PhysicalDevice PhysicalDevice;
+    public readonly PhysicalDeviceLimits PhysicalDeviceLimits;
     public readonly Device Device;
     public readonly Queue GraphicsQueue;
     public readonly CommandPool CommandPool;
 
     private Dictionary<Type, VulkanPassBacking> _passBackings = [];
+
+    public readonly VulkanMemoryHelper MemoryHelper;
 
     public int FrameCount => 3; 
     public int WorkingFrame { get; private set; }
@@ -135,6 +138,9 @@ public sealed class VulkanRenderer : IRenderer
         }
 
         PhysicalDevice = chosenPhysicalDevice;
+
+        PhysicalDeviceProperties physicalDeviceProperties = Vk.GetPhysicalDeviceProperties(chosenPhysicalDevice);
+        PhysicalDeviceLimits = physicalDeviceProperties.Limits;
         
         //
         // Create the logical device.
@@ -189,6 +195,8 @@ public sealed class VulkanRenderer : IRenderer
         );
         Vk.CreateCommandPool(Device, in commandPoolCreateInfo, null, out CommandPool)
             .AssertSuccess("Failed to create command pool.");
+        
+        MemoryHelper = new VulkanMemoryHelper(this);
     }
     
     public IStaticBuffer<T> CreateStaticBuffer<T>(int elementCount) where T : unmanaged
@@ -231,6 +239,15 @@ public sealed class VulkanRenderer : IRenderer
     {
         _passBackings.Add(typeof(TRenderPass), new VulkanPassBacking(this, definition));
     }
+
+    private VulkanPassBacking GetPassBackingOrThrow<TRenderPass>()
+    {
+        if (!_passBackings.TryGetValue(typeof(TRenderPass), out VulkanPassBacking? passBacking)) {
+            throw new InvalidOperationException(
+                $"Pass of type {typeof(TRenderPass)} has not been registered. You must call RegisterPassType first.");
+        }
+        return passBacking;
+    }
     
     public IPipeline<TRenderPass, TShader, TVertexBufferLayout> CreatePipeline<TRenderPass, TShader, TVertexBufferLayout>(
         PipelineDefinition definition, 
@@ -241,18 +258,28 @@ public sealed class VulkanRenderer : IRenderer
         where TShader : IShader
         where TVertexBufferLayout : IVertexBufferLayout<TShader>
     {
-        if (!_passBackings.TryGetValue(typeof(TRenderPass), out VulkanPassBacking? passBacking)) {
-            throw new InvalidOperationException(
-                $"Pass of type {typeof(TRenderPass)} has not been registered. You must call RegisterPassType first.");
-        }
-
+        VulkanPassBacking passBacking = GetPassBackingOrThrow<TRenderPass>();
         return new VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout>(this, definition, passBacking, shader, vertexBufferLayout);
     }
 
-    public IPass<TRenderPass> CreatePass<TRenderPass>(ReadOnlySpan<IPass> dependentPasses, TRenderPass pass)
+    public IMutableFramebuffer CreateFramebuffer<TRenderPass>() where TRenderPass : IRenderPass
+    {
+        VulkanPassBacking passBacking = GetPassBackingOrThrow<TRenderPass>();
+        return new VulkanFramebuffer(this, passBacking);
+    }
+
+    public IPass<TRenderPass> CreatePassEncoder<TRenderPass>(
+        ReadOnlySpan<IPass> dependentPasses,
+        TRenderPass pass
+    )
         where TRenderPass : IRenderPass
     {
-        throw new NotImplementedException();
+        if (pass.Framebuffer is not VulkanFramebuffer vkFramebuffer) {
+            throw new ArgumentException("Backend type of pass is not compatible with this renderer.", nameof(pass));
+        }
+        
+        VulkanPassBacking passBacking = GetPassBackingOrThrow<TRenderPass>();
+        return new VulkanCommandEncoder<TRenderPass>(this, passBacking, vkFramebuffer);
     }
 
     public void Present(float minimumElapsedSeocnds)
