@@ -2,7 +2,6 @@ import argparse
 import glob
 import json
 import os
-import platform
 import re
 import sys
 import subprocess
@@ -11,6 +10,7 @@ from typing import Dict, List, Tuple
 from .graph import Graph, Node
 from . import genbuffers
 from . import genshaders
+from . import validate
 from .genbuffers import Vertex
 from .genshaders import SpirvReflection, ShaderStage, ArgumentBufferBinding
 
@@ -33,6 +33,7 @@ binaries_path = os.path.normpath(os.path.join(__file__, '..', '..', 'CeresGpu', 
 EXE_POSTFIX = '.exe' if sys.platform.lower() == 'win32' else ''
 GLSLANG_BINARY = os.path.join(binaries_path, 'glslangValidator' + EXE_POSTFIX)
 SPIRV_CROSS_BINARY = os.path.join(binaries_path, 'spirv-cross' + EXE_POSTFIX)
+SPIRV_LINK_BINARY = os.path.join(binaries_path, 'spirv-link' + EXE_POSTFIX)
 
 
 def parse_buffers(root: str) -> Dict[str, Vertex]:
@@ -84,6 +85,12 @@ def spv_to_reflection(node: Node):
         f.write(reflection_json)
 
 
+def link_spv_for_vulkan(node: Node):
+    input_paths = [node.filepath for tag, node in node.tagged_inputs]
+    output_path = node.filepath    
+    subprocess.check_output([SPIRV_LINK_BINARY, '--target-env', 'vulkan1.0', '-o', output_path, *input_paths])
+
+
 def gen_cs(node: Node):
     source_inputs = [(t, n) for t, n in node.tagged_inputs if n.action == '']
     reflection_inputs = [(t, n) for t, n in node.tagged_inputs if n.action == ACTION_SPVCROSS_REFLECT]
@@ -126,6 +133,10 @@ def gen_cs(node: Node):
         directives.descriptor_field_hints_by_name.update(other_directives.descriptor_field_hints_by_name)    
         
     shader = genshaders.Shader(shader_name, directives, reflections)
+
+    # Check mappings before we proceed
+    validate.validate_descriptor_set_bindings(shader)
+    
     genshaders.generate_shader_file(output_path, shader)
     
 
@@ -166,6 +177,7 @@ ACTION_COMPILE_TO_SPV = 'compile_to_spv'
 ACTION_COMPILE_TO_OPENGL = 'spvcross_opengl'
 ACTION_SPVCROSS_METAL = 'spvcross_metal'
 ACTION_SPVCROSS_REFLECT = 'spvcross_reflect'
+ACTION_LINK_VULKAN = 'link_vulkan' 
 ACTION_GEN_CS = 'gen_cs'
 
 
@@ -208,6 +220,8 @@ def process_shaders(args):
         source_nodes: List[Tuple[str, Node]] = []
         reflection_nodes: List[Tuple[str, Node]] = []
         metal_nodes: List[Tuple[str, Node]] = []
+        spv_nodes: List[Tuple[str, Node]] = []
+        
         for path in paths:
             mode = get_mode(path)
             
@@ -222,6 +236,7 @@ def process_shaders(args):
             reflection_path = output_no_ext + '.reflection.json'
             
             spv_node = Node(spv_path, ACTION_COMPILE_TO_SPV, [('', source_node)])
+            spv_nodes.append((mode, spv_node))
             
             opengl_node = Node(opengl_path, ACTION_COMPILE_TO_OPENGL, [('', spv_node)])
             graph.root_nodes.append(opengl_node)
@@ -232,6 +247,10 @@ def process_shaders(args):
             reflection_node = Node(reflection_path, ACTION_SPVCROSS_REFLECT, [('', spv_node)])
             reflection_nodes.append((mode, reflection_node))
             
+        linked_vulkan_path = os.path.join(rel_out_dir, f'{name}.vulkan')
+        linked_vulkan_node = Node(linked_vulkan_path, ACTION_LINK_VULKAN, spv_nodes)
+        graph.root_nodes.append(linked_vulkan_node)
+            
         generated_cs_path = os.path.join(rel_out_dir, f'{name}.Generated.cs')
         generated_cs_node = Node(generated_cs_path, ACTION_GEN_CS, reflection_nodes + metal_nodes + source_nodes)
         graph.root_nodes.append(generated_cs_node)
@@ -241,6 +260,7 @@ def process_shaders(args):
         ACTION_COMPILE_TO_OPENGL: spv_to_opengl,
         ACTION_SPVCROSS_METAL: spv_to_metal,
         ACTION_SPVCROSS_REFLECT: spv_to_reflection,
+        ACTION_LINK_VULKAN: link_spv_for_vulkan,
         ACTION_GEN_CS: gen_cs
     }
     

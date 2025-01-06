@@ -336,6 +336,9 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         'using CeresGL;',
         'using CeresGpu.Graphics;',
         'using CeresGpu.Graphics.Shaders;',
+        'using CeresGpu.Graphics.OpenGL;',
+        'using CeresGpu.Graphics.Metal;',
+        'using CeresGpu.Graphics.Vulkan;',
         ''
     )
 
@@ -409,7 +412,123 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         '}',
         ''
     )
+    
+    # Begin Prime Method
+    f.write_line(
+        'public void Prime(IRenderer renderer)',
+        '{',
+        '    Backend backend = renderer switch {',
+        '        GLRenderer gl => Backend.GL,',
+        '        MetalRenderer metal => Backend.Metal,',
+        '        VulkanRenderer vulkan => Backend.Vulkan,',
+        '        _ => default',
+        '    };',
+        '',
+        '    Descriptors = new DescriptorInfo[] {',
+    )
+    f.indent()
 
+    # Write Descriptor info
+    f.indent()
+    
+    def write_descriptor_info_field_for_buffer(buffer: BufferInput, reflection: SpirvReflection, cs_descriptor_type: str):
+
+        # TODO: METAL BUFFER IDS WILL NOT MATCH THE SPIR-V BINDING INDEX WHEN ARRAYS OF BUFFERS ARE USED.
+        # Metal uses an argument buffer Id for each array element, where Vulkan uses the same binding.
+        # This is uncommon for my project, but re-mapping support may need to be added.
+        # It would be easier to add this support with bindings to libspirvcross
+        # instead of regex detection of the generated metal source.
+        # https://github.com/KhronosGroup/SPIRV-Cross#msl-20
+
+        # Figure out what the metal argument buffer binding index is
+        def get_binding_index():
+            for abb in reflection.arg_buffer_bindings:
+                # For some reason spirv-cross reflects the Uniform typename as the name.
+                if abb.typename == buffer.name:
+                    return abb.index
+
+        if buffer.type[0] == '_':
+            type_name = reflection.types[buffer.type].name
+        else:
+            type_name = spirv_to_cs_types[buffer.type]
+
+        f.write_line(
+            'new DescriptorInfo {',
+            '    Binding = MakeBinding(',
+            '        backend,',
+            f'        gl: new GLDescriptorBindingInfo {{ BindingIndex = {buffer.binding} }},',  # TODO: Do we need locations for GL?
+            f'        metal: new MetalDescriptorBindingInfo {{ BindingIndex = {get_binding_index()} }},',
+            f'        vulkan: new VulkanDescriptorBindingInfo {{ Set = {buffer.set}, Binding = {buffer.binding} }}',
+            '    ),',
+            f'    DescriptorType = DescriptorType.{cs_descriptor_type},',
+            f'    BufferType = typeof({type_name}),',
+            f'    Name = "{make_cs_string_literal(buffer.name)}"',
+            '},'
+        )
+
+    def write_descriptor_info_field_for_texture(texture: TextureInput, reflection: SpirvReflection):
+        # Figure out what the metal argument buffer binding index is
+        def get_binding_index(name: str):
+            for abb in reflection.arg_buffer_bindings:
+                # For some reason spirv-cross reflects the Uniform typename as the name.
+                if abb.name == name:
+                    return abb.index
+            return 0
+
+        texture_binding = get_binding_index(texture.name)
+        sampler_binding = get_binding_index(texture.name + 'Smplr')
+
+        hint = shader.directives.descriptor_field_hints_by_name.get(texture.name, '')
+
+        f.write_line(
+            'new DescriptorInfo {',
+            '    Binding = MakeBinding(',
+            '        backend,',
+            f'        gl: new GLDescriptorBindingInfo {{ BindingIndex = {texture.binding} }},',
+            f'        metal: new MetalDescriptorBindingInfo {{ BindingIndex = {texture_binding}, SamplerIndex = {sampler_binding} }},',
+            f'        vulkan: new VulkanDescriptorBindingInfo {{ Set = {texture.set}, Binding = {texture_binding} }}',
+            '    ),',
+            '    DescriptorType = DescriptorType.Texture,',
+            f'    Name = "{make_cs_string_literal(texture.name)}",',
+            f'    Hint = "{make_cs_string_literal(hint)}",',
+            '},'
+        )
+
+    for stage, reflection in shader.reflections_by_stage.items():
+        for ubo in reflection.ubos:
+            write_descriptor_info_field_for_buffer(ubo, reflection, 'UniformBuffer')
+
+        for ssbo in reflection.ssbos:
+            write_descriptor_info_field_for_buffer(ssbo, reflection, 'ShaderStorageBuffer')
+
+        for texture in reflection.textures:
+            write_descriptor_info_field_for_texture(texture, reflection)
+    
+    # Close Descriptors initialization
+    f.deindent()
+    f.write_line('};')
+    
+    # End Prime Method
+    f.deindent()
+    f.write_line('}', '')
+
+    # Emit DescriptorBinding helper method
+    f.write_line(
+        'private enum Backend { GL, Metal, Vulkan }',
+        '',
+        'private IDescriptorBindingInfo MakeBinding(Backend backend, in GLDescriptorBindingInfo gl, in MetalDescriptorBindingInfo metal, in VulkanDescriptorBindingInfo vulkan)',
+        '{',
+        '    return backend switch {',
+        '        Backend.GL => gl,',
+        '        Backend.Metal => metal,',
+        '        Backend.Vulkan => vulkan,',
+        '        _ => gl',
+        '    };',
+        '}',
+        ''
+    )
+
+    # Emit GetShaderResource Method
     f.write_line(
         'public Stream? GetShaderResource(string postfix)',
         '{',
@@ -524,72 +643,10 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     
     # Write DescriptorInfo constants
 
-    f.write_line('private static readonly DescriptorInfo[] Descriptors = new DescriptorInfo[] {')
+    f.write_line('private static DescriptorInfo[] Descriptors = new DescriptorInfo[] {')
     f.indent()
     
-    def write_descriptor_info_field_for_buffer(buffer: BufferInput, reflection: SpirvReflection, cs_descriptor_type: str):
-
-        # TODO: METAL BUFFER IDS WILL NOT MATCH THE SPIR-V BINDING INDEX WHEN ARRAYS OF BUFFERS ARE USED.
-        # Metal uses an argument buffer Id for each array element, where Vulkan uses the same binding.
-        # This is uncommon for my project, but re-mapping support may need to be added.
-        # It would be easier to add this support with bindings to libspirvcross
-        # instead of regex detection of the generated metal source.
-        # https://github.com/KhronosGroup/SPIRV-Cross#msl-20
-
-        # Figure out what the metal argument buffer binding index is
-        def get_binding_index():
-            for abb in reflection.arg_buffer_bindings:
-                # For some reason spirv-cross reflects the Uniform typename as the name.
-                if abb.typename == buffer.name:
-                    return abb.index
-
-        if buffer.type[0] == '_':
-            type_name = reflection.types[buffer.type].name
-        else:
-            type_name = spirv_to_cs_types[buffer.type]
-        
-        f.write_line(
-            f'new DescriptorInfo {{',
-            f'    BindingIndex = {get_binding_index()},',
-            f'    DescriptorType = DescriptorType.{cs_descriptor_type},',
-            f'    BufferType = typeof({type_name}),',
-            f'    Name = "{make_cs_string_literal(buffer.name)}"',
-            '},'
-        )
-
-    def write_descriptor_info_field_for_texture(texture: TextureInput, reflection: SpirvReflection):
-        # Figure out what the metal argument buffer binding index is
-        def get_binding_index(name: str):
-            for abb in reflection.arg_buffer_bindings:
-                # For some reason spirv-cross reflects the Uniform typename as the name.
-                if abb.name == name:
-                    return abb.index
-            return 0
-
-        texture_binding = get_binding_index(texture.name)
-        sampler_binding = get_binding_index(texture.name + 'Smplr')
-
-        hint = shader.directives.descriptor_field_hints_by_name.get(texture.name, '')
-
-        f.write_line(
-            f'new DescriptorInfo {{',
-            f'    BindingIndex = {texture_binding},',
-            f'    SamplerIndex = {sampler_binding},',
-            '    DescriptorType = DescriptorType.Texture,',
-            f'    Name = "{make_cs_string_literal(texture.name)}",',
-            f'    Hint = "{make_cs_string_literal(hint)}",',
-            '},'
-        )
     
-    for stage, reflection in shader.reflections_by_stage.items():
-        for ubo in reflection.ubos:
-            write_descriptor_info_field_for_buffer(ubo, reflection, 'UniformBuffer')
-
-        for ssbo in reflection.ssbos:
-            write_descriptor_info_field_for_buffer(ssbo, reflection, 'ShaderStorageBuffer')
-            
-        for texture in reflection.textures:
-            write_descriptor_info_field_for_texture(texture, reflection)
             
     f.deindent()
     f.write_line(

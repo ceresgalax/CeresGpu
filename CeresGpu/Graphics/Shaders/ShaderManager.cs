@@ -18,6 +18,7 @@ namespace CeresGpu.Graphics.Shaders
             IShader? shader;
             if (!_shaderMap.TryGetValue(typeof(T), out shader)) {
                 shader = new T();
+                shader.Prime(_renderer);
                 shader.Backing = _renderer.CreateShaderBacking(shader);
                 _shaderMap[typeof(T)] = shader;
             }

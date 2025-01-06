@@ -66,8 +66,9 @@ namespace CeresGpu.Graphics.Metal
             if (buffer is not IMetalBuffer metalBuffer) {
                 throw new ArgumentException("Incompatible buffer", nameof(buffer));
             }
-            
-            SetDescriptor(info.BindingIndex, DescriptorType.Buffer, metalBuffer);
+
+            MetalDescriptorBindingInfo binding = (MetalDescriptorBindingInfo)info.Binding;
+            SetDescriptor(binding.BindingIndex, DescriptorType.Buffer, metalBuffer);
         }
 
         public void SetShaderStorageBufferDescriptor<T>(IBuffer<T> buffer, in DescriptorInfo info) where T : unmanaged
@@ -82,7 +83,8 @@ namespace CeresGpu.Graphics.Metal
                 throw new ArgumentException("Incompatible texture", nameof(texture));
             }
 
-            SetDescriptor(info.BindingIndex, DescriptorType.Texture, metalTexture, (uint)info.SamplerIndex);
+            MetalDescriptorBindingInfo binding = (MetalDescriptorBindingInfo)info.Binding;
+            SetDescriptor(binding.BindingIndex, DescriptorType.Texture, metalTexture, binding.SamplerIndex);
         }
 
         public void SetSamplerDescriptor(ISampler sampler, in DescriptorInfo info)
@@ -91,7 +93,8 @@ namespace CeresGpu.Graphics.Metal
                 throw new ArgumentException("Incompatible sampler", nameof(sampler));
             }
             
-            SetDescriptor(info.SamplerIndex, DescriptorType.Sampler, metalSampler, (uint)info.BindingIndex);
+            MetalDescriptorBindingInfo binding = (MetalDescriptorBindingInfo)info.Binding;
+            SetDescriptor(binding.SamplerIndex, DescriptorType.Sampler, metalSampler, binding.BindingIndex);
         }
 
         private readonly HashSet<int> _texturesWithSetSamplers = new();
@@ -135,7 +138,7 @@ namespace CeresGpu.Graphics.Metal
                         }
                         
                         if (!_texturesWithSetSamplers.Contains(i)) {
-                            MetalApi.metalbinding_encode_sampler_argument(_argumentEncoder, _renderer.FallbackSampler.Handle, (uint)extraIndex);
+                            MetalApi.metalbinding_encode_sampler_argument(_argumentEncoder, _renderer.FallbackSampler.Handle, extraIndex);
                         }
                         break;
                     case DescriptorType.Sampler:

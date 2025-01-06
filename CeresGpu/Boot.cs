@@ -2,7 +2,6 @@ using System.Runtime.InteropServices;
 using CeresGLFW;
 using CeresGpu.Graphics;
 using CeresGpu.Graphics.Metal;
-using CeresGpu.Graphics.OpenGL;
 using CeresGpu.Graphics.Vulkan;
 
 namespace CeresGpu

@@ -34,12 +34,12 @@ public class VulkanPassBacking : IDisposable
                 storeOp: AttachmentStoreOp.Store,
                 stencilLoadOp: AttachmentLoadOp.DontCare, // This attachment won't be used as stencil, so we don't care.
                 stencilStoreOp: AttachmentStoreOp.DontCare,
-                initialLayout: ImageLayout.Undefined, // TODO: Need to expose this in CeresGpu's API. 
-                finalLayout: ImageLayout.PresentSrcKhr // TODO: Need to expose this in CeresGpu's API.
+                initialLayout: ImageLayout.ColorAttachmentOptimal, 
+                finalLayout: ImageLayout.PresentSrcKhr
             ));
             
             // TODO: Again, layout probably needs to be exposed by the CeresGPU api.
-            colorReferences.Add(new AttachmentReference(vkAttachmentIndex, ImageLayout.Undefined));
+            colorReferences.Add(new AttachmentReference(vkAttachmentIndex, ImageLayout.ColorAttachmentOptimal));
         }
 
         if (passDefinition.DepthStencilAttachment.HasValue) {
@@ -53,14 +53,13 @@ public class VulkanPassBacking : IDisposable
                 samples: SampleCountFlags.Count1Bit,
                 loadOp: TranslateLoadAction(attachment.LoadAction),
                 storeOp: AttachmentStoreOp.Store,
-                stencilLoadOp: AttachmentLoadOp.DontCare, // This attachment won't be used as stencil, so we don't care.
-                stencilStoreOp: AttachmentStoreOp.DontCare,
-                initialLayout: ImageLayout.Undefined, // TODO: Need to expose this in CeresGpu's API. 
-                finalLayout: ImageLayout.Undefined // TODO: Need to expose this in CeresGpu's API.
+                stencilLoadOp: TranslateLoadAction(attachment.LoadAction), // TODO: Based on format, we might not have a stencil component, and could set the load/store based on if this is present or not.
+                stencilStoreOp: AttachmentStoreOp.Store,  // TODO: Same as above
+                initialLayout: ImageLayout.DepthStencilAttachmentOptimal, 
+                finalLayout: ImageLayout.DepthStencilAttachmentOptimal
             ));
             
-            // TODO: Again, layout probably needs to be exposed by the CeresGPU api.
-            depthStencilReference = new AttachmentReference(vkAttachmentIndex, ImageLayout.Undefined);
+            depthStencilReference = new AttachmentReference(vkAttachmentIndex, ImageLayout.DepthStencilAttachmentOptimal);
         } else {
             depthStencilReference.Attachment = Vk.AttachmentUnused;
         }

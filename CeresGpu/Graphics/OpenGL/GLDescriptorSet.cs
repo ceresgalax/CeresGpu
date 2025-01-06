@@ -12,26 +12,25 @@ namespace CeresGpu.Graphics.OpenGL
             Unset,
             UniformBuffer,
             ShaderStorageBuffer,
-            Texture,
-            Sampler
+            Texture
         }
 
-        private readonly List<(DescriptorType, object, uint extraIndex)> _descriptors;
+        private readonly List<(DescriptorType, object, GLSampler? sampler)> _descriptors;
         
         private readonly GLRenderer _renderer;
 
         public GLDescriptorSet(GLRenderer renderer, in DescriptorSetCreationHints hints)
         {
             _renderer = renderer;
-            _descriptors = new List<(DescriptorType, object, uint)>(hints.DescriptorCount);
+            _descriptors = new List<(DescriptorType, object, GLSampler? sampler)>(hints.DescriptorCount);
         }
         
-        private void SetDescriptor(uint index, DescriptorType descriptorType, object resource, uint extraIndex = 0)
+        private void SetDescriptor(uint index, DescriptorType descriptorType, object resource, GLSampler? sampler = null)
         {
             while (index >= _descriptors.Count) {
-                _descriptors.Add((DescriptorType.Unset, string.Empty, 0));
+                _descriptors.Add((DescriptorType.Unset, string.Empty, null));
             }
-            _descriptors[(int)index] = (descriptorType, resource, extraIndex);
+            _descriptors[(int)index] = (descriptorType, resource, sampler);
         }
         
         public void SetUniformBufferDescriptor<T>(IBuffer<T> buffer, in DescriptorInfo info) where T : unmanaged
@@ -39,12 +38,9 @@ namespace CeresGpu.Graphics.OpenGL
             if (buffer is not IGLBuffer glBuffer) {
                 throw new ArgumentException("Incompatible buffer", nameof(buffer));
             }
-            
-            SetDescriptor(info.BindingIndex, DescriptorType.UniformBuffer, glBuffer);
 
-            // GL gl = _glProvider.Gl;
-            // // gl.BindBuffer(BufferTargetARB.UNIFORM_BUFFER, glBuffer.Handle);
-            // gl.BindBufferBase(BufferTargetARB.UNIFORM_BUFFER, (uint)info.BindingIndex, glBuffer.Handle);
+            GLDescriptorBindingInfo binding = (GLDescriptorBindingInfo)info.Binding;
+            SetDescriptor(binding.BindingIndex, DescriptorType.UniformBuffer, glBuffer);
         }
 
         public void SetShaderStorageBufferDescriptor<T>(IBuffer<T> buffer, in DescriptorInfo info) where T : unmanaged
@@ -53,7 +49,8 @@ namespace CeresGpu.Graphics.OpenGL
                 throw new ArgumentException("Incompatible buffer", nameof(buffer));
             }
 
-            SetDescriptor(info.BindingIndex, DescriptorType.ShaderStorageBuffer, glBuffer);
+            GLDescriptorBindingInfo binding = (GLDescriptorBindingInfo)info.Binding;
+            SetDescriptor(binding.BindingIndex, DescriptorType.ShaderStorageBuffer, glBuffer);
         }
 
         public void SetTextureDescriptor(ITexture texture, in DescriptorInfo info)
@@ -62,7 +59,16 @@ namespace CeresGpu.Graphics.OpenGL
                 throw new ArgumentException("Incompatible buffer", nameof(texture));
             }
             
-            SetDescriptor(info.BindingIndex, DescriptorType.Texture, glTexture);
+            GLDescriptorBindingInfo binding = (GLDescriptorBindingInfo)info.Binding;
+            
+            if (binding.BindingIndex < _descriptors.Count) {
+                // Update existing
+                var x = _descriptors[(int)binding.BindingIndex];
+                x.Item2 = glTexture;
+                _descriptors[(int)binding.BindingIndex] = x;
+            } else {
+                SetDescriptor(binding.BindingIndex, DescriptorType.Texture, glTexture);    
+            }
         }
 
         public void SetSamplerDescriptor(ISampler sampler, in DescriptorInfo info)
@@ -70,31 +76,29 @@ namespace CeresGpu.Graphics.OpenGL
             if (sampler is not GLSampler glSampler) {
                 throw new ArgumentException("Incompatible sampler", nameof(sampler));
             }
-            
-            SetDescriptor(info.SamplerIndex, DescriptorType.Sampler, glSampler, (uint)info.BindingIndex);
-        }
 
-        private readonly HashSet<int> _texturesWithSetSamplers = new();
+            GLDescriptorBindingInfo binding = (GLDescriptorBindingInfo)info.Binding;
+
+            if (binding.BindingIndex < _descriptors.Count) {
+                // Update existing
+                var x = _descriptors[(int)binding.BindingIndex];
+                x.sampler = glSampler;
+                _descriptors[(int)binding.BindingIndex] = x;
+            } else {
+                SetDescriptor(binding.BindingIndex, DescriptorType.Texture, string.Empty, glSampler);    
+            }
+        }
         
         public void Apply()
         {
             GL gl = _renderer.GLProvider.Gl;
             
-            _texturesWithSetSamplers.Clear();
-            for (int i = 0, ilen = _descriptors.Count; i < ilen; ++i) {
-                (DescriptorType descriptorType, object resource, uint extraIndex) = _descriptors[i];
-                if (descriptorType == DescriptorType.Sampler) {
-                    _texturesWithSetSamplers.Add((int)extraIndex);
-                }
-            }
-            
             // TODO: NEED TO KNOW THE DESCRIPTOR SET LAYOUT SO THAT WE CAN ALWAYS SET EVERYTHING.
             
             for (int i = 0, ilen = _descriptors.Count; i < ilen; ++i) {
-                (DescriptorType descriptorType, object resource, uint extraIndex) = _descriptors[i];
+                (DescriptorType descriptorType, object resource, GLSampler? sampler) = _descriptors[i];
                 switch (descriptorType) {
                     case DescriptorType.UniformBuffer:
-                        // gl.BindBuffer(BufferTargetARB.UNIFORM_BUFFER, glBuffer.Handle);
                         IGLBuffer uniformBuffer = (IGLBuffer)resource;
                         uniformBuffer.Commit();
                         gl.BindBufferBase(BufferTargetARB.UNIFORM_BUFFER, (uint)i, uniformBuffer.GetHandleForCurrentFrame());
@@ -117,15 +121,12 @@ namespace CeresGpu.Graphics.OpenGL
                         else {
                             gl.BindTexture(TextureTarget.TEXTURE_2D, _renderer.FallbackTexture.Handle);
                         }
-                        
-                        if (!_texturesWithSetSamplers.Contains(i)) {
+
+                        if (sampler == null) {
                             gl.BindSampler((uint)i, _renderer.FallbackSampler.Handle);
+                        } else {
+                            gl.BindSampler((uint)i, sampler.Handle);    
                         }
-                        break;
-                    
-                    case DescriptorType.Sampler:
-                        GLSampler sampler = (GLSampler)resource;
-                        gl.BindSampler(extraIndex, sampler.Handle);
                         break;
                 }
             }

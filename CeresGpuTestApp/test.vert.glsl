@@ -5,7 +5,7 @@
 
 layout(location = 0) in vec2 vert_pos;
 
-layout(binding = 0) uniform VertUniforms {
+layout(set = 0, binding = 10) uniform VertUniforms {
     float scale;
 } u;
 

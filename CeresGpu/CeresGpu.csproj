@@ -11,7 +11,7 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <PrebuiltExternalToolsVersion>1.0.2</PrebuiltExternalToolsVersion>
+        <PrebuiltExternalToolsVersion>1.1.0</PrebuiltExternalToolsVersion>
     </PropertyGroup>
 
     <ItemGroup>
@@ -84,40 +84,6 @@
         </Content>
     </ItemGroup>
     
-    <!--
-    Targets to copy the binaries we need from the prebuilt binaries nuget package, renaming them if necesary. 
-    -->
-    <Target Name="ComputePrebuiltToolsToPrepare" BeforeTargets="PreparePrebuiltTools" Condition="'$(TargetFramework)' == 'once'">
-        <ItemGroup>
-            <_PrebuiltTool Include="$(NuGetPackageRoot)ceresgpuprebuiltexternaltools\$(PrebuiltExternalToolsVersion)\runtimes\$(HostRid)\native\*" />
-            <!-- Create the real items now that we can access the metadata. -->
-            <PrebuiltTool Include="@(_PrebuiltTool)">
-                <OutputDir>$(BaseIntermediateOutputPath)staged_tools\</OutputDir>
-                <OutputPath Condition="'$(HostRidOs)' != 'osx'">%(PrebuiltTool.OutputDir)%(Filename)%(Extension)</OutputPath>
-                <!-- Strip off the .bin extension for osx. -->
-                <OutputPath Condition="'$(HostRidOs)' == 'osx'">%(PrebuiltTool.OutputDir)%(Filename)</OutputPath>
-            </PrebuiltTool>
-        </ItemGroup>
-    </Target>
-    <Target Name="PreparePrebuiltTools"
-            BeforeTargets="ggen"
-            AfterTargets="BeforeBuild"
-            Inputs="@(PrebuiltTool)"
-            Outputs="@(PrebuiltTool -> '%(OutputPath)')"
-    >
-        <MakeDir Directories="@(PrebuiltTool -> '%(OutputDir)')" />
-        <Copy
-            SourceFiles="@(PrebuiltTool)"
-            DestinationFiles="@(PrebuiltTool -> '%(OutputPath)')"
-        />
-        <ItemGroup>
-            <FileWrites Include="@(PrebuiltTool -> '%(OutputPath)')" />
-        </ItemGroup>
-    </Target>
     
-    <Target Name="DispatchPreparePrebuiltTools" AfterTargets="BeforeBuild" BeforeTargets="ggen">
-        <!--TargetFramework=once is critical here, as msbuild will not execute a task from same project with same properties twice. -->
-        <MSBuild Projects="$(MSBuildProjectFile)" Targets="PreparePrebuiltTools" Properties="TargetFramework=once" />
-    </Target>
 
 </Project>

@@ -1,12 +1,17 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
     <Import Project="$(MSBuildThisFileDirectory)FindPythonTask.targets" />
+
+    <PropertyGroup>
+        <PrebuiltExternalToolsVersion>1.1.0</PrebuiltExternalToolsVersion>
+    </PropertyGroup>
     
     <ItemGroup>
         <GlslVertFile Include="**\*.vert.glsl">
             <GgenVersionFile>%(RecursiveDir)%(Filename).ggen_version</GgenVersionFile>
-            <CsFile>%(RecursiveDir)$([System.IO.Path]::GetFileNameWithoutExtension('%(Filename)')).Generated.cs</CsFile>
             <LogicalDirectory>$(MSBuildProjectName).$([System.String]::new('%(RecursiveDir)').Replace('/', '.').Replace('\', '.'))</LogicalDirectory>
+            <CsFile>%(RecursiveDir)$([System.IO.Path]::GetFileNameWithoutExtension('%(Filename)')).Generated.cs</CsFile>
+            <VulkanFile>%(RecursiveDir)$([System.IO.Path]::GetFileNameWithoutExtension('%(Filename)')).vulkan</VulkanFile>
         </GlslVertFile>
         <GlslFragFile Include="**\*.frag.glsl">
             <GgenVersionFile>%(RecursiveDir)%(Filename).ggen_version</GgenVersionFile>
@@ -30,8 +35,48 @@
             <Link>%(CsFile)</Link>
         </Compile>
     </ItemGroup>
-
     
+    <!--
+    Targets to copy the binaries we need from the prebuilt binaries nuget package, renaming them if necesary. 
+    -->
+    <Target Name="ComputePrebuiltToolsToPrepare" BeforeTargets="PreparePrebuiltTools" Condition="'$(TargetFramework)' == 'once'">
+        <ItemGroup>
+            <_PrebuiltTool Include="$(NuGetPackageRoot)ceresgpuprebuiltexternaltools\$(PrebuiltExternalToolsVersion)\runtimes\$(HostRid)\native\*" />
+            <!-- Create the real items now that we can access the metadata. -->
+            <PrebuiltTool Include="@(_PrebuiltTool)">
+                <OutputDir>$(BaseIntermediateOutputPath)staged_tools\</OutputDir>
+                <OutputPath Condition="'$(HostRidOs)' != 'osx'">%(PrebuiltTool.OutputDir)%(Filename)%(Extension)</OutputPath>
+                <!-- Strip off the .bin extension for osx. -->
+                <OutputPath Condition="'$(HostRidOs)' == 'osx'">%(PrebuiltTool.OutputDir)%(Filename)</OutputPath>
+            </PrebuiltTool>
+        </ItemGroup>
+    </Target>
+    <Target Name="PreparePrebuiltTools"
+            BeforeTargets="ggen"
+            AfterTargets="BeforeBuild"
+            Inputs="@(PrebuiltTool)"
+            Outputs="@(PrebuiltTool -> '%(OutputPath)')"
+    >
+        <Message Importance="high" Text="Performing one-time staging of ggen prebuilt tools." />
+        
+        <MakeDir Directories="@(PrebuiltTool -> '%(OutputDir)')" />
+        <Copy
+            SourceFiles="@(PrebuiltTool)"
+            DestinationFiles="@(PrebuiltTool -> '%(OutputPath)')"
+        />
+        <ItemGroup>
+            <FileWrites Include="@(PrebuiltTool -> '%(OutputPath)')" />
+        </ItemGroup>
+    </Target>
+
+    <Target Name="DispatchPreparePrebuiltTools" AfterTargets="BeforeBuild" BeforeTargets="ggen">
+        <!--TargetFramework=once is critical here, as msbuild will not execute a task from same project with same properties twice. -->
+        <MSBuild Projects="$(MSBuildProjectFile)" Targets="PreparePrebuiltTools" Properties="TargetFramework=once" />
+    </Target>
+
+    <!--
+    The ggen target itself. 
+    -->
     <Target Name="ggen" AfterTargets="AfterResolveReferences" BeforeTargets="BeforeCompile;PrepareResourceNames">
         <Message Importance="high" Text="Running ggen..." />
         <FindPythonTask>
@@ -47,7 +92,10 @@
             <Compile Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)')">
                 <Link>%(GlslVertFile.CsFile)</Link>
             </Compile>
-            
+
+            <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(VulkanFile)')">
+                <LogicalName>%(GlslVertFile.LogicalDirectory)%(GlslVertFile.VulkanFile)</LogicalName>
+            </EmbeddedResource>
             <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).spv')">
                 <LogicalName>%(GlslVertFile.LogicalDirectory)%(GlslVertFile.Filename).spv</LogicalName>
             </EmbeddedResource>
@@ -68,6 +116,7 @@
             </EmbeddedResource>
             
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)')" />
+            <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(VulkanFile)')" />
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).spv')" />
             <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).spv')" />
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).reflection.json')" />

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using CeresGpu.Graphics.Shaders;
 using Silk.NET.Vulkan;
+using DescriptorType = Silk.NET.Vulkan.DescriptorType;
 
 namespace CeresGpu.Graphics.Vulkan;
 
@@ -22,12 +23,75 @@ public sealed class VulkanRenderer : IRenderer
     private Dictionary<Type, VulkanPassBacking> _passBackings = [];
 
     public readonly VulkanMemoryHelper MemoryHelper;
+    public readonly DescriptorPoolManager DescriptorPoolManager;
 
     public int FrameCount => 3; 
     public int WorkingFrame { get; private set; }
     
+    public bool IsDisposed { get; private set; }
+    
     public unsafe VulkanRenderer()
     {
+        //
+        // Check which layers we have available.
+        //
+        uint numProperties = 0;
+        Vk.EnumerateInstanceLayerProperties(ref numProperties, null)
+            .AssertSuccess("Failed to get number of instance layer properties");
+        Span<LayerProperties> instanceLayerProperties = new LayerProperties[numProperties];
+        Vk.EnumerateInstanceLayerProperties(&numProperties, instanceLayerProperties);
+
+        HashSet<string> layersToRequest = [];
+        Console.WriteLine("-- Instance layer properties --");
+        for (int i = 0; i < instanceLayerProperties.Length; i++) {
+            ref readonly LayerProperties properties = ref instanceLayerProperties[i];
+            fixed (LayerProperties* pProperties = &properties) {
+                string name = Marshal.PtrToStringUTF8(new IntPtr(pProperties->LayerName)) ?? "(no name)";
+                string description = Marshal.PtrToStringUTF8(new IntPtr(pProperties->Description)) ?? "(no description)";
+                uint specVersion = pProperties->SpecVersion;
+                uint implementationVersion = pProperties->ImplementationVersion;
+                Console.WriteLine($"{name}: {specVersion}, {implementationVersion}, {description}");
+                layersToRequest.Add(name);
+            }
+        }
+        
+        //
+        // Check which extensions the instance has available.
+        //
+        
+        uint numInstanceExtensions = 0;
+        Vk.EnumerateInstanceExtensionProperties((byte*)null, ref numInstanceExtensions, null)
+            .AssertSuccess("Failed to get number of instance extensions");
+        Span<ExtensionProperties> instanceExtensions = new ExtensionProperties[numInstanceExtensions];
+        Vk.EnumerateInstanceExtensionProperties((byte*)null, &numInstanceExtensions, instanceExtensions);
+        
+        HashSet<string> availableInstanceExtensions = [];
+        Console.WriteLine("-- Instance extensions --");
+        for (int i = 0; i < instanceExtensions.Length; ++i) {
+            ref ExtensionProperties properties = ref instanceExtensions[i];
+            fixed (ExtensionProperties* pProperties = &properties) {
+                string? name = Marshal.PtrToStringUTF8(new IntPtr(pProperties->ExtensionName));
+                if (name == null) {
+                    continue;
+                }
+                Console.WriteLine($"{name} {pProperties->SpecVersion}");
+                availableInstanceExtensions.Add(name);
+            }
+        }
+
+        string[] desiredLayers = [
+            "VK_LAYER_KHRONOS_validation"
+        ];
+        layersToRequest.IntersectWith(desiredLayers);
+
+        HashSet<string> requiredInstanceExtensions = [
+            "VK_KHR_surface"
+        ];
+
+        if (!availableInstanceExtensions.IsSupersetOf(requiredInstanceExtensions)) {
+            throw new InvalidOperationException("Missing required instance extensions.");
+        }
+        
         //
         // Create an instance of Vulkan!
         //
@@ -42,11 +106,20 @@ public sealed class VulkanRenderer : IRenderer
                 apiVersion: Vk.Version13.Value
             );
 
-            byte*[]? enabledLayerNames = null;
+            byte*[] enabledLayerNames = new byte*[layersToRequest.Count];
+            byte*[] enabledExtensionNames = new byte*[requiredInstanceExtensions.Count];
             try {
-                enabledLayerNames = [];
-                fixed (byte** pEnabledLayerNames = enabledLayerNames) {
-
+                int layerIndex = 0;
+                foreach (string layerName in layersToRequest) {
+                    enabledLayerNames[layerIndex++] = (byte*)Marshal.StringToHGlobalAnsi(layerName);
+                }
+                int extensionIndex = 0;
+                foreach (string extensionName in requiredInstanceExtensions) {
+                    enabledExtensionNames[extensionIndex++] = (byte*)Marshal.StringToHGlobalAnsi(extensionName);
+                }
+                
+                fixed (byte** pEnabledLayerNames = enabledLayerNames) 
+                fixed (byte** pEnabledExtensionNames = enabledExtensionNames) {
                     InstanceCreateInfo instanceCreateInfo = new(
                         StructureType.InstanceCreateInfo,
                         pNext: null,
@@ -54,16 +127,18 @@ public sealed class VulkanRenderer : IRenderer
                         pApplicationInfo: &applicationInfo,
                         enabledLayerCount: (uint)enabledLayerNames.Length,
                         ppEnabledLayerNames: pEnabledLayerNames,
-                        enabledExtensionCount: 0,
-                        ppEnabledExtensionNames: null
+                        enabledExtensionCount: (uint)enabledExtensionNames.Length,
+                        ppEnabledExtensionNames: pEnabledExtensionNames
                     );
-
                     if (Vk.CreateInstance(&instanceCreateInfo, null, out Instance) != Result.Success) {
                         throw new InvalidOperationException("Failed to create Vulkan Instance.");
                     }
                 }
             } finally {
-                foreach (byte* str in enabledLayerNames ?? []) {
+                foreach (byte* str in enabledLayerNames) {
+                    Marshal.FreeHGlobal(new IntPtr(str));
+                }
+                foreach (byte* str in enabledExtensionNames) {
                     Marshal.FreeHGlobal(new IntPtr(str));
                 }
             }
@@ -87,6 +162,10 @@ public sealed class VulkanRenderer : IRenderer
         
         // Choose the first suitable device for now.
 
+        HashSet<string> requiredExtensions = [
+            "VK_KHR_swapchain"
+        ];
+        
         QueueFlags neededQueues = QueueFlags.GraphicsBit;
 
         Dictionary<QueueFlags, uint> queueFamilyIndexForQueueType = [];
@@ -94,6 +173,33 @@ public sealed class VulkanRenderer : IRenderer
         PhysicalDevice chosenPhysicalDevice = default;
         foreach (PhysicalDevice physicalDevice in physicalDevices) {
             queueFamilyIndexForQueueType.Clear();
+            
+            // Check which extensions this device has.
+            uint numExtensions = 0;
+            Vk.EnumerateDeviceExtensionProperties(physicalDevice, (byte*)null, &numExtensions, null)
+                .AssertSuccess("Failed to get number of device extensions");
+            ExtensionProperties[] extensions = new ExtensionProperties[numExtensions];
+            fixed (ExtensionProperties* pExtensions = extensions) {
+                Vk.EnumerateDeviceExtensionProperties(physicalDevice, (byte*)null, &numExtensions, pExtensions)
+                    .AssertSuccess("Failed to enumerate device extensions");
+            }
+
+            HashSet<string> supportedExtensions = [];
+            
+            Console.WriteLine("-- Device extensions ---");
+            foreach (ExtensionProperties properties in extensions) {
+                string? name = Marshal.PtrToStringUTF8((nint)properties.ExtensionName);
+                if (name == null) {
+                    continue;
+                }
+                Console.WriteLine($"{name} {properties.SpecVersion}");
+                supportedExtensions.Add(name);
+            }
+            
+            // Does the device have the extensions we need?
+            if (!requiredExtensions.IsSubsetOf(supportedExtensions)) {
+                continue;
+            }
             
             // Check that the physical device has the required queues.
             
@@ -148,7 +254,7 @@ public sealed class VulkanRenderer : IRenderer
 
         float graphicsQueuePriority = 1f;
         
-        Span<DeviceQueueCreateInfo> deviceQueueCreateInfos = stackalloc DeviceQueueCreateInfo[1] {
+        Span<DeviceQueueCreateInfo> deviceQueueCreateInfos = [
             // Graphics queue
             new DeviceQueueCreateInfo(
                 StructureType.DeviceQueueCreateInfo,
@@ -158,27 +264,39 @@ public sealed class VulkanRenderer : IRenderer
                 queueCount: 1,
                 pQueuePriorities: &graphicsQueuePriority
             )
-        };
+        ];
         
-        fixed (DeviceQueueCreateInfo* pDeviceQueueCreateInfos = deviceQueueCreateInfos)
-        {
-            DeviceCreateInfo deviceCreateInfo = new(
-                StructureType.DeviceCreateInfo,
-                pNext: null,
-                flags: 0,
-                queueCreateInfoCount: (uint)deviceQueueCreateInfos.Length,
-                pQueueCreateInfos: pDeviceQueueCreateInfos,
-                enabledLayerCount: 0,
-                ppEnabledLayerNames: null,
-                enabledExtensionCount: 0,
-                ppEnabledExtensionNames: null,
-                pEnabledFeatures: null
-            );
+        byte*[] extensionNames = new byte*[requiredExtensions.Count];
+        try {
+            int extensionIndex = 0;
+            foreach (string extension in requiredExtensions) {
+                extensionNames[extensionIndex++] = (byte*)Marshal.StringToHGlobalAnsi(extension);
+            }
 
-            Vk.CreateDevice(chosenPhysicalDevice, in deviceCreateInfo, null, out Device)
-                .AssertSuccess("Failed to create logical Vulkan device.");
+            fixed (DeviceQueueCreateInfo* pDeviceQueueCreateInfos = deviceQueueCreateInfos) 
+            fixed (byte** pExtensionNames = extensionNames) {
+                DeviceCreateInfo deviceCreateInfo = new(
+                    StructureType.DeviceCreateInfo,
+                    pNext: null,
+                    flags: 0,
+                    queueCreateInfoCount: (uint)deviceQueueCreateInfos.Length,
+                    pQueueCreateInfos: pDeviceQueueCreateInfos,
+                    enabledLayerCount: 0,
+                    ppEnabledLayerNames: null,
+                    enabledExtensionCount: (uint)extensionNames.Length,
+                    ppEnabledExtensionNames: pExtensionNames,
+                    pEnabledFeatures: null
+                );
+
+                Vk.CreateDevice(chosenPhysicalDevice, in deviceCreateInfo, null, out Device)
+                    .AssertSuccess("Failed to create logical Vulkan device.");
+            }
+        } finally {
+            foreach (byte* pExtensionName in extensionNames) {
+                Marshal.FreeHGlobal(new IntPtr(pExtensionName));
+            }
         }
-        
+
         //
         // Get the queues
         //
@@ -197,6 +315,13 @@ public sealed class VulkanRenderer : IRenderer
             .AssertSuccess("Failed to create command pool.");
         
         MemoryHelper = new VulkanMemoryHelper(this);
+        DescriptorPoolManager = new DescriptorPoolManager(this, [
+            DescriptorType.UniformBuffer,
+            DescriptorType.StorageBuffer,
+            DescriptorType.CombinedImageSampler
+            // DescriptorType.SampledImage,
+            // DescriptorType.Sampler
+        ]);
     }
     
     public IStaticBuffer<T> CreateStaticBuffer<T>(int elementCount) where T : unmanaged
@@ -226,13 +351,15 @@ public sealed class VulkanRenderer : IRenderer
 
     public IShaderInstanceBacking CreateShaderInstanceBacking(IShader shader)
     {
-        throw new NotImplementedException();
+        return new VulkanShaderInstanceBacking();
     }
 
-    public IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index,
-        in DescriptorSetCreationHints hints)
+    public IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints)
     {
-        throw new NotImplementedException();
+        if (shader is not VulkanShaderBacking vulkanShaderBacking) {
+            throw new ArgumentException("Given shader backing is not compatible with this renderer.", nameof(shader));
+        }
+        return new VulkanDescriptorSet(this, vulkanShaderBacking, index, in hints);
     }
 
     public void RegisterPassType<TRenderPass>(RenderPassDefinition definition) where TRenderPass : IRenderPass
@@ -308,15 +435,13 @@ public sealed class VulkanRenderer : IRenderer
         
         Vk.Dispose();
     }
-
-    private bool _disposed;
     
     public void Dispose()
     {
-        if (_disposed) {
+        if (IsDisposed) {
             throw new ObjectDisposedException("this");
         }
-        _disposed = true;
+        IsDisposed = true;
         
         // Call managed disposed methods here
         foreach (VulkanPassBacking passBacking in _passBackings.Values) {

@@ -39,8 +39,8 @@ public class VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout> : IPipeli
         fixed (VertexInputAttributeDescription* pVertexAttributeDescriptions = vertexAttributeDescriptions) 
         fixed (PipelineColorBlendAttachmentState* pColorBlendAttachmentStates = colorBlendAttachmentStates)
         fixed (DynamicState* pDynamicStates = dynamicStates)
-        fixed (byte* vertName = "vert"u8) // TODO: Make sure the shader gen linker exports the entry points in the linked binary as we expect.
-        fixed (byte* fragName = "frag"u8) {
+        fixed (byte* vertName = "main"u8)
+        fixed (byte* fragName = "main"u8) {
 
             Span<PipelineShaderStageCreateInfo> stages = stackalloc PipelineShaderStageCreateInfo[] {
                 new PipelineShaderStageCreateInfo(
@@ -81,11 +81,19 @@ public class VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout> : IPipeli
                 pVertexAttributeDescriptions: pVertexAttributeDescriptions
             );
 
+            // We use dynamic viewport and scissors so we just need to define how many viewports and scissors are used
+            // by the pipeline. The actual viewport and scissor structures in the create info are ignored.
+            Silk.NET.Vulkan.Viewport viewport = new Silk.NET.Vulkan.Viewport();
+            Rect2D scissor = new();
+            
             PipelineViewportStateCreateInfo viewportStateCreateInfo = new(
                 StructureType.PipelineViewportStateCreateInfo,
                 pNext: null,
-                flags: 0
-                // TODO: Specify viewport!! Or do we need to set up dynamic viewport? (changable via commands)
+                flags: 0,
+                viewportCount: 1,
+                pViewports: &viewport,
+                scissorCount: 1,
+                pScissors: &scissor
             );
 
             PipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = new(
@@ -112,7 +120,7 @@ public class VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout> : IPipeli
                 StructureType.PipelineMultisampleStateCreateInfo,
                 pNext: null,
                 flags: 0,
-                rasterizationSamples: SampleCountFlags.None,
+                rasterizationSamples: SampleCountFlags.Count1Bit,
                 sampleShadingEnable: false,
                 minSampleShading: 0f,
                 pSampleMask: null,

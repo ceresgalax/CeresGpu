@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CeresGpu.Graphics.Shaders;
 using Silk.NET.Vulkan;
 using DescriptorType = CeresGpu.Graphics.Shaders.DescriptorType;
@@ -7,12 +9,16 @@ using VkDescriptorType = Silk.NET.Vulkan.DescriptorType;
 
 namespace CeresGpu.Graphics.Vulkan;
 
+
 public class VulkanShaderBacking : IShaderBacking
 {
     private readonly VulkanRenderer _renderer;
     public readonly ShaderModule ShaderModule; 
-    public readonly DescriptorSetLayout DescriptorSetLayout;
+    
     public readonly PipelineLayout PipelineLayout;
+
+    private readonly DescriptorSetLayout[] _descriptorSetLayouts;
+    private readonly (VkDescriptorType, int)[][] _descriptorCountsBySet;
     
     public unsafe VulkanShaderBacking(VulkanRenderer renderer, IShader shader)
     {
@@ -46,51 +52,104 @@ public class VulkanShaderBacking : IShaderBacking
             }
         }
         
-        //
-        // Create the descriptor set layout for this shader
-        //
         ReadOnlySpan<DescriptorInfo> descriptors = shader.GetDescriptors();
-        DescriptorSetLayoutBinding[] bindings = new DescriptorSetLayoutBinding[descriptors.Length];
+        
+        //
+        // How many descriptor sets do we need?
+        //
+        // TODO: Can this count be baked into the generated shader?
+        uint numDescriptorSets = 0;
         for (int descriptorIndex = 0; descriptorIndex < descriptors.Length; ++descriptorIndex) {
             ref readonly DescriptorInfo descriptorInfo = ref descriptors[descriptorIndex];
-            bindings[descriptorIndex] = new DescriptorSetLayoutBinding(
-                binding: descriptorInfo.BindingIndex,
-                descriptorType: TranslateDescriptorType(descriptorInfo.DescriptorType),
-                descriptorCount: 1,
-                ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
-                pImmutableSamplers: null
-            );
+            VulkanDescriptorBindingInfo binding = (VulkanDescriptorBindingInfo)descriptorInfo.Binding;
+            numDescriptorSets = Math.Max(binding.Set + 1, numDescriptorSets);
         }
+        _descriptorSetLayouts = new DescriptorSetLayout[numDescriptorSets];
+        _descriptorCountsBySet = new (VkDescriptorType, int)[numDescriptorSets][];
 
-        fixed (DescriptorSetLayoutBinding* pLayoutBindings = bindings) {
-            DescriptorSetLayoutCreateInfo layoutCreateInfo = new(
-                StructureType.DescriptorSetLayoutCreateInfo,
-                pNext: null,
-                flags: DescriptorSetLayoutCreateFlags.None,
-                bindingCount: (uint)bindings.Length,
-                pBindings: pLayoutBindings
-            );
+        //
+        // Create the layouts
+        //
+        for (int descriptorSetIndex = 0; descriptorSetIndex < numDescriptorSets; ++descriptorSetIndex) {
+            List<DescriptorSetLayoutBinding> bindings = [];
+            Dictionary<DescriptorType, int> descriptorCounts = [];
             
-            vk.CreateDescriptorSetLayout(renderer.Device, in layoutCreateInfo, null, out DescriptorSetLayout)
-                .AssertSuccess("Failed to create descriptor set layout");
+            for (int descriptorIndex = 0; descriptorIndex < descriptors.Length; ++descriptorIndex) {
+                ref readonly DescriptorInfo descriptorInfo = ref descriptors[descriptorIndex];
+                VulkanDescriptorBindingInfo binding = (VulkanDescriptorBindingInfo)descriptorInfo.Binding;
+
+                // TODO: This loop is inefficient with multiple descriptor sets.
+                if (binding.Set != descriptorSetIndex) {
+                    continue;
+                }
+                
+                bindings.Add(new DescriptorSetLayoutBinding(
+                    binding: binding.Binding,
+                    descriptorType: TranslateDescriptorType(descriptorInfo.DescriptorType),
+                    descriptorCount: 1,
+                    ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
+                    pImmutableSamplers: null
+                ));
+                
+                descriptorCounts.TryAdd(descriptorInfo.DescriptorType, 0);
+                descriptorCounts[descriptorInfo.DescriptorType]++;
+            }
+
+            DescriptorSetLayoutBinding[] bindingsArray = bindings.ToArray();
+            fixed (DescriptorSetLayoutBinding* pLayoutBindings = bindingsArray) {
+                DescriptorSetLayoutCreateInfo layoutCreateInfo = new(
+                    StructureType.DescriptorSetLayoutCreateInfo,
+                    pNext: null,
+                    flags: DescriptorSetLayoutCreateFlags.None,
+                    bindingCount: (uint)bindingsArray.Length,
+                    pBindings: pLayoutBindings
+                );
+            
+                vk.CreateDescriptorSetLayout(renderer.Device, in layoutCreateInfo, null, out _descriptorSetLayouts[descriptorSetIndex])
+                    .AssertSuccess("Failed to create descriptor set layout");
+                
+                _descriptorCountsBySet[descriptorSetIndex] = descriptorCounts
+                    .Select(kvp => (TranslateDescriptorType(kvp.Key), kvp.Value))
+                    .ToArray();
+            }
         }
         
         //
         // Create a pipeline layout for this shader
         //
-        DescriptorSetLayout descriptorSetLayout = DescriptorSetLayout;
-        PipelineLayoutCreateInfo pipelineLayoutCreateInfo = new(
-            StructureType.PipelineLayoutCreateInfo,
-            pNext: null,
-            PipelineLayoutCreateFlags.None,
-            setLayoutCount: 1,
-            pSetLayouts: &descriptorSetLayout,
-            pushConstantRangeCount: 0,
-            pPushConstantRanges: null
-        );
-        vk.CreatePipelineLayout(renderer.Device, in pipelineLayoutCreateInfo, null, out PipelineLayout)
-            .AssertSuccess("Failed to create pipeline layout");
+        fixed (DescriptorSetLayout* pLayouts = _descriptorSetLayouts) {
+            PipelineLayoutCreateInfo pipelineLayoutCreateInfo = new(
+                StructureType.PipelineLayoutCreateInfo,
+                pNext: null,
+                PipelineLayoutCreateFlags.None,
+                setLayoutCount: (uint)_descriptorSetLayouts.Length,
+                pSetLayouts: pLayouts,
+                pushConstantRangeCount: 0,
+                pPushConstantRanges: null
+            );
+            vk.CreatePipelineLayout(renderer.Device, in pipelineLayoutCreateInfo, null, out PipelineLayout)
+                .AssertSuccess("Failed to create pipeline layout");    
+        }
+        
     }
+
+    public DescriptorSetLayout GetLayoutForDescriptorSet(int setIndex)
+    {
+        return _descriptorSetLayouts[setIndex];
+    }
+
+    /// <summary>
+    /// NOTE: This method can be called after <see cref="Dispose"/>. This is critical to ensure that
+    /// <see cref="VulkanDescriptorSet"/> can be finalized without leaking pool space in
+    /// <see cref="VulkanRenderer.DescriptorPoolManager"/>
+    /// </summary>
+    /// <param name="setIndex"></param>
+    /// <returns></returns>
+    public ReadOnlySpan<(VkDescriptorType, int)> GetDescriptorCountsForDescriptorSet(int setIndex)
+    {
+        return _descriptorCountsBySet[setIndex];
+    }
+    
 
     private static VkDescriptorType TranslateDescriptorType(DescriptorType descriptorType)
     {
@@ -114,9 +173,11 @@ public class VulkanShaderBacking : IShaderBacking
         if (PipelineLayout.Handle != 0) {
             _renderer.Vk.DestroyPipelineLayout(_renderer.Device, PipelineLayout, null);
         }
-        
-        if (DescriptorSetLayout.Handle != 0) {
-            _renderer.Vk.DestroyDescriptorSetLayout(_renderer.Device, DescriptorSetLayout, null);
+
+        foreach (DescriptorSetLayout layout in _descriptorSetLayouts) {
+            if (layout.Handle != 0) {
+                _renderer.Vk.DestroyDescriptorSetLayout(_renderer.Device, layout, null);
+            }    
         }
         
         if (ShaderModule.Handle != 0) {
