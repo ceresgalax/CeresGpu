@@ -9,6 +9,9 @@ public sealed class VulkanTexture : IVulkanTexture, ITexture
     private readonly VulkanRenderer _renderer;
     private IntPtr _weakHandle;
 
+    private Image _image;
+    private ImageView _imageView;
+
     public VulkanTexture(VulkanRenderer renderer)
     {
         _renderer = renderer;
@@ -32,13 +35,17 @@ public sealed class VulkanTexture : IVulkanTexture, ITexture
         ReleaseUnmanagedResources();
     }
     
-    public uint Width { get; }
-    public uint Height { get; }
-    public IntPtr WeakHandle { get; }
+    public uint Width { get; private set; }
+    public uint Height { get; private set; }
+    public IntPtr WeakHandle => _weakHandle;
     
     public unsafe void Set(ReadOnlySpan<byte> data, uint width, uint height, ColorFormat format)
     {
+        Width = width;
+        Height = height;
+        
         // TODO: CeresGpu needs to ensure that all ITexture impls are static and cannot be written if encoded in pending commands.
+        // TODO: Make sure we destroy the previous image and view, or re-use.
 
         ImageCreateInfo createInfo = new(
             sType: StructureType.ImageCreateInfo,
@@ -59,12 +66,12 @@ public sealed class VulkanTexture : IVulkanTexture, ITexture
             initialLayout: ImageLayout.Undefined // Start as undefined, we'll transition first and then copy into the image from our staging buffer.
             // (Remember: initial layout can only be Undefined or PreInitialized, we can't start out as TransferDstOptimal.)
         );
-        _renderer.Vk.CreateImage(_renderer.Device, in createInfo, null, out Image image)
+        _renderer.Vk.CreateImage(_renderer.Device, in createInfo, null, out _image)
             .AssertSuccess("Failed to create image");
         
         // Get some memory to put behind that image
 
-        _renderer.Vk.GetImageMemoryRequirements(_renderer.Device, image, out MemoryRequirements memoryRequirements);
+        _renderer.Vk.GetImageMemoryRequirements(_renderer.Device, _image, out MemoryRequirements memoryRequirements);
         if (!_renderer.MemoryHelper.FindMemoryType(memoryRequirements.MemoryTypeBits, MemoryPropertyFlags.DeviceLocalBit, out uint memoryTypeIndex)) {
             throw new InvalidOperationException("Failed to find memory type for image");
         }
@@ -78,7 +85,7 @@ public sealed class VulkanTexture : IVulkanTexture, ITexture
         _renderer.Vk.AllocateMemory(_renderer.Device, in allocateInfo, null, out DeviceMemory memory)
             .AssertSuccess("Failed to allocate memory for image");
         
-        _renderer.Vk.BindImageMemory(_renderer.Device, image, memory, 0)
+        _renderer.Vk.BindImageMemory(_renderer.Device, _image, memory, 0)
             .AssertSuccess("Failed to bind memory to image");
 
         // Make a staging buffer 
@@ -109,7 +116,7 @@ public sealed class VulkanTexture : IVulkanTexture, ITexture
             srcQueueFamilyIndex: Vk.QueueFamilyIgnored,
             dstQueueFamilyIndex: Vk.QueueFamilyIgnored,
 
-            image: image,
+            image: _image,
             subresourceRange: new ImageSubresourceRange(
                 aspectMask: ImageAspectFlags.ColorBit,
                 baseMipLevel: 0,
@@ -150,7 +157,7 @@ public sealed class VulkanTexture : IVulkanTexture, ITexture
         _renderer.Vk.CmdCopyBufferToImage(
             commandBuffer: _renderer.PreFrameCommandBuffer,
             srcBuffer: stagingBuffer.Buffer,
-            dstImage: image,
+            dstImage: _image,
             dstImageLayout: ImageLayout.TransferDstOptimal, // The layout the image is expected to be in when this command executes.
             regionCount: 1,
             pRegions: in region
@@ -176,7 +183,7 @@ public sealed class VulkanTexture : IVulkanTexture, ITexture
             srcQueueFamilyIndex: Vk.QueueFamilyIgnored,
             dstQueueFamilyIndex: Vk.QueueFamilyIgnored,
 
-            image: image,
+            image: _image,
             subresourceRange: new ImageSubresourceRange(
                 aspectMask: ImageAspectFlags.ColorBit,
                 baseMipLevel: 0,
@@ -200,22 +207,31 @@ public sealed class VulkanTexture : IVulkanTexture, ITexture
         
         // Schedule staging buffer to be disposed once commands have finished executing.
         _renderer.DeferedDispose(stagingBuffer);
-    }
-
-    public void DeclareMutationInPass()
-    {
-        throw new NotImplementedException();
-    }
-
-    public void DeclareReadInPass()
-    {
-        throw new NotImplementedException();
+        
+        //
+        // Create an image view to be used by descriptor sets.
+        //
+        ImageViewCreateInfo imageViewCreateInfo = new(
+            sType: StructureType.ImageViewCreateInfo,
+            pNext: null,
+            flags: ImageViewCreateFlags.None,
+            image: _image,
+            viewType: ImageViewType.Type2D,
+            format: format.ToVkFormat(),
+            components: new ComponentMapping(),
+            subresourceRange: new ImageSubresourceRange(
+                aspectMask: ImageAspectFlags.ColorBit,
+                baseMipLevel: 0,
+                levelCount: 1,
+                baseArrayLayer: 0,
+                layerCount: 1
+            )
+        );
+        _renderer.Vk.CreateImageView(_renderer.Device, in imageViewCreateInfo, null, out _imageView);
     }
     
-    public ImageView GetFramebufferView()
+    public ImageView GetImageView()
     {
-        throw new System.NotImplementedException();
+        return _imageView;
     }
-    
-    
 }

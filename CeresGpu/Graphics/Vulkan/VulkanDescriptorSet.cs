@@ -59,22 +59,6 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
     public void SetUniformBufferDescriptor<T>(IBuffer<T> buffer, in DescriptorInfo info) where T : unmanaged
     {
         _uniformBuffersByBinding[GetBinding(in info)] = (IVulkanBuffer)buffer;
-
-        // IVulkanBuffer vulkanBuffer = (IVulkanBuffer)buffer;
-        // DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo(vulkanBuffer.GetBufferForCurrentFrame(), 0, Vk.WholeSize);
-        // WriteDescriptorSet write = new(
-        //     sType: StructureType.WriteDescriptorSet,
-        //     pNext: null,
-        //     dstSet: _descriptorSet,
-        //     dstBinding: ((VulkanDescriptorBindingInfo)info.Binding).Binding,
-        //     dstArrayElement: 0,
-        //     descriptorCount: 1,
-        //     descriptorType: VkDescriptorType.UniformBuffer,
-        //     pImageInfo: null,
-        //     pBufferInfo: &bufferInfo,
-        //     pTexelBufferView: null
-        // );
-        // _renderer.Vk.UpdateDescriptorSets();
     }
 
     public void SetShaderStorageBufferDescriptor<T>(IBuffer<T> buffer, in DescriptorInfo info) where T : unmanaged
@@ -92,5 +76,69 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
         _samplersByBinding[GetBinding(in info)] = sampler;
     }
 
+    public unsafe void Update()
+    {
+        // TODO: Get clever about combining these into a single vkUpdateDescriptorSets call.
+        // TODO: Iterating over these dictionaries probably generates garbage.
+        
+        foreach ((uint binding, IVulkanBuffer buffer) in _uniformBuffersByBinding) {
+            DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo(buffer.GetBufferForCurrentFrame(), 0, Vk.WholeSize);
+            WriteDescriptorSet write = new(
+                sType: StructureType.WriteDescriptorSet,
+                pNext: null,
+                dstSet: _descriptorSet,
+                dstBinding: binding,
+                dstArrayElement: 0,
+                descriptorCount: 1,
+                descriptorType: VkDescriptorType.UniformBuffer,
+                pImageInfo: null,
+                pBufferInfo: &bufferInfo,
+                pTexelBufferView: null
+            );
+            _renderer.Vk.UpdateDescriptorSets(_renderer.Device, 1, in write, 0, null);
+        }
+        
+        foreach ((uint binding, IVulkanBuffer buffer) in _storageBuffersByBinding) {
+            DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo(buffer.GetBufferForCurrentFrame(), 0, Vk.WholeSize);
+            WriteDescriptorSet write = new(
+                sType: StructureType.WriteDescriptorSet,
+                pNext: null,
+                dstSet: _descriptorSet,
+                dstBinding: binding,
+                dstArrayElement: 0,
+                descriptorCount: 1,
+                descriptorType: VkDescriptorType.StorageBuffer,
+                pImageInfo: null,
+                pBufferInfo: &bufferInfo,
+                pTexelBufferView: null
+            );
+            _renderer.Vk.UpdateDescriptorSets(_renderer.Device, 1, in write, 0, null);
+        }
+        
+        foreach ((uint binding, IVulkanTexture texture) in _texturesByBinding) {
+            
+            // TODO: Get fallback sampler?
+            if (!_samplersByBinding.TryGetValue(binding, out object? sampler)) {
+                sampler = null!;
+            }
+
+            DescriptorImageInfo imageInfo = new DescriptorImageInfo(null /* TODO: SAMPLER GOES HERE */, texture.GetImageView(), ImageLayout.ShaderReadOnlyOptimal);
+            WriteDescriptorSet write = new(
+                sType: StructureType.WriteDescriptorSet,
+                pNext: null,
+                dstSet: _descriptorSet,
+                dstBinding: binding,
+                dstArrayElement: 0,
+                descriptorCount: 1,
+                descriptorType: VkDescriptorType.StorageBuffer,
+                pImageInfo: &imageInfo,
+                pBufferInfo: null,
+                pTexelBufferView: null
+            );
+            _renderer.Vk.UpdateDescriptorSets(_renderer.Device, 1, in write, 0, null);
+        }
+        
+    }
+    
 
 }

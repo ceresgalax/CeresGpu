@@ -1,6 +1,7 @@
 ﻿using System;
 using CeresGpu.Graphics.Shaders;
 using Silk.NET.Vulkan;
+using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace CeresGpu.Graphics.Vulkan;
 
@@ -58,6 +59,16 @@ public sealed class VulkanCommandEncoder<TRenderPass> : IPass<TRenderPass> where
             );
             vk.CmdBeginRenderPass(_commandBuffer, in passBeginInfo, SubpassContents.Inline);
         }
+        
+        //
+        // Set initial viewport and scissor
+        //
+        
+        Silk.NET.Vulkan.Viewport viewport = new (0, 0, framebuffer.Width, framebuffer.Height, 0f, 1f);
+        vk.CmdSetViewport(_commandBuffer, 0, 1, in viewport);
+        
+        Rect2D scissor = new (new Offset2D(0, 0), new Extent2D(framebuffer.Width, framebuffer.Height));
+        vk.CmdSetScissor(_commandBuffer, 0, 1, in scissor);
     }
 
     private unsafe void ReleaseUnmanagedResources()
@@ -78,6 +89,8 @@ public sealed class VulkanCommandEncoder<TRenderPass> : IPass<TRenderPass> where
     {
         ReleaseUnmanagedResources();
     }
+
+    private IUntypedShaderInstance? _currentShaderInstance;
     
     public void SetPipeline<TShader, TVertexBufferLayout>(IPipeline<TRenderPass, TShader, TVertexBufferLayout> pipeline, IShaderInstance<TShader, TVertexBufferLayout> shaderInstance) where TShader : IShader where TVertexBufferLayout : IVertexBufferLayout<TShader>
     {
@@ -87,6 +100,10 @@ public sealed class VulkanCommandEncoder<TRenderPass> : IPass<TRenderPass> where
         
         Vk vk = _renderer.Vk;
         vk.CmdBindPipeline(_commandBuffer, PipelineBindPoint.Graphics, vulkanPipeline.Pipeline);
+
+        _currentShaderInstance = shaderInstance;
+        
+        RefreshPipeline();
     }
 
     public void Finish()
@@ -100,7 +117,34 @@ public sealed class VulkanCommandEncoder<TRenderPass> : IPass<TRenderPass> where
     
     public void RefreshPipeline()
     {
-        throw new NotImplementedException();
+        if (_currentShaderInstance == null) {
+            throw new InvalidOperationException("No pipeline has been set. Call SetPipeline first!");
+        }
+        
+        ReadOnlySpan<IDescriptorSet> descriptorSets = _currentShaderInstance.GetDescriptorSets();
+        foreach (IDescriptorSet descriptorSet in descriptorSets) {
+            ((VulkanDescriptorSet)descriptorSet).Update();
+        }
+        
+        ReadOnlySpan<object?> vertexBuffers = _currentShaderInstance.VertexBufferAdapter.VertexBuffers;
+            
+        for (int i = 0, ilen = vertexBuffers.Length; i < ilen; ++i) {
+            // No vertex buffer set.
+            // TODO: log to let the user know they didn't set a vertex buffer.
+            object? untypedVertexBuffer = vertexBuffers[i];
+            if (untypedVertexBuffer == null) {
+                continue;
+            }
+            if (untypedVertexBuffer is IVulkanBuffer buffer) {
+                buffer.Commit();
+                // TODO: Get clever and reduce this to a single vkCmdBindVertexBuffers call.
+                Buffer bufferHandle = buffer.GetBufferForCurrentFrame();
+                ulong offset = 0;  
+                _renderer.Vk.CmdBindVertexBuffers(_commandBuffer, (uint)i, 1, in bufferHandle, in offset);
+            } else {
+                throw new InvalidOperationException($"Buffer returned by vertex buffer adapter at index {i} is not compatible with VulkanCommandEncoder.");
+            }
+        }
     }
 
     public void SetScissor(ScissorRect scissor)
