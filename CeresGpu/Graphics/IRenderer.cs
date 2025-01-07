@@ -38,6 +38,10 @@ namespace CeresGpu.Graphics
             where TVertexBufferLayout : IVertexBufferLayout<TShader>;
 
         IMutableFramebuffer CreateFramebuffer<TRenderPass>() where TRenderPass : IRenderPass;
+
+        IRenderTarget CreateRenderTarget(ColorFormat format, uint width, uint height);
+        IRenderTarget CreateRenderTarget(DepthStencilFormat format, uint width, uint height);
+        IRenderTarget GetSwapchainColorTarget();
         
         // TODO: Rename IPass to something else? Like IPassEncoder?
         /// <summary>

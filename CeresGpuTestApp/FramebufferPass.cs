@@ -30,7 +30,7 @@ public sealed class FramebufferPass : IRenderPass
         _framebuffer = renderer.CreateFramebuffer<FramebufferPass>();
     }
 
-    public void Setup(ITexture colorTarget, Vector4 clearColor)
+    public void Setup(IRenderTarget colorTarget, Vector4 clearColor)
     {
         _framebuffer.Setup(colorTarget.Width, colorTarget.Height);
         _framebuffer.SetColorAttachment(0, colorTarget, clearColor);

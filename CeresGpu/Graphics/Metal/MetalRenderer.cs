@@ -121,6 +121,21 @@ namespace CeresGpu.Graphics.Metal
             throw new NotImplementedException();
         }
 
+        public IRenderTarget CreateRenderTarget(ColorFormat format, uint width, uint height)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IRenderTarget CreateRenderTarget(DepthStencilFormat format, uint width, uint height)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IRenderTarget GetSwapchainColorTarget()
+        {
+            throw new NotImplementedException();
+        }
+
         public IPass<TRenderPass> CreatePassEncoder<TRenderPass>(ReadOnlySpan<IPass> dependentPasses, TRenderPass pass) where TRenderPass : IRenderPass
         {
             throw new NotImplementedException();

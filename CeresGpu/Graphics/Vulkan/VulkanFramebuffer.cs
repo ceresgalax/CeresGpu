@@ -7,13 +7,13 @@ namespace CeresGpu.Graphics.Vulkan;
 public class VulkanFramebuffer : IMutableFramebuffer
     //where TRenderPass : IRenderPass
 {
-    private record struct ColorAttachment(IVulkanTexture? Texture, Vector4 ClearColor);
+    private record struct ColorAttachment(VulkanRenderTarget? Texture, Vector4 ClearColor);
     
     private readonly VulkanRenderer _renderer;
     private readonly VulkanPassBacking _passBacking;
     
     private readonly ColorAttachment[] _colorAttachments;
-    private IVulkanTexture? _depthStencilAttachment;
+    private VulkanRenderTarget? _depthStencilAttachment;
     private double _depthClearValue;
     private uint _stencilClearValue;
 
@@ -65,24 +65,25 @@ public class VulkanFramebuffer : IMutableFramebuffer
         IsSetup = true;
     }
     
-    public void SetColorAttachment(int index, ITexture texture, Vector4 clearColor)
+    public void SetColorAttachment(int index, IRenderTarget target, Vector4 clearColor)
     {
-        if (texture is not IVulkanTexture vulkanTexture) {
-            throw new ArgumentException("Texture must be a VulkanTexture", nameof(texture));
+        if (target is not VulkanRenderTarget vulkanTarget) {
+            throw new ArgumentException("Texture must be a VulkanRenderTarget", nameof(target));
         }
         
-        // TODO: Throw if incompatible with RenderPassDefinition?
-        _colorAttachments[index] = new ColorAttachment(vulkanTexture, clearColor);
+        // TODO: Throw if incompatible with RenderPassDefinition! (Also make this validation shared across all CeresGpu renderer impls)
+        
+        _colorAttachments[index] = new ColorAttachment(vulkanTarget, clearColor);
     }
 
-    public void SetDepthStencilAttachment(ITexture texture, double clearDepth, uint clearStencil)
+    public void SetDepthStencilAttachment(IRenderTarget target, double clearDepth, uint clearStencil)
     {
-        if (texture is not IVulkanTexture vulkanTexture) {
-            throw new ArgumentException("Texture must be a VulkanTexture", nameof(texture));
+        if (target is not VulkanRenderTarget vulkanTarget) {
+            throw new ArgumentException("Texture must be a VulkanRenderTarget", nameof(target));
         }
         
-        // TODO: Throw if incompatible with RenderPassDefinition?
-        _depthStencilAttachment = vulkanTexture;
+        // TODO: Throw if incompatible with RenderPassDefinition!  (Also make this validation shared across all CeresGpu renderer impls)
+        _depthStencilAttachment = vulkanTarget;
         _depthClearValue = clearDepth;
         _stencilClearValue = clearStencil;
     }
@@ -115,13 +116,13 @@ public class VulkanFramebuffer : IMutableFramebuffer
             for (int colorIndex = 0; colorIndex < _passBacking.Definition.ColorAttachments.Length; ++colorIndex) {
                 // TODO: Should we assert earlier that all color attachments have been set before we attempt to 
                 //  use this framebuffer again after calling any of the mutating methods? 
-                attachmentViews[colorIndex] = _colorAttachments[colorIndex].Texture?.GetFramebufferView() ?? default;
+                attachmentViews[colorIndex] = _colorAttachments[colorIndex].Texture?.ImageViewByWorkingFrame[_renderer.WorkingFrame] ?? default;
             }
 
             if (_passBacking.Definition.DepthStencilAttachment != null) {
                 // TODO: Should we assert earlier that the depth stencil attachment has been set before we attempt to 
                 //  use this framebuffer again after calling any of the mutating methods? 
-                attachmentViews[^1] = _depthStencilAttachment?.GetFramebufferView() ?? default;
+                attachmentViews[^1] = _depthStencilAttachment?.ImageViewByWorkingFrame[_renderer.WorkingFrame] ?? default;
             }
             
             unsafe {

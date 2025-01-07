@@ -443,6 +443,27 @@ public sealed class VulkanRenderer : IRenderer
         return new VulkanFramebuffer(this, passBacking);
     }
 
+    public IRenderTarget CreateRenderTarget(ColorFormat format, uint width, uint height)
+    {
+        return new VulkanRenderTarget(this, format.ToVkFormat(), width, height,
+            ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit,
+            ImageAspectFlags.ColorBit
+        );
+    }
+
+    public IRenderTarget CreateRenderTarget(DepthStencilFormat format, uint width, uint height)
+    {
+        return new VulkanRenderTarget(this, format.ToVkFormat(), width, height, 
+            ImageUsageFlags.DepthStencilAttachmentBit | ImageUsageFlags.SampledBit,
+            ImageAspectFlags.DepthBit | ImageAspectFlags.StencilBit
+        );
+    }
+
+    public IRenderTarget GetSwapchainColorTarget()
+    {
+        throw new NotImplementedException();
+    }
+
     public IPass<TRenderPass> CreatePassEncoder<TRenderPass>(
         ReadOnlySpan<IPass> dependentPasses,
         TRenderPass pass

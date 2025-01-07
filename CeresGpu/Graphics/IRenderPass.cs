@@ -45,6 +45,6 @@ public interface IMutableFramebuffer : IFramebuffer, IDisposable
     //where TRenderPass : IRenderPass
 {
     void Setup(uint width, uint height);
-    void SetColorAttachment(int index, ITexture texture, Vector4 clearColor);
-    void SetDepthStencilAttachment(ITexture depthStencil, double clearDepth, uint clearStencil);
+    void SetColorAttachment(int index, IRenderTarget target, Vector4 clearColor);
+    void SetDepthStencilAttachment(IRenderTarget depthStencil, double clearDepth, uint clearStencil);
 }
