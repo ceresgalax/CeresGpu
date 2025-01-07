@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using CeresGpu.Graphics.Shaders;
 using Silk.NET.Vulkan;
@@ -25,13 +26,26 @@ public sealed class VulkanRenderer : IRenderer
     public readonly VulkanMemoryHelper MemoryHelper;
     public readonly DescriptorPoolManager DescriptorPoolManager;
 
+    private CommandBuffer _preFrameCommandBuffer;
+    
+    private readonly List<IDisposable>[] _deferedDisposableByWorkingFrame;
+
     public int FrameCount => 3; 
     public int WorkingFrame { get; private set; }
     
     public bool IsDisposed { get; private set; }
+
+    /// <summary>
+    /// Command buffer to encode commands into for the the current frame.
+    /// This buffer will be submitted to the queue first.
+    /// This is used for certain transfers that need to happen before all other commands.
+    /// </summary>
+    public CommandBuffer PreFrameCommandBuffer => _preFrameCommandBuffer;
     
     public unsafe VulkanRenderer()
     {
+        _deferedDisposableByWorkingFrame = Enumerable.Range(0, 3).Select(_ => new List<IDisposable>()).ToArray();
+        
         //
         // Check which layers we have available.
         //
@@ -322,11 +336,45 @@ public sealed class VulkanRenderer : IRenderer
             // DescriptorType.SampledImage,
             // DescriptorType.Sampler
         ]);
+        
+        PreparePreFrameCommandBuffer();
+    }
+
+    private unsafe void PreparePreFrameCommandBuffer()
+    {
+        // TODO: How do we free this buffer?
+        
+        CommandBufferAllocateInfo allocateInfo = new(
+            sType: StructureType.CommandBufferAllocateInfo,
+            pNext: null,
+            commandPool: CommandPool,
+            level: CommandBufferLevel.Primary,
+            commandBufferCount: 1
+        );
+        Vk.AllocateCommandBuffers(Device, in allocateInfo, out _preFrameCommandBuffer)
+            .AssertSuccess("Failed to allocate pre-frame command buffer.");
+
+        CommandBufferBeginInfo beginInfo = new(
+            sType: StructureType.CommandBufferBeginInfo,
+            pNext: null,
+            flags: CommandBufferUsageFlags.OneTimeSubmitBit,
+            pInheritanceInfo: null // Ignored, not a secondary command buffer.
+        );
+        Vk.BeginCommandBuffer(_preFrameCommandBuffer, in beginInfo)
+            .AssertSuccess("Failed to begin recording pre-frame command buffer.");
+    }
+
+    public void DeferedDispose(IDisposable disposable)
+    {
+        // These are disposed at the begining of the associated working frame.
+        _deferedDisposableByWorkingFrame[WorkingFrame].Add(disposable);
     }
     
     public IStaticBuffer<T> CreateStaticBuffer<T>(int elementCount) where T : unmanaged
     {
-        throw new NotImplementedException();
+        VulkanStaticBuffer<T> buffer = new VulkanStaticBuffer<T>(this);
+        buffer.Allocate((uint)elementCount);
+        return buffer;
     }
 
     public IStreamingBuffer<T> CreateStreamingBuffer<T>(int elementCount) where T : unmanaged
@@ -336,7 +384,7 @@ public sealed class VulkanRenderer : IRenderer
 
     public ITexture CreateTexture()
     {
-        throw new NotImplementedException();
+        return new VulkanTexture(this);
     }
 
     public ISampler CreateSampler(in SamplerDescription description)
@@ -401,6 +449,13 @@ public sealed class VulkanRenderer : IRenderer
     )
         where TRenderPass : IRenderPass
     {
+        
+        // TODO: Move this check to shared CeresGPU renderer checkes.
+        if (!pass.Framebuffer.IsSetup) {
+            throw new InvalidOperationException(
+                "Framebuffer has not been set up. Make sure your render pass impl sets up the framebuffer.");
+        }
+        
         if (pass.Framebuffer is not VulkanFramebuffer vkFramebuffer) {
             throw new ArgumentException("Backend type of pass is not compatible with this renderer.", nameof(pass));
         }

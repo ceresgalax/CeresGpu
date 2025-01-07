@@ -6,7 +6,7 @@ namespace CeresGpu.Graphics.Metal
 {
     public static class MetalBufferUtil
     {
-        public static void CopyBuffer<T>(IntPtr buffer, uint destElementOffset, Span<T> elements, uint elementCount, uint destElementCapacity) where T : unmanaged
+        public static void CopyBuffer<T>(IntPtr buffer, uint destElementOffset, ReadOnlySpan<T> elements, uint elementCount, uint destElementCapacity) where T : unmanaged
         {
             if (buffer == IntPtr.Zero) {
                 throw new ArgumentNullException(nameof(buffer));

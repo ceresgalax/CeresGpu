@@ -19,12 +19,12 @@ namespace CeresGpu.Graphics.OpenGL
             _inner.Allocate(elementCount, BufferUsageARB.STATIC_DRAW);
         }
 
-        protected override void SetImpl(uint offset, Span<T> elements, uint count)
+        protected override void SetImpl(uint offset, ReadOnlySpan<T> elements, uint count)
         {
             _inner.Set(offset, elements, count);
         }
 
-        private T[] _directBuffer = Array.Empty<T>();
+        private T[] _directBuffer = [];
 
         protected override void SetDirectImpl(IBuffer<T>.DirectSetter setter)
         {

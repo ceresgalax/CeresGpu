@@ -16,17 +16,17 @@ public abstract class StaticBuffer<T> : IStaticBuffer<T> where T : unmanaged
 
     protected abstract void AllocateImpl(uint elementCount);
 
-    public void Set(uint offset, Span<T> elements)
+    public void Set(uint offset, ReadOnlySpan<T> elements)
     {
         Set(offset, elements, (uint)elements.Length);
     }
 
-    public void Set(Span<T> elements, uint count)
+    public void Set(ReadOnlySpan<T> elements, uint count)
     {
         Set(0, elements, count);
     }
 
-    public void Set(Span<T> elements)
+    public void Set(ReadOnlySpan<T> elements)
     {
         Set(0, elements, (uint)elements.Length);
     }
@@ -45,7 +45,7 @@ public abstract class StaticBuffer<T> : IStaticBuffer<T> where T : unmanaged
         }
     }
     
-    public void Set(uint offset, Span<T> elements, uint count)
+    public void Set(uint offset, ReadOnlySpan<T> elements, uint count)
     {
         CheckCanModify();
         if (count + offset > Count) {
@@ -54,7 +54,7 @@ public abstract class StaticBuffer<T> : IStaticBuffer<T> where T : unmanaged
         SetImpl(offset, elements, count);
     }
 
-    protected abstract void SetImpl(uint offset, Span<T> elements, uint count);
+    protected abstract void SetImpl(uint offset, ReadOnlySpan<T> elements, uint count);
 
     public void SetDirect(IBuffer<T>.DirectSetter setter)
     {

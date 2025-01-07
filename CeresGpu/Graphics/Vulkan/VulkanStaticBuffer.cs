@@ -15,6 +15,8 @@ public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer where
     private uint _count;
         
     public override uint Count => _count;
+
+    public VkBuffer Buffer => _buffer;
     
     public VulkanStaticBuffer(VulkanRenderer renderer)
     {
@@ -44,17 +46,8 @@ public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer where
         }
     }
 
-    protected override unsafe void AllocateImpl(uint elementCount)
+    protected override void AllocateImpl(uint elementCount)
     {
-        Vk vk = _renderer.Vk;
-        
-        if (_buffer.Handle != 0) {
-            // Should be safe to destroy buffer, since the parent class's Allocate method validates that we haven't
-            // encoded this buffer in any commands, meaning we don't need to defer delete the buffer.
-            vk.DestroyBuffer(_renderer.Device, _buffer, null);    
-            _buffer = default;
-        }
-
         // Regarding buffer usage flags, we currently allow buffers to be used by all things buffers could be used for
         // in CeresGpu, similar to how Metal allows all buffers to be used freely for anything without up-front hints.
         // If we have a need to know the usage up front, we could modify the CeresGpu buffer api to allow for some 
@@ -68,6 +61,20 @@ public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer where
             | BufferUsageFlags.VertexBufferBit
             | BufferUsageFlags.IndirectBufferBit;
         
+        AllocateWithUsage(elementCount, usageFlags);
+    }
+    
+    public unsafe void AllocateWithUsage(uint elementCount, BufferUsageFlags usageFlags)
+    {
+        Vk vk = _renderer.Vk;
+        
+        if (_buffer.Handle != 0) {
+            // Should be safe to destroy buffer, since the parent class's Allocate method validates that we haven't
+            // encoded this buffer in any commands, meaning we don't need to defer delete the buffer.
+            vk.DestroyBuffer(_renderer.Device, _buffer, null);    
+            _buffer = default;
+        }
+
         BufferCreateInfo createInfo = new(
             sType: StructureType.BufferCreateInfo,
             pNext: null,
@@ -75,6 +82,7 @@ public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer where
             size: (ulong)(elementCount * sizeof(T)),
             usage: usageFlags,
             sharingMode: SharingMode.Exclusive,
+            // Ignored when SharingMode is Exclusive:
             queueFamilyIndexCount: 0,
             pQueueFamilyIndices: null
         );
@@ -114,7 +122,7 @@ public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer where
         _count = elementCount;
     }
 
-    protected override void SetImpl(uint offset, Span<T> elements, uint count)
+    protected override void SetImpl(uint offset, ReadOnlySpan<T> elements, uint count)
     {
         Vk vk = _renderer.Vk;
 
@@ -134,7 +142,7 @@ public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer where
             try {
                 // Copy the elements
                 fixed (T* pElements = elements) {
-                    Buffer.MemoryCopy(pElements, (byte*)mapped + mappingOffset, mappingSize - mappingOffset, (uint)elements.Length * (uint)sizeof(T));    
+                    System.Buffer.MemoryCopy(pElements, (byte*)mapped + mappingOffset, mappingSize - mappingOffset, (uint)elements.Length * (uint)sizeof(T));    
                 }
                 
                 // Flush the writen memory.

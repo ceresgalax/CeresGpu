@@ -1,5 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
+using System.Numerics;
 using CeresGLFW;
 using CeresGpu;
 using CeresGpu.Graphics;
@@ -14,6 +15,7 @@ FramebufferPass.RegisterSelf(renderer);
 using ShaderManager shaderManager = new ShaderManager(renderer);
 using TestRenderer testRenderer = new TestRenderer(renderer, shaderManager);
 using FramebufferPass pass = new FramebufferPass(renderer);
+pass.Setup(null!, new Vector4(0f, 0.25f, 0.5f, 1f));
 
 while (!window.ShouldClose) {
     using IPass<FramebufferPass> encoder = renderer.CreatePassEncoder([], pass);

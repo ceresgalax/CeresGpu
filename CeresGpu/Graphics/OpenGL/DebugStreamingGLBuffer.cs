@@ -48,7 +48,7 @@ public sealed class DebugStreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer wh
          RecreateBufferIfNecesary();
     }
 
-    public override void Set(uint offset, Span<T> elements, uint count)
+    public override void Set(uint offset, ReadOnlySpan<T> elements, uint count)
     {
         base.Set(offset, elements, count);
         

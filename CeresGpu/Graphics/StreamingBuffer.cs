@@ -18,17 +18,17 @@ public abstract class StreamingBuffer<T> : IStreamingBuffer<T> where T : unmanag
         // _validRegionTracker.Reset();
     }
 
-    public void Set(uint offset, Span<T> elements)
+    public void Set(uint offset, ReadOnlySpan<T> elements)
     {
         Set(offset, elements, (uint)elements.Length);
     }
 
-    public void Set(Span<T> elements, uint count)
+    public void Set(ReadOnlySpan<T> elements, uint count)
     {
         Set(0, elements, count);
     }
 
-    public void Set(Span<T> elements)
+    public void Set(ReadOnlySpan<T> elements)
     {
         Set(0, elements, (uint)elements.Length);
     }
@@ -47,10 +47,9 @@ public abstract class StreamingBuffer<T> : IStreamingBuffer<T> where T : unmanag
         }
     }
     
-    public virtual void Set(uint offset, Span<T> elements, uint count)
+    public virtual void Set(uint offset, ReadOnlySpan<T> elements, uint count)
     {
         PrepareToModify();
-        //_validRegionTracker.SetRegionValid(offset, offset + count);
     }
 
     public virtual void SetDirect(IBuffer<T>.DirectSetter setter)

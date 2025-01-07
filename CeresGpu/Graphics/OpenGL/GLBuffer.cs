@@ -60,7 +60,7 @@ namespace CeresGpu.Graphics.OpenGL
             Count = elementCount;
         }
         
-        public unsafe void Set(uint offset, Span<T> elements, uint count)
+        public unsafe void Set(uint offset, ReadOnlySpan<T> elements, uint count)
         {
             CheckDisposed();
             

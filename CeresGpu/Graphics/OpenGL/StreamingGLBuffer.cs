@@ -32,13 +32,13 @@ public sealed class StreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer where T
         _inner.Allocate(elementCount, BufferUsageARB.STREAM_DRAW);
     }
 
-    public override void Set(uint offset, Span<T> elements, uint count)
+    public override void Set(uint offset, ReadOnlySpan<T> elements, uint count)
     {
         base.Set(offset, elements, count);
         _inner.Set(offset, elements, count);
     }
 
-    private T[] _directBuffer = Array.Empty<T>();
+    private T[] _directBuffer = [];
     
     public override void SetDirect(IBuffer<T>.DirectSetter setter)
     {

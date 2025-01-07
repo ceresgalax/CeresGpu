@@ -43,7 +43,7 @@ namespace CeresGpu.Graphics.Metal
             _count = elementCount;
         }
         
-        protected override void SetImpl(uint offset, Span<T> elements, uint count)
+        protected override void SetImpl(uint offset, ReadOnlySpan<T> elements, uint count)
         {
             MetalBufferUtil.CopyBuffer(_buffer, offset, elements, count, Count);
         }

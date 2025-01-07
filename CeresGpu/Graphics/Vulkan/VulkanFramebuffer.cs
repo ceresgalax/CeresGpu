@@ -30,6 +30,8 @@ public class VulkanFramebuffer : IMutableFramebuffer
     public uint Width => _currentWidth;
     public uint Height => _currentHeight;
     
+    public bool IsSetup { get; private set; }
+    
     public unsafe VulkanFramebuffer(VulkanRenderer renderer, VulkanPassBacking passBacking)
     {
         _renderer = renderer;
@@ -45,6 +47,11 @@ public class VulkanFramebuffer : IMutableFramebuffer
 
     public void Setup(uint width, uint height)
     {
+        // TODO: Move this to common framebuffer validation.
+        if (width == 0 || height == 0) {
+            throw new ArgumentOutOfRangeException();
+        }
+        
         _targetWidth = width;
         _targetHeight = height;
 
@@ -54,6 +61,8 @@ public class VulkanFramebuffer : IMutableFramebuffer
         _depthStencilAttachment = null;
 
         _needNewFramebuffers = true;
+
+        IsSetup = true;
     }
     
     public void SetColorAttachment(int index, ITexture texture, Vector4 clearColor)

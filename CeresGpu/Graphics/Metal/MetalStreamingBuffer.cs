@@ -79,7 +79,7 @@ namespace CeresGpu.Graphics.Metal
             }
         }
         
-        public override void Set(uint offset, Span<T> elements, uint count)
+        public override void Set(uint offset, ReadOnlySpan<T> elements, uint count)
         {
             base.Set(offset, elements, count);
 

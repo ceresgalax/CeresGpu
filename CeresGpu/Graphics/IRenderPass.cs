@@ -33,6 +33,7 @@ public interface IRenderPass : IDisposable
 
 public interface IFramebuffer
 {
+    bool IsSetup { get; }
 }
 
 /// <summary>
