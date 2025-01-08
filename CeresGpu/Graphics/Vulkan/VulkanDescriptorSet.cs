@@ -10,7 +10,7 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
 {
     private readonly VulkanRenderer _renderer;
     private readonly VulkanShaderBacking _shaderBacking;
-    private readonly DescriptorSet _descriptorSet;
+    public readonly DescriptorSet DescriptorSet;
     private readonly DescriptorPool _poolAllocatedFrom;
     private readonly int _setIndex;
 
@@ -18,7 +18,7 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
     private Dictionary<uint, IVulkanBuffer> _uniformBuffersByBinding = [];
     private Dictionary<uint, IVulkanBuffer> _storageBuffersByBinding = [];
     private Dictionary<uint, IVulkanTexture> _texturesByBinding = [];
-    private Dictionary<uint, object> _samplersByBinding = [];
+    private Dictionary<uint, VulkanSampler> _samplersByBinding = [];
     
     public VulkanDescriptorSet(VulkanRenderer renderer, VulkanShaderBacking shaderBacking, int setIndex, in DescriptorSetCreationHints hints)
     {
@@ -29,7 +29,7 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
         DescriptorSetLayout layout = shaderBacking.GetLayoutForDescriptorSet(setIndex);
         ReadOnlySpan<(VkDescriptorType, int)> descriptorCounts = shaderBacking.GetDescriptorCountsForDescriptorSet(setIndex);
 
-        _descriptorSet = _renderer.DescriptorPoolManager.AllocateDescriptorSet(layout, descriptorCounts, out _poolAllocatedFrom);
+        DescriptorSet = _renderer.DescriptorPoolManager.AllocateDescriptorSet(layout, descriptorCounts, out _poolAllocatedFrom);
     }
     
     private void ReleaseUnmanagedResources()
@@ -37,7 +37,7 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
         if (_renderer.IsDisposed) {
             return;
         }
-        _renderer.DescriptorPoolManager.FreeDescriptorSet(_descriptorSet, _poolAllocatedFrom, _shaderBacking.GetDescriptorCountsForDescriptorSet(_setIndex));
+        _renderer.DescriptorPoolManager.FreeDescriptorSet(DescriptorSet, _poolAllocatedFrom, _shaderBacking.GetDescriptorCountsForDescriptorSet(_setIndex));
     }
 
     public void Dispose()
@@ -73,7 +73,7 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
 
     public void SetSamplerDescriptor(ISampler sampler, in DescriptorInfo info)
     {
-        _samplersByBinding[GetBinding(in info)] = sampler;
+        _samplersByBinding[GetBinding(in info)] = (VulkanSampler)sampler;
     }
 
     public unsafe void Update()
@@ -86,7 +86,7 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
             WriteDescriptorSet write = new(
                 sType: StructureType.WriteDescriptorSet,
                 pNext: null,
-                dstSet: _descriptorSet,
+                dstSet: DescriptorSet,
                 dstBinding: binding,
                 dstArrayElement: 0,
                 descriptorCount: 1,
@@ -103,7 +103,7 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
             WriteDescriptorSet write = new(
                 sType: StructureType.WriteDescriptorSet,
                 pNext: null,
-                dstSet: _descriptorSet,
+                dstSet: DescriptorSet,
                 dstBinding: binding,
                 dstArrayElement: 0,
                 descriptorCount: 1,
@@ -118,19 +118,19 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
         foreach ((uint binding, IVulkanTexture texture) in _texturesByBinding) {
             
             // TODO: Get fallback sampler?
-            if (!_samplersByBinding.TryGetValue(binding, out object? sampler)) {
-                sampler = null!;
+            if (!_samplersByBinding.TryGetValue(binding, out VulkanSampler? sampler)) {
+                sampler = _renderer.FallbackSampler;
             }
 
-            DescriptorImageInfo imageInfo = new DescriptorImageInfo(null /* TODO: SAMPLER GOES HERE */, texture.GetImageView(), ImageLayout.ShaderReadOnlyOptimal);
+            DescriptorImageInfo imageInfo = new DescriptorImageInfo(sampler.Sampler, texture.GetImageView(), ImageLayout.ShaderReadOnlyOptimal);
             WriteDescriptorSet write = new(
                 sType: StructureType.WriteDescriptorSet,
                 pNext: null,
-                dstSet: _descriptorSet,
+                dstSet: DescriptorSet,
                 dstBinding: binding,
                 dstArrayElement: 0,
                 descriptorCount: 1,
-                descriptorType: VkDescriptorType.StorageBuffer,
+                descriptorType: VkDescriptorType.CombinedImageSampler,
                 pImageInfo: &imageInfo,
                 pBufferInfo: null,
                 pTexelBufferView: null

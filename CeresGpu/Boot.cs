@@ -1,8 +1,10 @@
+using System;
 using System.Runtime.InteropServices;
 using CeresGLFW;
 using CeresGpu.Graphics;
 using CeresGpu.Graphics.Metal;
 using CeresGpu.Graphics.Vulkan;
+using Silk.NET.Vulkan;
 
 namespace CeresGpu
 {
@@ -79,7 +81,16 @@ namespace CeresGpu
             
             // TODO: Better API selection.
             // return new GLRenderer(window);
-            return new VulkanRenderer();
+            unsafe {
+                return new VulkanRenderer(
+                    inRequiredInstanceExtensions: GLFW.GetRequiredInstanceExtensions(),
+                    surfaceDelegate: (Instance instance, AllocationCallbacks* allocator, out SurfaceKHR surface) => {
+                        Result result = (Result)window.CreateWindowSurface(instance.Handle, new IntPtr(allocator), out ulong surfaceHandle);
+                        surface = new SurfaceKHR(surfaceHandle);
+                        return result;
+                    }
+                );
+            }
         }
         
         public static (IRenderer, GLFWWindow) MakeRenderer(WindowHints hints, int width, int height, string title)

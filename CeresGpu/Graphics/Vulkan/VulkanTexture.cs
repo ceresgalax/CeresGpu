@@ -206,7 +206,9 @@ public sealed class VulkanTexture : IVulkanTexture, ITexture
         );
         
         // Schedule staging buffer to be disposed once commands have finished executing.
-        _renderer.DeferedDispose(stagingBuffer);
+        // Dispose will schedule a deferred deletion of the underlying buffers for after the command buffer the buffer
+        // was encoded in was executed.
+        stagingBuffer.Dispose();
         
         //
         // Create an image view to be used by descriptor sets.

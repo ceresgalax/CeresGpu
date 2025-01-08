@@ -78,8 +78,14 @@ public abstract class StaticBuffer<T> : IStaticBuffer<T> where T : unmanaged
         }
     }
 
+    protected bool IsDisposed;
+    
     protected virtual void Dispose(bool disposing)
     {
+        if (IsDisposed) {
+            throw new ObjectDisposedException(null);
+        }
+        IsDisposed = true;
     }
 
     public void Dispose()

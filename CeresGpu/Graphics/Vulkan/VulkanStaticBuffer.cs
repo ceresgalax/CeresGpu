@@ -5,7 +5,7 @@ using VkBuffer = Silk.NET.Vulkan.Buffer;
 
 namespace CeresGpu.Graphics.Vulkan;
 
-public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer where T : unmanaged  
+public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer, IDeferredDisposable where T : unmanaged  
 {
     private readonly VulkanRenderer _renderer;
 
@@ -23,14 +23,8 @@ public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer where
         _renderer = renderer;
     }
 
-    protected override void Dispose(bool disposing)
+    void IDeferredDisposable.DeferredDispose()
     {
-        base.Dispose(disposing);
-
-        if (disposing) {
-            // Dispose owned IDisposable objects here.
-        }
-        
         // Release unmanaged resources here.
         Vk vk = _renderer.Vk;
         unsafe {
@@ -44,6 +38,17 @@ public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer where
                 _buffer = default;
             }
         }
+    }
+    
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        if (disposing) {
+            // Dispose owned IDisposable objects here.
+        }
+
+        _renderer.DeferDisposal(this);
     }
 
     protected override void AllocateImpl(uint elementCount)

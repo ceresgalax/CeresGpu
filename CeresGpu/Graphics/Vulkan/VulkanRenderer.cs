@@ -3,16 +3,21 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using CeresGpu.Graphics.Shaders;
+using Silk.NET.Core;
 using Silk.NET.Vulkan;
+using Silk.NET.Vulkan.Extensions.KHR;
 using DescriptorType = Silk.NET.Vulkan.DescriptorType;
 
 namespace CeresGpu.Graphics.Vulkan;
+
+public unsafe delegate Result CreateWindowSurfaceDelegate(Instance instance, AllocationCallbacks* allocator, out SurfaceKHR surface);
 
 public sealed class VulkanRenderer : IRenderer
 {
     public uint UniqueFrameId { get; }
 
     public readonly Vk Vk = Vk.GetApi();
+    public readonly KhrSurface VkKhrSurface;
     
     public readonly Instance Instance;
     public readonly PhysicalDevice PhysicalDevice;
@@ -21,14 +26,22 @@ public sealed class VulkanRenderer : IRenderer
     public readonly Queue GraphicsQueue;
     public readonly CommandPool CommandPool;
 
-    private Dictionary<Type, VulkanPassBacking> _passBackings = [];
+    private readonly Dictionary<Type, VulkanPassBacking> _passBackings = [];
 
     public readonly VulkanMemoryHelper MemoryHelper;
     public readonly DescriptorPoolManager DescriptorPoolManager;
 
     private CommandBuffer _preFrameCommandBuffer;
     
-    private readonly List<IDisposable>[] _deferedDisposableByWorkingFrame;
+    private readonly List<IDeferredDisposable>[] _deferedDisposableByWorkingFrame;
+
+    /// <summary>
+    /// Contains the passes that are currently in the recording state.
+    /// </summary>
+    private readonly HashSet<IVulkanCommandEncoder> _recordingPasses = new();
+    
+    public readonly IVulkanTexture FallbackTexture;
+    public readonly VulkanSampler FallbackSampler;
 
     public int FrameCount => 3; 
     public int WorkingFrame { get; private set; }
@@ -42,9 +55,11 @@ public sealed class VulkanRenderer : IRenderer
     /// </summary>
     public CommandBuffer PreFrameCommandBuffer => _preFrameCommandBuffer;
     
-    public unsafe VulkanRenderer()
+    public unsafe VulkanRenderer(IEnumerable<string> inRequiredInstanceExtensions, CreateWindowSurfaceDelegate surfaceDelegate)
     {
-        _deferedDisposableByWorkingFrame = Enumerable.Range(0, 3).Select(_ => new List<IDisposable>()).ToArray();
+        VkKhrSurface = new KhrSurface(Vk.Context);
+        
+        _deferedDisposableByWorkingFrame = Enumerable.Range(0, 3).Select(_ => new List<IDeferredDisposable>()).ToArray();
         
         //
         // Check which layers we have available.
@@ -101,6 +116,7 @@ public sealed class VulkanRenderer : IRenderer
         HashSet<string> requiredInstanceExtensions = [
             "VK_KHR_surface"
         ];
+        requiredInstanceExtensions.UnionWith(inRequiredInstanceExtensions);
 
         if (!availableInstanceExtensions.IsSupersetOf(requiredInstanceExtensions)) {
             throw new InvalidOperationException("Missing required instance extensions.");
@@ -157,6 +173,12 @@ public sealed class VulkanRenderer : IRenderer
                 }
             }
         }
+        
+        //
+        // Create our surface
+        //
+        surfaceDelegate(Instance, null, out SurfaceKHR surface)
+            .AssertSuccess("Failed to create surface.");
         
         //
         // Find an appropriate physical device to use.
@@ -235,6 +257,13 @@ public sealed class VulkanRenderer : IRenderer
                     continue;
                 }
 
+                // Ignore this queue family if it doesn't support the surface.
+                VkKhrSurface.GetPhysicalDeviceSurfaceSupport(physicalDevice, (uint)queueFamilyIndex, surface, out Bool32 supported)
+                    .AssertSuccess("Failed to get physical device surface support");
+                if (supported == Vk.False) {
+                    continue;
+                }
+                
                 if (familyProperties.QueueFlags.HasFlag(QueueFlags.GraphicsBit)) {
                     queueFamilyIndexForQueueType[QueueFlags.GraphicsBit] = (uint)queueFamilyIndex;
                 }
@@ -337,7 +366,16 @@ public sealed class VulkanRenderer : IRenderer
             // DescriptorType.Sampler
         ]);
         
+        //
+        // Prepare the first pre-frame command buffer.
+        //
         PreparePreFrameCommandBuffer();
+        
+        //
+        // Create some fallback objects
+        //
+        FallbackTexture = (VulkanTexture)RendererUtil.CreateFallbackTexture(this);
+        FallbackSampler = (VulkanSampler)CreateSampler(default);
     }
 
     private unsafe void PreparePreFrameCommandBuffer()
@@ -364,7 +402,7 @@ public sealed class VulkanRenderer : IRenderer
             .AssertSuccess("Failed to begin recording pre-frame command buffer.");
     }
 
-    public void DeferedDispose(IDisposable disposable)
+    internal void DeferDisposal(IDeferredDisposable disposable)
     {
         // These are disposed at the begining of the associated working frame.
         _deferedDisposableByWorkingFrame[WorkingFrame].Add(disposable);
@@ -389,7 +427,7 @@ public sealed class VulkanRenderer : IRenderer
 
     public ISampler CreateSampler(in SamplerDescription description)
     {
-        throw new NotImplementedException();
+        return new VulkanSampler(this, in description);
     }
 
     public IShaderBacking CreateShaderBacking(IShader shader)
@@ -399,7 +437,10 @@ public sealed class VulkanRenderer : IRenderer
 
     public IShaderInstanceBacking CreateShaderInstanceBacking(IShader shader)
     {
-        return new VulkanShaderInstanceBacking();
+        if (shader.Backing is not VulkanShaderBacking backing) {
+            throw new ArgumentException("Shader's backing is incompatible with this renderer.", nameof(shader));
+        }
+        return new VulkanShaderInstanceBacking(backing);
     }
 
     public IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints)

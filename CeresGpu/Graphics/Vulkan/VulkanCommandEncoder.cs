@@ -5,7 +5,11 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace CeresGpu.Graphics.Vulkan;
 
-public sealed class VulkanCommandEncoder<TRenderPass> : IPass<TRenderPass> where TRenderPass : IRenderPass
+interface IVulkanCommandEncoder
+{
+}
+
+public sealed class VulkanCommandEncoder<TRenderPass> : IVulkanCommandEncoder, IPass<TRenderPass> where TRenderPass : IRenderPass
 {
     private readonly VulkanRenderer _renderer;
     private readonly CommandBuffer _commandBuffer;
@@ -101,6 +105,19 @@ public sealed class VulkanCommandEncoder<TRenderPass> : IPass<TRenderPass> where
         Vk vk = _renderer.Vk;
         vk.CmdBindPipeline(_commandBuffer, PipelineBindPoint.Graphics, vulkanPipeline.Pipeline);
 
+        VulkanShaderInstanceBacking shaderInstanceBacking = (VulkanShaderInstanceBacking)shaderInstance.Backing;
+
+        ReadOnlySpan<IDescriptorSet> descriptorSets = shaderInstance.GetDescriptorSets();
+        for (int i = 0; i < descriptorSets.Length; ++i) {
+            IDescriptorSet descriptorSet = descriptorSets[i];
+            VulkanDescriptorSet vulkanDescriptorSet = (VulkanDescriptorSet)descriptorSet;
+            DescriptorSet handle = vulkanDescriptorSet.DescriptorSet;
+            // TODO: Get smart and find a way to call this once to bind all descriptor sets without churning garbage.
+            unsafe {
+                vk.CmdBindDescriptorSets(_commandBuffer, PipelineBindPoint.Graphics, shaderInstanceBacking.Shader.PipelineLayout, (uint)i, 1, in handle, dynamicOffsetCount: 0, null);    
+            }
+        }
+        
         _currentShaderInstance = shaderInstance;
         
         RefreshPipeline();

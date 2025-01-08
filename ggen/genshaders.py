@@ -741,7 +741,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     )
     f.indent()
 
-    set_array_index = 0
+    # set_array_index = 0
     for stage, indices in descriptor_set_indices_by_stage.items():
         for index in indices:
             stage_name = 'vertex' if stage == ShaderStage.VERTEX else 'fragment'
@@ -751,9 +751,9 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
                 '// TODO: Actually fill out these hints',
                 f'DescriptorSetCreationHints {hints_var_name} = new DescriptorSetCreationHints();',
                 f'_{var_name} = renderer.CreateDescriptorSet(shader.Backing!, ShaderStage.{stage_name.capitalize()}, {index}, in {hints_var_name});',
-                f'_descriptorSets[{set_array_index}] = _{var_name};'
+                f'_descriptorSets[{index}] = _{var_name};'
             )
-            set_array_index += 1
+            # set_array_index += 1
 
     f.deindent()
     f.write_line('}', '')
