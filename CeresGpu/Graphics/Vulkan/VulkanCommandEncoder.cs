@@ -7,13 +7,71 @@ namespace CeresGpu.Graphics.Vulkan;
 
 interface IVulkanCommandEncoder
 {
+    //CommandBuffer CommandBuffer { get; }
 }
 
-public sealed class VulkanCommandEncoder<TRenderPass> : IVulkanCommandEncoder, IPass<TRenderPass> where TRenderPass : IRenderPass
+public abstract class VulkanCommandEncoder
+{
+    public abstract CommandBuffer CommandBuffer { get; }
+    
+    public VulkanCommandEncoder? Prev { get; protected set; }
+    public VulkanCommandEncoder? Next { get; protected set; }
+
+    public void Remove()
+    {
+        if (Prev != null || Next != null) {
+            if (Prev != null) {
+                Prev.Next = Next;
+            }
+            if (Next != null) {
+                Next.Prev = Prev;
+            }
+        }
+    }
+    
+    public void InsertBefore(VulkanCommandEncoder other)
+    {
+        Prev = other.Prev;
+        other.Prev = this;
+        Next = other;
+    }
+
+    public void InsertAfter(VulkanCommandEncoder other)
+    {
+        Next = other.Next;
+        other.Next = this;
+        Prev = other;
+    }
+
+    public abstract void Finish();
+}
+
+public class VulkanCommandEncoderAnchor : VulkanCommandEncoder
+{
+    public override CommandBuffer CommandBuffer => throw new NotSupportedException();
+    
+    public override void Finish()
+    {
+        // This should not be called on the anchors.
+        throw new NotSupportedException();
+    }
+
+    public void ResetAsFront(VulkanCommandEncoderAnchor endAnchor)
+    {
+        Next = endAnchor;
+        endAnchor.Prev = this;
+    }
+}
+
+public sealed class VulkanCommandEncoder<TRenderPass> : VulkanCommandEncoder, IVulkanCommandEncoder, IPass<TRenderPass> where TRenderPass : IRenderPass
 {
     private readonly VulkanRenderer _renderer;
     private readonly CommandBuffer _commandBuffer;
-    
+
+    public override CommandBuffer CommandBuffer => _commandBuffer;
+
+    private bool _isFinished;
+
     public unsafe VulkanCommandEncoder(VulkanRenderer renderer, VulkanPassBacking passBacking, VulkanFramebuffer framebuffer)
     {
         _renderer = renderer;
@@ -123,10 +181,20 @@ public sealed class VulkanCommandEncoder<TRenderPass> : IVulkanCommandEncoder, I
         RefreshPipeline();
     }
 
-    public void Finish()
+    public override void Finish()
     {
-        // TODO Need to vkCmdEndRenderPass.
-        throw new NotImplementedException();
+        if (_isFinished) {
+            return;
+        }
+        _isFinished = true;
+        
+        // Note: When CeresGPU supports mutable resources, this is where we'd emit memory barriers for resources that
+        // we didn't emit memeory barriers for during encoding. This will ensure that passes that are ordered to execute
+        // afterwards will be able to assume that any resources they're seeing for the first time are correctly finished
+        // and memory flushed (availble) & cache invalidated (visible).
+        
+        _renderer.Vk.CmdEndRenderPass(CommandBuffer);
+        _renderer.Vk.EndCommandBuffer(CommandBuffer).AssertSuccess("Failed to end command buffer.");
     }
 
     public ScissorRect CurrentDynamicScissor { get; }

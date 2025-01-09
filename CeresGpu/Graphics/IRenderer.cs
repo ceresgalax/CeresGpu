@@ -49,8 +49,8 @@ namespace CeresGpu.Graphics
         /// </summary>
         /// <returns>The created pass</returns>
         IPass<TRenderPass> CreatePassEncoder<TRenderPass>(
-            ReadOnlySpan<IPass> dependentPasses,
-            TRenderPass pass
+            TRenderPass pass,
+            IPass? occursBefore = null
 
             // All of this is retrieved from the TRenderPass instance:
             // ReadOnlySpan<ColorAttachment> colorAttachments,

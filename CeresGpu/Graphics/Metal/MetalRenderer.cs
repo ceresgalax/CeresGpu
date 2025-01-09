@@ -136,7 +136,7 @@ namespace CeresGpu.Graphics.Metal
             throw new NotImplementedException();
         }
 
-        public IPass<TRenderPass> CreatePassEncoder<TRenderPass>(ReadOnlySpan<IPass> dependentPasses, TRenderPass pass) where TRenderPass : IRenderPass
+        public IPass<TRenderPass> CreatePassEncoder<TRenderPass>(TRenderPass pass, IPass? occursBefore) where TRenderPass : IRenderPass
         {
             throw new NotImplementedException();
         }

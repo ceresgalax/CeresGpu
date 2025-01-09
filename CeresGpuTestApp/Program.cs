@@ -7,8 +7,9 @@ using CeresGpu.Graphics;
 using CeresGpu.Graphics.Shaders;
 using CeresGpuTestApp;
 
-using GLFWWindow window = Boot.MakeWindow(800, 600, "CeresGpu Test", false);
-using IRenderer renderer = Boot.MakeRenderer(window);
+GLFWWindowFactory windowFactory = new GLFWWindowFactory(Boot.MakeBaseWindowHints(), 800, 600, "CeresGpu Test");
+using IRenderer renderer = Boot.MakeRenderer(windowFactory);
+using GLFWWindow window = windowFactory.GetOrCreateWindow(); 
 
 FramebufferPass.RegisterSelf(renderer);
 
@@ -19,7 +20,7 @@ using IRenderTarget colorTarget = renderer.CreateRenderTarget(ColorFormat.R8G8B8
 pass.Setup(colorTarget, new Vector4(0f, 1f, 1f, 1f));
 
 while (!window.ShouldClose) {
-    using IPass<FramebufferPass> encoder = renderer.CreatePassEncoder([], pass);
+    using IPass<FramebufferPass> encoder = renderer.CreatePassEncoder(pass);
     //using IPass pass = renderer.CreateFramebufferPass(LoadAction.Clear, new Vector4(0f, 1f, 1f, 1f), false, 0, 0);
     testRenderer.Draw(encoder);
     //pass.Finish();

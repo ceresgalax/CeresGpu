@@ -36,9 +36,13 @@ public sealed class VulkanRenderer : IRenderer
     private readonly List<IDeferredDisposable>[] _deferedDisposableByWorkingFrame;
 
     /// <summary>
-    /// Contains the passes that are currently in the recording state.
+    /// Contains the passes that are to be submitted this frame.
     /// </summary>
-    private readonly HashSet<IVulkanCommandEncoder> _recordingPasses = new();
+    private readonly HashSet<IVulkanCommandEncoder> _passesToSubmit = new();
+    
+    // NOTE: These are just anchors, and are not to be submitted.
+    private readonly VulkanCommandEncoderAnchor _encoderListStart = new();
+    private readonly VulkanCommandEncoderAnchor _encoderListEnd = new();
     
     public readonly IVulkanTexture FallbackTexture;
     public readonly VulkanSampler FallbackSampler;
@@ -55,7 +59,7 @@ public sealed class VulkanRenderer : IRenderer
     /// </summary>
     public CommandBuffer PreFrameCommandBuffer => _preFrameCommandBuffer;
     
-    public unsafe VulkanRenderer(IEnumerable<string> inRequiredInstanceExtensions, CreateWindowSurfaceDelegate surfaceDelegate)
+    public unsafe VulkanRenderer(IVulkanWindowFactory windowFactory)
     {
         VkKhrSurface = new KhrSurface(Vk.Context);
         
@@ -116,7 +120,7 @@ public sealed class VulkanRenderer : IRenderer
         HashSet<string> requiredInstanceExtensions = [
             "VK_KHR_surface"
         ];
-        requiredInstanceExtensions.UnionWith(inRequiredInstanceExtensions);
+        requiredInstanceExtensions.UnionWith(windowFactory.GetRequiredInstanceExtensions());
 
         if (!availableInstanceExtensions.IsSupersetOf(requiredInstanceExtensions)) {
             throw new InvalidOperationException("Missing required instance extensions.");
@@ -177,7 +181,7 @@ public sealed class VulkanRenderer : IRenderer
         //
         // Create our surface
         //
-        surfaceDelegate(Instance, null, out SurfaceKHR surface)
+        windowFactory.CreateSurface(Instance, [], out SurfaceKHR surface)
             .AssertSuccess("Failed to create surface.");
         
         //
@@ -370,6 +374,7 @@ public sealed class VulkanRenderer : IRenderer
         // Prepare the first pre-frame command buffer.
         //
         PreparePreFrameCommandBuffer();
+        _encoderListStart.ResetAsFront(_encoderListEnd);
         
         //
         // Create some fallback objects
@@ -506,12 +511,11 @@ public sealed class VulkanRenderer : IRenderer
     }
 
     public IPass<TRenderPass> CreatePassEncoder<TRenderPass>(
-        ReadOnlySpan<IPass> dependentPasses,
-        TRenderPass pass
+        TRenderPass pass,
+        IPass? occursBefore
     )
         where TRenderPass : IRenderPass
     {
-        
         // TODO: Move this check to shared CeresGPU renderer checkes.
         if (!pass.Framebuffer.IsSetup) {
             throw new InvalidOperationException(
@@ -523,17 +527,69 @@ public sealed class VulkanRenderer : IRenderer
         }
         
         VulkanPassBacking passBacking = GetPassBackingOrThrow<TRenderPass>();
-        return new VulkanCommandEncoder<TRenderPass>(this, passBacking, vkFramebuffer);
+        
+        VulkanCommandEncoder<TRenderPass> encoder = new(this, passBacking, vkFramebuffer);
+        
+        if (occursBefore == null) {
+            encoder.InsertAfter(_encoderListEnd.Prev!);
+        } else {
+            encoder.InsertBefore((VulkanCommandEncoder)occursBefore);
+        }
+
+        _passesToSubmit.Add(encoder);
+        return encoder;
     }
 
-    public void Present(float minimumElapsedSeocnds)
+    // A buffer of.. buffers
+    private CommandBuffer[] _reusedCommandBufferList = [];
+    
+    public unsafe void Present(float minimumElapsedSeocnds)
     {
-        throw new NotImplementedException();
+        // Gather the command buffers in order of submission
+
+        // TODO: WE NEED TO SUBMIT THE COPY COMMAND BUFFER HERE!!
+        
+        if (_reusedCommandBufferList.Length < _passesToSubmit.Count) {
+            // 64 is arbitrary. Seems like a nice size to grow by.
+            _reusedCommandBufferList = new CommandBuffer[AlignUtil.AlignUp((ulong)_passesToSubmit.Count, 64)];  
+        }
+        
+        VulkanCommandEncoder? currentEncoder = _encoderListStart.Next;
+        for (int i = 0, ilen = _passesToSubmit.Count; i < ilen; ++i) {
+            if (currentEncoder == null) {
+                throw new InvalidOperationException("Unexpected end of command buffer list. (Likely a bug in CeresGpu)");
+            }
+
+            // Finish recording if it wasn't finished already.
+            currentEncoder.Finish();
+
+            _reusedCommandBufferList[i] = currentEncoder.CommandBuffer;
+            currentEncoder = currentEncoder.Next;
+        }
+
+        // Submit the passes
+        fixed (CommandBuffer* pCommandBuffers = _reusedCommandBufferList) {
+            SubmitInfo submitInfo = new SubmitInfo(
+                sType: StructureType.SubmitInfo,
+                pNext: null,
+                waitSemaphoreCount: 0,
+                pWaitSemaphores: null,
+                pWaitDstStageMask: null,
+                commandBufferCount: (uint)_passesToSubmit.Count,
+                pCommandBuffers: pCommandBuffers,
+                signalSemaphoreCount: 0,
+                pSignalSemaphores: null
+            );
+            Vk.QueueSubmit(GraphicsQueue, 1, in submitInfo, default)
+                .AssertSuccess("Failed to submit command buffers to graphics queue.");
+        }
+
+        _passesToSubmit.Clear();
+        _encoderListStart.ResetAsFront(_encoderListEnd);
     }
 
     public void GetDiagnosticInfo(IList<(string key, object value)> entries)
     {
-        throw new NotImplementedException();
     }
 
     private unsafe void ReleaseUnmanagedResources()
