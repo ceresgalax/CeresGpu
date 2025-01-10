@@ -18,14 +18,19 @@ public sealed class VulkanRenderer : IRenderer
 
     public readonly Vk Vk = Vk.GetApi();
     public readonly KhrSurface VkKhrSurface;
+    public readonly KhrSwapchain VkKhrSwapchain;
     
     public readonly Instance Instance;
     public readonly PhysicalDevice PhysicalDevice;
     public readonly PhysicalDeviceLimits PhysicalDeviceLimits;
     public readonly Device Device;
     public readonly Queue GraphicsQueue;
+    public readonly Queue PresentationQueue;
+    public readonly SwapchainKHR Swapchain;
     public readonly CommandPool CommandPool;
 
+    private readonly VulkanSwapchainRenderTarget _swapchainRenderTarget;
+        
     private readonly Dictionary<Type, VulkanPassBacking> _passBackings = [];
 
     public readonly VulkanMemoryHelper MemoryHelper;
@@ -47,7 +52,7 @@ public sealed class VulkanRenderer : IRenderer
     public readonly IVulkanTexture FallbackTexture;
     public readonly VulkanSampler FallbackSampler;
 
-    public int FrameCount => 3; 
+    public int FrameCount { get; private set; }
     public int WorkingFrame { get; private set; }
     
     public bool IsDisposed { get; private set; }
@@ -62,6 +67,7 @@ public sealed class VulkanRenderer : IRenderer
     public unsafe VulkanRenderer(IVulkanWindowFactory windowFactory)
     {
         VkKhrSurface = new KhrSurface(Vk.Context);
+        VkKhrSwapchain = new KhrSwapchain(Vk.Context);
         
         _deferedDisposableByWorkingFrame = Enumerable.Range(0, 3).Select(_ => new List<IDeferredDisposable>()).ToArray();
         
@@ -202,13 +208,14 @@ public sealed class VulkanRenderer : IRenderer
         
         // Choose the first suitable device for now.
 
-        HashSet<string> requiredExtensions = [
+        HashSet<string> requiredDeviceExtensions = [
             "VK_KHR_swapchain"
         ];
         
         QueueFlags neededQueues = QueueFlags.GraphicsBit;
 
         Dictionary<QueueFlags, uint> queueFamilyIndexForQueueType = [];
+        uint presentQueueFamilyIndex = 0;
         
         PhysicalDevice chosenPhysicalDevice = default;
         foreach (PhysicalDevice physicalDevice in physicalDevices) {
@@ -237,7 +244,7 @@ public sealed class VulkanRenderer : IRenderer
             }
             
             // Does the device have the extensions we need?
-            if (!requiredExtensions.IsSubsetOf(supportedExtensions)) {
+            if (!requiredDeviceExtensions.IsSubsetOf(supportedExtensions)) {
                 continue;
             }
             
@@ -255,6 +262,8 @@ public sealed class VulkanRenderer : IRenderer
             
             // Get which types of queues are available
             QueueFlags availableQueueFlags = QueueFlags.None;
+            bool hasPresentQueueFamily = false;
+                
             for (int queueFamilyIndex = 0; queueFamilyIndex < numQueueFamilies; ++queueFamilyIndex) {
                 ref readonly QueueFamilyProperties familyProperties = ref families[queueFamilyIndex];
                 if (familyProperties.QueueCount <= 0) {
@@ -264,8 +273,9 @@ public sealed class VulkanRenderer : IRenderer
                 // Ignore this queue family if it doesn't support the surface.
                 VkKhrSurface.GetPhysicalDeviceSurfaceSupport(physicalDevice, (uint)queueFamilyIndex, surface, out Bool32 supported)
                     .AssertSuccess("Failed to get physical device surface support");
-                if (supported == Vk.False) {
-                    continue;
+                if (supported == Vk.True) {
+                    hasPresentQueueFamily = true;
+                    presentQueueFamilyIndex = (uint)queueFamilyIndex;
                 }
                 
                 if (familyProperties.QueueFlags.HasFlag(QueueFlags.GraphicsBit)) {
@@ -280,7 +290,7 @@ public sealed class VulkanRenderer : IRenderer
             //
             
             // Does it have all the queue types we need?
-            if ((availableQueueFlags & neededQueues) == neededQueues) {
+            if ((availableQueueFlags & neededQueues) == neededQueues && hasPresentQueueFamily) {
                 chosenPhysicalDevice = physicalDevice;
                 break;
             }
@@ -300,6 +310,7 @@ public sealed class VulkanRenderer : IRenderer
         //
 
         float graphicsQueuePriority = 1f;
+        float presentQueuePriority = 1f;
         
         Span<DeviceQueueCreateInfo> deviceQueueCreateInfos = [
             // Graphics queue
@@ -310,13 +321,22 @@ public sealed class VulkanRenderer : IRenderer
                 queueFamilyIndex: queueFamilyIndexForQueueType[QueueFlags.GraphicsBit],
                 queueCount: 1,
                 pQueuePriorities: &graphicsQueuePriority
+            ),
+            // Presentation queue
+            new DeviceQueueCreateInfo(
+                sType: StructureType.DeviceQueueCreateInfo,
+                pNext: null,
+                flags: DeviceQueueCreateFlags.None,
+                queueFamilyIndex: presentQueueFamilyIndex,
+                queueCount: 1,
+                pQueuePriorities: &presentQueuePriority
             )
         ];
         
-        byte*[] extensionNames = new byte*[requiredExtensions.Count];
+        byte*[] extensionNames = new byte*[requiredDeviceExtensions.Count];
         try {
             int extensionIndex = 0;
-            foreach (string extension in requiredExtensions) {
+            foreach (string extension in requiredDeviceExtensions) {
                 extensionNames[extensionIndex++] = (byte*)Marshal.StringToHGlobalAnsi(extension);
             }
 
@@ -348,6 +368,103 @@ public sealed class VulkanRenderer : IRenderer
         // Get the queues
         //
         GraphicsQueue = Vk.GetDeviceQueue(Device, queueFamilyIndexForQueueType[QueueFlags.GraphicsBit], 0);
+        PresentationQueue = Vk.GetDeviceQueue(Device, presentQueueFamilyIndex, 0);
+        
+        //
+        // Set up the swap chain
+        //
+        VkKhrSurface.GetPhysicalDeviceSurfaceCapabilities(chosenPhysicalDevice, surface, out SurfaceCapabilitiesKHR surfaceCapabilities)
+            .AssertSuccess("Failed to get physical device surface capabilities");
+        
+        uint numSurfaceFormats = 0;
+        VkKhrSurface.GetPhysicalDeviceSurfaceFormats(chosenPhysicalDevice, surface, ref numSurfaceFormats, null)
+            .AssertSuccess("Failed to get number of physical device surface formats");
+        SurfaceFormatKHR[] surfaceFormats = new SurfaceFormatKHR[numSurfaceFormats];
+        fixed (SurfaceFormatKHR* pSurfaceFormats = surfaceFormats) {
+            VkKhrSurface.GetPhysicalDeviceSurfaceFormats(chosenPhysicalDevice, surface, ref numSurfaceFormats, pSurfaceFormats)
+                .AssertSuccess("Failed to get phsical device surface formats");
+        }
+
+        uint numSurfacePresentModes = 0;
+        VkKhrSurface.GetPhysicalDeviceSurfacePresentModes(chosenPhysicalDevice, surface, ref numSurfacePresentModes, null)
+            .AssertSuccess("Failed to get number of physical device surface present modes");
+        PresentModeKHR[] surfacePresentModes = new PresentModeKHR[numSurfacePresentModes];
+        fixed (PresentModeKHR* pSurfacePresentModes = surfacePresentModes) {
+            VkKhrSurface.GetPhysicalDeviceSurfacePresentModes(chosenPhysicalDevice, surface, ref numSurfacePresentModes, pSurfacePresentModes)
+                .AssertSuccess("Failed to get physical device surface present modes");
+        }
+
+        if (numSurfaceFormats == 0 || numSurfacePresentModes == 0) {
+            throw new InvalidOperationException("Surface is not adequate.");
+        }
+
+        SurfaceFormatKHR chosenSurfaceFormat = surfaceFormats[0];
+        
+        foreach (SurfaceFormatKHR format in surfaceFormats) {
+            if (format is { Format: Format.R8G8B8A8Srgb, ColorSpace: ColorSpaceKHR.SpaceSrgbNonlinearKhr }) {
+                chosenSurfaceFormat = format;
+                break;
+            }
+        }
+
+        // FIFO is guaranteed to be present.
+        PresentModeKHR chosenPresentMode = PresentModeKHR.FifoKhr;
+
+        Extent2D swapExtent;
+        if (surfaceCapabilities.CurrentExtent.Width != uint.MaxValue) {
+            swapExtent = surfaceCapabilities.CurrentExtent;
+        } else {
+            // TODO: Get current GLFW framebuffer size.
+            swapExtent = new Extent2D(
+                Math.Clamp(800, surfaceCapabilities.MinImageExtent.Width, surfaceCapabilities.MaxImageExtent.Width),
+                Math.Clamp(600, surfaceCapabilities.MinImageExtent.Height, surfaceCapabilities.MaxImageExtent.Height)
+            );
+        }
+
+        // TODO: Tutorial specifies that we should acquire 1 more than the minimum. Verify this..
+        uint swapchainImageCount = surfaceCapabilities.MinImageCount + 1;
+        if (surfaceCapabilities.MaxImageCount > 0 && swapchainImageCount > surfaceCapabilities.MaxImageCount) {
+            swapchainImageCount = surfaceCapabilities.MaxImageCount;
+        }
+        
+        FrameCount = (int)swapchainImageCount;
+        
+        Span<uint> swapchainSharedQueueFamilyIndices =
+            [queueFamilyIndexForQueueType[QueueFlags.GraphicsBit], presentQueueFamilyIndex];
+        bool swapchainIsSharingQueueFamilies =
+            swapchainSharedQueueFamilyIndices[0] != swapchainSharedQueueFamilyIndices[1];
+
+        fixed (uint* pSharedQueueFamilyIndices = swapchainSharedQueueFamilyIndices) {
+            SwapchainCreateInfoKHR swapchainCreateInfo = new(
+                sType: StructureType.SwapchainCreateInfoKhr,
+                pNext: null,
+                flags: SwapchainCreateFlagsKHR.None,
+                surface: surface,
+                minImageCount: swapchainImageCount,
+                imageFormat: chosenSurfaceFormat.Format,
+                imageColorSpace: chosenSurfaceFormat.ColorSpace,
+                imageExtent: swapExtent,
+                imageArrayLayers: 1,
+                imageUsage: ImageUsageFlags.ColorAttachmentBit,
+                imageSharingMode: SharingMode.Exclusive,
+                queueFamilyIndexCount: swapchainIsSharingQueueFamilies
+                    ? (uint)swapchainSharedQueueFamilyIndices.Length
+                    : 0,
+                pQueueFamilyIndices: pSharedQueueFamilyIndices,
+                preTransform: surfaceCapabilities.CurrentTransform,
+                compositeAlpha: CompositeAlphaFlagsKHR.OpaqueBitKhr,
+                presentMode: chosenPresentMode,
+                clipped: true,
+                oldSwapchain: new SwapchainKHR()
+            );
+            VkKhrSwapchain.CreateSwapchain(Device, in swapchainCreateInfo, null, out Swapchain)
+                .AssertSuccess("Failed to create swapchain");
+        }
+        
+        //
+        // Get the swapchain images
+        //
+        _swapchainRenderTarget = new VulkanSwapchainRenderTarget(this, Swapchain, swapExtent, chosenSurfaceFormat);
         
         //
         // Create a command pool
@@ -491,7 +608,7 @@ public sealed class VulkanRenderer : IRenderer
 
     public IRenderTarget CreateRenderTarget(ColorFormat format, uint width, uint height)
     {
-        return new VulkanRenderTarget(this, format.ToVkFormat(), width, height,
+        return new VulkanRenderTarget(this, true, format, default, width, height,
             ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit,
             ImageAspectFlags.ColorBit
         );
@@ -499,7 +616,7 @@ public sealed class VulkanRenderer : IRenderer
 
     public IRenderTarget CreateRenderTarget(DepthStencilFormat format, uint width, uint height)
     {
-        return new VulkanRenderTarget(this, format.ToVkFormat(), width, height, 
+        return new VulkanRenderTarget(this, false, default, format, width, height, 
             ImageUsageFlags.DepthStencilAttachmentBit | ImageUsageFlags.SampledBit,
             ImageAspectFlags.DepthBit | ImageAspectFlags.StencilBit
         );
@@ -507,7 +624,7 @@ public sealed class VulkanRenderer : IRenderer
 
     public IRenderTarget GetSwapchainColorTarget()
     {
-        throw new NotImplementedException();
+        return _swapchainRenderTarget;
     }
 
     public IPass<TRenderPass> CreatePassEncoder<TRenderPass>(
@@ -545,10 +662,23 @@ public sealed class VulkanRenderer : IRenderer
     
     public unsafe void Present(float minimumElapsedSeocnds)
     {
-        // Gather the command buffers in order of submission
-
-        // TODO: WE NEED TO SUBMIT THE COPY COMMAND BUFFER HERE!!
+        // Submit the pre-frame command buffer first.
+        Vk.EndCommandBuffer(_preFrameCommandBuffer);
+        CommandBuffer preFrameCommandBuffer = _preFrameCommandBuffer;
+        SubmitInfo preFrameCommandsSubmitInfo = new(
+            sType: StructureType.SubmitInfo,
+            pNext: null,
+            waitSemaphoreCount: 0,
+            pWaitSemaphores: null,
+            pWaitDstStageMask: null,
+            commandBufferCount: 1,
+            pCommandBuffers: &preFrameCommandBuffer,
+            signalSemaphoreCount: 0,
+            pSignalSemaphores: null
+        );
+        Vk.QueueSubmit(GraphicsQueue, 1, in preFrameCommandsSubmitInfo, default);
         
+        // Gather the command buffers in order of submission
         if (_reusedCommandBufferList.Length < _passesToSubmit.Count) {
             // 64 is arbitrary. Seems like a nice size to grow by.
             _reusedCommandBufferList = new CommandBuffer[AlignUtil.AlignUp((ulong)_passesToSubmit.Count, 64)];  
@@ -583,9 +713,27 @@ public sealed class VulkanRenderer : IRenderer
             Vk.QueueSubmit(GraphicsQueue, 1, in submitInfo, default)
                 .AssertSuccess("Failed to submit command buffers to graphics queue.");
         }
+        
+        // Dispose all command encoders -- this will defer deletion of the underlying command buffers appropriately.
+        foreach (IVulkanCommandEncoder encoder in _passesToSubmit) {
+            encoder.Dispose();
+        }
 
+        // Prepare next frame
         _passesToSubmit.Clear();
         _encoderListStart.ResetAsFront(_encoderListEnd);
+
+        WorkingFrame = (WorkingFrame + 1) % FrameCount;
+        
+        // Delete anything that's ready to be disposed now
+        List<IDeferredDisposable> deferredDisposables = _deferedDisposableByWorkingFrame[WorkingFrame];
+        for (int i = deferredDisposables.Count - 1; i >= 0; --i) {
+            deferredDisposables[i].DeferredDispose();
+        }
+        deferredDisposables.Clear();
+
+        PreparePreFrameCommandBuffer();
+        
     }
 
     public void GetDiagnosticInfo(IList<(string key, object value)> entries)

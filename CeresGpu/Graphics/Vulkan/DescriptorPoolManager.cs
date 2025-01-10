@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Silk.NET.Vulkan;
 
 namespace CeresGpu.Graphics.Vulkan;
@@ -61,7 +62,7 @@ public sealed class DescriptorPoolManager : IDisposable
 
     private readonly HashSet<int> _tempA = [];
     
-    public DescriptorSet AllocateDescriptorSet(DescriptorSetLayout layout, ReadOnlySpan<(DescriptorType type, int count)> descriptorCounts, out DescriptorPool poolAllocatedFrom)
+    public void AllocateDescriptorSets(ReadOnlySpan<DescriptorSetLayout> layouts, ReadOnlySpan<(DescriptorType type, int count)> descriptorCounts, out DescriptorPool poolAllocatedFrom, DescriptorSet[] outDescriptorSets)
     {
         _tempA.Clear();
 
@@ -77,43 +78,45 @@ public sealed class DescriptorPoolManager : IDisposable
             }
         }
 
-        DescriptorSet descriptorSet;
-        
         foreach (int candidatePoolIndex in candidatePools) {
-            Result result = AllocateDescriptorSetFromPool(candidatePoolIndex, layout, descriptorCounts, out poolAllocatedFrom, out descriptorSet);
+            Result result = AllocateDescriptorSetFromPool(candidatePoolIndex, layouts, descriptorCounts, out poolAllocatedFrom, outDescriptorSets);
             if (result != Result.ErrorFragmentedPool) {
                 result.AssertSuccess("Failed to allocate descriptorSet from existing pool");
-                return descriptorSet;
+                return;
             }
         }
         
         // Time for a new pool!
         int newPoolIndex = CreateNewPool();
-        AllocateDescriptorSetFromPool(newPoolIndex, layout, descriptorCounts, out poolAllocatedFrom, out descriptorSet)
+        AllocateDescriptorSetFromPool(newPoolIndex, layouts, descriptorCounts, out poolAllocatedFrom, outDescriptorSets)
             .AssertSuccess("Failed to allocate descriptorSet from a brand new pool.");
-        return descriptorSet;
     }
 
-    public void FreeDescriptorSet(DescriptorSet descriptorSet, DescriptorPool pool, ReadOnlySpan<(DescriptorType type, int count)> descriptorCounts)
+    public void FreeDescriptorSets(DescriptorSet[] descriptorSets, DescriptorPool pool, ReadOnlySpan<(DescriptorType type, int count)> descriptorCounts)
     {
-        _renderer.Vk.FreeDescriptorSets(_renderer.Device, pool, 1, in descriptorSet)
-            .AssertSuccess("Failed to free descriptorSet.");
-        
+        unsafe {
+            fixed (DescriptorSet* pDescriptorSets = descriptorSets) {
+                _renderer.Vk.FreeDescriptorSets(_renderer.Device, pool, (uint)descriptorSets.Length, pDescriptorSets)
+                    .AssertSuccess("Failed to free descriptorSets.");    
+            }    
+        }
+
         // Update our vacancy bookkeeping
         int poolIndex = _poolIndices[pool];
         PoolInfo info = _pools[poolIndex];
         
-        if (info.UsedSets == info.CapacitySets) {
-            _poolsWithVacantSets.Remove(poolIndex);
+        if (info.UsedSets >= info.CapacitySets && (info.UsedSets - descriptorSets.Length) < info.CapacitySets) {
+            _poolsWithVacantSets.Add(poolIndex);
         }
-        --info.UsedSets;
+        info.UsedSets -= descriptorSets.Length;
 
         foreach ((DescriptorType type, int count) in descriptorCounts) {
             int used = info.UsedDescriptorsByType[type];
-            if (used == info.CapacityDescriptorsPerType) {
+            int usedAfter = used - count * descriptorSets.Length;
+            if (used >= info.CapacityDescriptorsPerType && usedAfter < info.CapacityDescriptorsPerType) {
                 _poolsWithVacantDescriptors[type].Remove(poolIndex);
             }
-            info.UsedDescriptorsByType[type] = used - count;
+            info.UsedDescriptorsByType[type] = usedAfter;
         }
     }
 
@@ -148,37 +151,44 @@ public sealed class DescriptorPoolManager : IDisposable
         return index;
     }
 
-    private Result AllocateDescriptorSetFromPool(int poolIndex, DescriptorSetLayout layout, ReadOnlySpan<(DescriptorType type, int count)> descriptorCounts, out DescriptorPool poolAllocatedFrom, out DescriptorSet descriptorSet)
+    private Result AllocateDescriptorSetFromPool(int poolIndex, ReadOnlySpan<DescriptorSetLayout> layouts, ReadOnlySpan<(DescriptorType type, int count)> descriptorCounts, out DescriptorPool poolAllocatedFrom, DescriptorSet[] outDescriptorSets)
     {
         PoolInfo poolInfo = _pools[poolIndex];
         poolAllocatedFrom = poolInfo.Pool;
+
+        if (layouts.Length != outDescriptorSets.Length) {
+            throw new ArgumentOutOfRangeException("Layout count mismatch.", nameof(layouts));
+        }
         
         Result result;
         unsafe {
-            DescriptorSetAllocateInfo allocateInfo = new DescriptorSetAllocateInfo(
-                sType: StructureType.DescriptorSetAllocateInfo,
-                pNext: null,
-                descriptorPool: poolInfo.Pool,
-                descriptorSetCount: 1,
-                &layout
-            );
-            result = _renderer.Vk.AllocateDescriptorSets(_renderer.Device, in allocateInfo, out descriptorSet);
+            fixed (DescriptorSetLayout* pLayouts = layouts)
+            fixed (DescriptorSet* pDescriptorSets = outDescriptorSets) {
+                DescriptorSetAllocateInfo allocateInfo = new DescriptorSetAllocateInfo(
+                    sType: StructureType.DescriptorSetAllocateInfo,
+                    pNext: null,
+                    descriptorPool: poolInfo.Pool,
+                    descriptorSetCount: (uint)outDescriptorSets.Length,
+                    pSetLayouts: pLayouts
+                );
+                result = _renderer.Vk.AllocateDescriptorSets(_renderer.Device, in allocateInfo, pDescriptorSets);
+            }
         }
 
         if (result == Result.Success) {
             // Update our vacancy bookkeeping
 
-            ++poolInfo.UsedSets;
-            if (poolInfo.UsedSets == poolInfo.CapacitySets) {
+            poolInfo.UsedSets += outDescriptorSets.Length;
+            if (poolInfo.UsedSets >= poolInfo.CapacitySets) {
                 _poolsWithVacantSets.Remove(poolIndex);
             }
             
             foreach ((DescriptorType type, int count) in descriptorCounts) {
                 int used = poolInfo.UsedDescriptorsByType[type];
-                used += count;
+                used += count * outDescriptorSets.Length;
                 poolInfo.UsedDescriptorsByType[type] = used;
 
-                if (used == poolInfo.CapacityDescriptorsPerType) {
+                if (used >= poolInfo.CapacityDescriptorsPerType) {
                     _poolsWithVacantDescriptors[type].Remove(poolIndex);
                 }
             }

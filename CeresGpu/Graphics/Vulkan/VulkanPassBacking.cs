@@ -34,8 +34,8 @@ public class VulkanPassBacking : IDisposable
                 storeOp: AttachmentStoreOp.Store,
                 stencilLoadOp: AttachmentLoadOp.DontCare, // This attachment won't be used as stencil, so we don't care.
                 stencilStoreOp: AttachmentStoreOp.DontCare,
-                initialLayout: ImageLayout.ColorAttachmentOptimal, 
-                finalLayout: ImageLayout.PresentSrcKhr
+                initialLayout: ImageLayout.ColorAttachmentOptimal,
+                finalLayout: ImageLayout.ColorAttachmentOptimal
             ));
             
             // TODO: Again, layout probably needs to be exposed by the CeresGPU api.

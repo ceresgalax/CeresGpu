@@ -7,13 +7,13 @@ namespace CeresGpu.Graphics.Vulkan;
 public class VulkanFramebuffer : IMutableFramebuffer
     //where TRenderPass : IRenderPass
 {
-    private record struct ColorAttachment(VulkanRenderTarget? Texture, Vector4 ClearColor);
+    private record struct ColorAttachment(IVulkanRenderTarget? RenderTarget, Vector4 ClearColor);
     
     private readonly VulkanRenderer _renderer;
     private readonly VulkanPassBacking _passBacking;
     
     private readonly ColorAttachment[] _colorAttachments;
-    private VulkanRenderTarget? _depthStencilAttachment;
+    private IVulkanRenderTarget? _depthStencilAttachment;
     private double _depthClearValue;
     private uint _stencilClearValue;
 
@@ -56,7 +56,7 @@ public class VulkanFramebuffer : IMutableFramebuffer
         _targetHeight = height;
 
         for (int i = 0; i < _colorAttachments.Length; ++i) {
-            _colorAttachments[i].Texture = null;
+            _colorAttachments[i].RenderTarget = null;
         }
         _depthStencilAttachment = null;
 
@@ -67,8 +67,8 @@ public class VulkanFramebuffer : IMutableFramebuffer
     
     public void SetColorAttachment(int index, IRenderTarget target, Vector4 clearColor)
     {
-        if (target is not VulkanRenderTarget vulkanTarget) {
-            throw new ArgumentException("Texture must be a VulkanRenderTarget", nameof(target));
+        if (target is not IVulkanRenderTarget vulkanTarget) {
+            throw new ArgumentException("Texture must be an IVulkanRenderTarget", nameof(target));
         }
         
         // TODO: Throw if incompatible with RenderPassDefinition! (Also make this validation shared across all CeresGpu renderer impls)
@@ -78,8 +78,8 @@ public class VulkanFramebuffer : IMutableFramebuffer
 
     public void SetDepthStencilAttachment(IRenderTarget target, double clearDepth, uint clearStencil)
     {
-        if (target is not VulkanRenderTarget vulkanTarget) {
-            throw new ArgumentException("Texture must be a VulkanRenderTarget", nameof(target));
+        if (target is not IVulkanRenderTarget vulkanTarget) {
+            throw new ArgumentException("Texture must be an IVulkanRenderTarget", nameof(target));
         }
         
         // TODO: Throw if incompatible with RenderPassDefinition!  (Also make this validation shared across all CeresGpu renderer impls)
@@ -99,12 +99,14 @@ public class VulkanFramebuffer : IMutableFramebuffer
                     continue;
                 }
                 unsafe {
+                    // TODO: Defered destroy of in-flight framebuffers.
                     vk.DestroyFramebuffer(_renderer.Device, framebuffer, null);
                 }
             }
             
             _currentWidth = _targetWidth;
             _currentHeight = _targetHeight;
+            _needNewFramebuffers = false;
         }
 
         if (_framebuffers[_renderer.WorkingFrame].Handle == 0) {
@@ -116,13 +118,13 @@ public class VulkanFramebuffer : IMutableFramebuffer
             for (int colorIndex = 0; colorIndex < _passBacking.Definition.ColorAttachments.Length; ++colorIndex) {
                 // TODO: Should we assert earlier that all color attachments have been set before we attempt to 
                 //  use this framebuffer again after calling any of the mutating methods? 
-                attachmentViews[colorIndex] = _colorAttachments[colorIndex].Texture?.ImageViewByWorkingFrame[_renderer.WorkingFrame] ?? default;
+                attachmentViews[colorIndex] = _colorAttachments[colorIndex].RenderTarget?.GetImageViewForWorkingFrame(_renderer.WorkingFrame) ?? default;
             }
 
             if (_passBacking.Definition.DepthStencilAttachment != null) {
                 // TODO: Should we assert earlier that the depth stencil attachment has been set before we attempt to 
                 //  use this framebuffer again after calling any of the mutating methods? 
-                attachmentViews[^1] = _depthStencilAttachment?.ImageViewByWorkingFrame[_renderer.WorkingFrame] ?? default;
+                attachmentViews[^1] = _depthStencilAttachment?.GetImageViewForWorkingFrame(_renderer.WorkingFrame) ?? default;
             }
             
             unsafe {

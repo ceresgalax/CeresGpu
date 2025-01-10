@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using CeresGpu.Graphics.Shaders;
 using Silk.NET.Vulkan;
+using Buffer = System.Buffer;
 using VkDescriptorType = Silk.NET.Vulkan.DescriptorType;
 
 namespace CeresGpu.Graphics.Vulkan;
@@ -10,7 +11,9 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
 {
     private readonly VulkanRenderer _renderer;
     private readonly VulkanShaderBacking _shaderBacking;
-    public readonly DescriptorSet DescriptorSet;
+    
+    public readonly DescriptorSet[] DescriptorSets;
+    
     private readonly DescriptorPool _poolAllocatedFrom;
     private readonly int _setIndex;
 
@@ -28,8 +31,14 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
 
         DescriptorSetLayout layout = shaderBacking.GetLayoutForDescriptorSet(setIndex);
         ReadOnlySpan<(VkDescriptorType, int)> descriptorCounts = shaderBacking.GetDescriptorCountsForDescriptorSet(setIndex);
-
-        DescriptorSet = _renderer.DescriptorPoolManager.AllocateDescriptorSet(layout, descriptorCounts, out _poolAllocatedFrom);
+        
+        DescriptorSets = new DescriptorSet[renderer.FrameCount];
+        Span<DescriptorSetLayout> layouts = stackalloc DescriptorSetLayout[renderer.FrameCount];
+        for (int i = 0; i < renderer.FrameCount; ++i) {
+            layouts[i] = layout;
+        }
+        
+        _renderer.DescriptorPoolManager.AllocateDescriptorSets(layouts, descriptorCounts, out _poolAllocatedFrom, DescriptorSets);
     }
     
     private void ReleaseUnmanagedResources()
@@ -37,7 +46,7 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
         if (_renderer.IsDisposed) {
             return;
         }
-        _renderer.DescriptorPoolManager.FreeDescriptorSet(DescriptorSet, _poolAllocatedFrom, _shaderBacking.GetDescriptorCountsForDescriptorSet(_setIndex));
+        _renderer.DescriptorPoolManager.FreeDescriptorSets(DescriptorSets, _poolAllocatedFrom, _shaderBacking.GetDescriptorCountsForDescriptorSet(_setIndex));
     }
 
     public void Dispose()
@@ -49,6 +58,11 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
     ~VulkanDescriptorSet()
     {
         ReleaseUnmanagedResources();
+    }
+
+    public DescriptorSet GetDescriptorSetForCurrentFrame()
+    {
+        return DescriptorSets[_renderer.WorkingFrame];
     }
 
     private uint GetBinding(in DescriptorInfo descriptorInfo)
@@ -81,12 +95,14 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
         // TODO: Get clever about combining these into a single vkUpdateDescriptorSets call.
         // TODO: Iterating over these dictionaries probably generates garbage.
         
+        DescriptorSet currentFrameDescriptorSet = DescriptorSets[_renderer.WorkingFrame];
+        
         foreach ((uint binding, IVulkanBuffer buffer) in _uniformBuffersByBinding) {
             DescriptorBufferInfo bufferInfo = new DescriptorBufferInfo(buffer.GetBufferForCurrentFrame(), 0, Vk.WholeSize);
             WriteDescriptorSet write = new(
                 sType: StructureType.WriteDescriptorSet,
                 pNext: null,
-                dstSet: DescriptorSet,
+                dstSet: currentFrameDescriptorSet,
                 dstBinding: binding,
                 dstArrayElement: 0,
                 descriptorCount: 1,
@@ -103,7 +119,7 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
             WriteDescriptorSet write = new(
                 sType: StructureType.WriteDescriptorSet,
                 pNext: null,
-                dstSet: DescriptorSet,
+                dstSet: currentFrameDescriptorSet,
                 dstBinding: binding,
                 dstArrayElement: 0,
                 descriptorCount: 1,
@@ -126,7 +142,7 @@ public sealed class VulkanDescriptorSet : IDescriptorSet
             WriteDescriptorSet write = new(
                 sType: StructureType.WriteDescriptorSet,
                 pNext: null,
-                dstSet: DescriptorSet,
+                dstSet: currentFrameDescriptorSet,
                 dstBinding: binding,
                 dstArrayElement: 0,
                 descriptorCount: 1,

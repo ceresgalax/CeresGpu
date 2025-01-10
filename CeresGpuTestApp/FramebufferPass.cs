@@ -14,7 +14,7 @@ public sealed class FramebufferPass : IRenderPass
         renderer.RegisterPassType<FramebufferPass>(new RenderPassDefinition {
             ColorAttachments = [
                 new ColorAttachment {
-                    Format = ColorFormat.R8G8B8A8_UNORM,
+                    Format = renderer.GetSwapchainColorTarget().ColorFormat, //ColorFormat.R8G8B8A8_UNORM,
                     LoadAction = LoadAction.Clear
                 }
             ],

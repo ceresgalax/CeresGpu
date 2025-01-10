@@ -5,7 +5,7 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace CeresGpu.Graphics.Vulkan;
 
-interface IVulkanCommandEncoder
+interface IVulkanCommandEncoder : IDisposable
 {
     //CommandBuffer CommandBuffer { get; }
 }
@@ -63,7 +63,8 @@ public class VulkanCommandEncoderAnchor : VulkanCommandEncoder
     }
 }
 
-public sealed class VulkanCommandEncoder<TRenderPass> : VulkanCommandEncoder, IVulkanCommandEncoder, IPass<TRenderPass> where TRenderPass : IRenderPass
+public sealed class VulkanCommandEncoder<TRenderPass> : VulkanCommandEncoder, IVulkanCommandEncoder, IPass<TRenderPass>, IDeferredDisposable 
+    where TRenderPass : IRenderPass
 {
     private readonly VulkanRenderer _renderer;
     private readonly CommandBuffer _commandBuffer;
@@ -135,9 +136,8 @@ public sealed class VulkanCommandEncoder<TRenderPass> : VulkanCommandEncoder, IV
 
     private unsafe void ReleaseUnmanagedResources()
     {
-        // TODO: MUST MAKE SURE THAT RENDERER HASN'T BEEN DISPOSED.
-        fixed (CommandBuffer* pCommandBuffer = &_commandBuffer) {
-            _renderer.Vk.FreeCommandBuffers(_renderer.Device, _renderer.CommandPool, 1, pCommandBuffer);    
+        if (!_renderer.IsDisposed) {
+            _renderer.DeferDisposal(this);
         }
     }
 
@@ -150,6 +150,12 @@ public sealed class VulkanCommandEncoder<TRenderPass> : VulkanCommandEncoder, IV
     ~VulkanCommandEncoder()
     {
         ReleaseUnmanagedResources();
+    }
+
+    public void DeferredDispose()
+    {
+        CommandBuffer buffer = _commandBuffer;
+        _renderer.Vk.FreeCommandBuffers(_renderer.Device, _renderer.CommandPool, 1, in buffer);
     }
 
     private IUntypedShaderInstance? _currentShaderInstance;
@@ -169,7 +175,7 @@ public sealed class VulkanCommandEncoder<TRenderPass> : VulkanCommandEncoder, IV
         for (int i = 0; i < descriptorSets.Length; ++i) {
             IDescriptorSet descriptorSet = descriptorSets[i];
             VulkanDescriptorSet vulkanDescriptorSet = (VulkanDescriptorSet)descriptorSet;
-            DescriptorSet handle = vulkanDescriptorSet.DescriptorSet;
+            DescriptorSet handle = vulkanDescriptorSet.GetDescriptorSetForCurrentFrame();
             // TODO: Get smart and find a way to call this once to bind all descriptor sets without churning garbage.
             unsafe {
                 vk.CmdBindDescriptorSets(_commandBuffer, PipelineBindPoint.Graphics, shaderInstanceBacking.Shader.PipelineLayout, (uint)i, 1, in handle, dynamicOffsetCount: 0, null);    

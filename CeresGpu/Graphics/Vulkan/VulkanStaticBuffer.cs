@@ -28,14 +28,14 @@ public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer, IDef
         // Release unmanaged resources here.
         Vk vk = _renderer.Vk;
         unsafe {
-            if (_memory.Handle != 0) {
-                vk.FreeMemory(_renderer.Device, _memory, null);
-                _memory = default;
-            }
-
             if (_buffer.Handle != 0) {
                 vk.DestroyBuffer(_renderer.Device, _buffer, null);
                 _buffer = default;
+            }
+            
+            if (_memory.Handle != 0) {
+                vk.FreeMemory(_renderer.Device, _memory, null);
+                _memory = default;
             }
         }
     }

@@ -11,20 +11,29 @@ namespace CeresGpu.Graphics.Vulkan;
 ///         * The image is transitioned to SHADER_SAMPLE_OPTIMAL layout at the end of the pass's buffer, with pipeline
 ///           barrier to make sure render target can be used as a sample-able texture. 
 /// </summary>
-public sealed class VulkanRenderTarget : IRenderTarget
+public sealed class VulkanRenderTarget : IVulkanRenderTarget, IRenderTarget
 {
     public uint Width { get; }
     public uint Height { get; }
-
-    public readonly Image[] ImageByWorkingFrame;
-    public readonly ImageView[] ImageViewByWorkingFrame;
     
-    public unsafe VulkanRenderTarget(VulkanRenderer renderer, Format format, uint width, uint height, ImageUsageFlags usage, ImageAspectFlags aspectMask)
+    public bool IsColor { get; }
+    public ColorFormat ColorFormat { get; }
+    public DepthStencilFormat DepthStencilFormat { get; }
+
+    private readonly Image[] ImageByWorkingFrame;
+    private readonly ImageView[] ImageViewByWorkingFrame;
+    
+    public unsafe VulkanRenderTarget(VulkanRenderer renderer, bool isColor, ColorFormat colorFormat, DepthStencilFormat depthStencilFormat, uint width, uint height, ImageUsageFlags usage, ImageAspectFlags aspectMask)
     {
         ImageByWorkingFrame = new Image[renderer.FrameCount];
         
         Width = width;
         Height = height;
+        IsColor = isColor;
+        ColorFormat = colorFormat;
+        DepthStencilFormat = depthStencilFormat;
+
+        Format format = colorFormat.ToVkFormat();
         
         // Create images for each working frame!
 
@@ -149,6 +158,11 @@ public sealed class VulkanRenderTarget : IRenderTarget
             renderer.Vk.CreateImageView(renderer.Device, in imageViewCreateInfo, null, out ImageViewByWorkingFrame[i])
                 .AssertSuccess("Failed to create image view");
         }
+    }
+
+    public ImageView GetImageViewForWorkingFrame(int workingFrame)
+    {
+        return ImageViewByWorkingFrame[workingFrame];
     }
 
     private void ReleaseUnmanagedResources()
