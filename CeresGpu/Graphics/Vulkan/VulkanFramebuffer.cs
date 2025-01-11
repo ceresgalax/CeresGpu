@@ -118,13 +118,13 @@ public class VulkanFramebuffer : IMutableFramebuffer
             for (int colorIndex = 0; colorIndex < _passBacking.Definition.ColorAttachments.Length; ++colorIndex) {
                 // TODO: Should we assert earlier that all color attachments have been set before we attempt to 
                 //  use this framebuffer again after calling any of the mutating methods? 
-                attachmentViews[colorIndex] = _colorAttachments[colorIndex].RenderTarget?.GetImageViewForWorkingFrame(_renderer.WorkingFrame) ?? default;
+                attachmentViews[colorIndex] = _colorAttachments[colorIndex].RenderTarget?.GetImageViewForWorkingFrame() ?? default;
             }
 
             if (_passBacking.Definition.DepthStencilAttachment != null) {
                 // TODO: Should we assert earlier that the depth stencil attachment has been set before we attempt to 
                 //  use this framebuffer again after calling any of the mutating methods? 
-                attachmentViews[^1] = _depthStencilAttachment?.GetImageViewForWorkingFrame(_renderer.WorkingFrame) ?? default;
+                attachmentViews[^1] = _depthStencilAttachment?.GetImageViewForWorkingFrame() ?? default;
             }
             
             unsafe {

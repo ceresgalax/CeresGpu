@@ -13,18 +13,21 @@ namespace CeresGpu.Graphics.Vulkan;
 /// </summary>
 public sealed class VulkanRenderTarget : IVulkanRenderTarget, IRenderTarget
 {
+    private readonly VulkanRenderer _renderer;
+
+    private readonly Image[] ImageByWorkingFrame;
+    private readonly ImageView[] ImageViewByWorkingFrame;
+    
     public uint Width { get; }
     public uint Height { get; }
     
     public bool IsColor { get; }
     public ColorFormat ColorFormat { get; }
     public DepthStencilFormat DepthStencilFormat { get; }
-
-    private readonly Image[] ImageByWorkingFrame;
-    private readonly ImageView[] ImageViewByWorkingFrame;
     
     public unsafe VulkanRenderTarget(VulkanRenderer renderer, bool isColor, ColorFormat colorFormat, DepthStencilFormat depthStencilFormat, uint width, uint height, ImageUsageFlags usage, ImageAspectFlags aspectMask)
     {
+        _renderer = renderer;
         ImageByWorkingFrame = new Image[renderer.FrameCount];
         
         Width = width;
@@ -160,9 +163,9 @@ public sealed class VulkanRenderTarget : IVulkanRenderTarget, IRenderTarget
         }
     }
 
-    public ImageView GetImageViewForWorkingFrame(int workingFrame)
+    public ImageView GetImageViewForWorkingFrame()
     {
-        return ImageViewByWorkingFrame[workingFrame];
+        return ImageViewByWorkingFrame[_renderer.WorkingFrame];
     }
 
     private void ReleaseUnmanagedResources()

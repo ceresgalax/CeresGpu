@@ -10,8 +10,6 @@ using DescriptorType = Silk.NET.Vulkan.DescriptorType;
 
 namespace CeresGpu.Graphics.Vulkan;
 
-public unsafe delegate Result CreateWindowSurfaceDelegate(Instance instance, AllocationCallbacks* allocator, out SurfaceKHR surface);
-
 public sealed class VulkanRenderer : IRenderer
 {
     public uint UniqueFrameId { get; }
@@ -29,6 +27,10 @@ public sealed class VulkanRenderer : IRenderer
     public readonly SwapchainKHR Swapchain;
     public readonly CommandPool CommandPool;
 
+    private readonly Semaphore[] _acquireImageSemaphores;
+    private readonly Semaphore[] _presentationSemaphores;
+    // TODO: ADD FENCES FOR PRESENTATION
+
     private readonly VulkanSwapchainRenderTarget _swapchainRenderTarget;
         
     private readonly Dictionary<Type, VulkanPassBacking> _passBackings = [];
@@ -37,6 +39,7 @@ public sealed class VulkanRenderer : IRenderer
     public readonly DescriptorPoolManager DescriptorPoolManager;
 
     private CommandBuffer _preFrameCommandBuffer;
+    private CommandBuffer _postFrameCommandBuffer;
     
     private readonly List<IDeferredDisposable>[] _deferedDisposableByWorkingFrame;
 
@@ -54,6 +57,8 @@ public sealed class VulkanRenderer : IRenderer
 
     public int FrameCount { get; private set; }
     public int WorkingFrame { get; private set; }
+    
+    public int CurrentFrameSwapchainImageIndex { get; private set; }
     
     public bool IsDisposed { get; private set; }
 
@@ -488,31 +493,59 @@ public sealed class VulkanRenderer : IRenderer
         ]);
         
         //
-        // Prepare the first pre-frame command buffer.
+        // Create other objects needed for renderer
         //
-        PreparePreFrameCommandBuffer();
+        SemaphoreCreateInfo semaphoreCreateInfo = new(
+            sType: StructureType.SemaphoreCreateInfo,
+            pNext: null,
+            flags: SemaphoreCreateFlags.None
+        );
+        _acquireImageSemaphores = new Semaphore[FrameCount];
+        for (int i = 0; i < _acquireImageSemaphores.Length; ++i) {
+            Vk.CreateSemaphore(Device, in semaphoreCreateInfo, null, out _acquireImageSemaphores[i])
+                .AssertSuccess("Failed to create semaphore");    
+        }
+
+        _presentationSemaphores = new Semaphore[FrameCount];
+        for (int i = 0; i < _presentationSemaphores.Length; ++i) {
+            Vk.CreateSemaphore(Device, in semaphoreCreateInfo, null, out _presentationSemaphores[i])
+                .AssertSuccess("Failed to create semaphore");
+        }
+
+        //
+        // Prepare the first first frame.
+        //
         _encoderListStart.ResetAsFront(_encoderListEnd);
+        NewFrame();
         
         //
-        // Create some fallback objects
+        // Create some fallback objects after all initialization is complete, and we are in a frame.
         //
         FallbackTexture = (VulkanTexture)RendererUtil.CreateFallbackTexture(this);
         FallbackSampler = (VulkanSampler)CreateSampler(default);
     }
 
-    private unsafe void PreparePreFrameCommandBuffer()
+    private unsafe void PreparePreAndPostFrameCommandBuffer()
     {
         // TODO: How do we free this buffer?
+        // Ideally we could just release the buffer after each frame and re-use it?
+
+        Span<CommandBuffer> createdCommandBuffers = stackalloc CommandBuffer[2];
         
         CommandBufferAllocateInfo allocateInfo = new(
             sType: StructureType.CommandBufferAllocateInfo,
             pNext: null,
             commandPool: CommandPool,
             level: CommandBufferLevel.Primary,
-            commandBufferCount: 1
+            commandBufferCount: (uint)createdCommandBuffers.Length
         );
-        Vk.AllocateCommandBuffers(Device, in allocateInfo, out _preFrameCommandBuffer)
-            .AssertSuccess("Failed to allocate pre-frame command buffer.");
+        fixed (CommandBuffer* pCommandBuffers = createdCommandBuffers) {
+            Vk.AllocateCommandBuffers(Device, in allocateInfo, pCommandBuffers)
+                .AssertSuccess("Failed to allocate pre-frame command buffer.");    
+        }
+
+        _preFrameCommandBuffer = createdCommandBuffers[0];
+        _postFrameCommandBuffer = createdCommandBuffers[1];
 
         CommandBufferBeginInfo beginInfo = new(
             sType: StructureType.CommandBufferBeginInfo,
@@ -522,6 +555,8 @@ public sealed class VulkanRenderer : IRenderer
         );
         Vk.BeginCommandBuffer(_preFrameCommandBuffer, in beginInfo)
             .AssertSuccess("Failed to begin recording pre-frame command buffer.");
+        Vk.BeginCommandBuffer(_postFrameCommandBuffer, in beginInfo)
+            .AssertSuccess("Failed to begin recording post-frame command buffer.");
     }
 
     internal void DeferDisposal(IDeferredDisposable disposable)
@@ -662,27 +697,21 @@ public sealed class VulkanRenderer : IRenderer
     
     public unsafe void Present(float minimumElapsedSeocnds)
     {
-        // Submit the pre-frame command buffer first.
         Vk.EndCommandBuffer(_preFrameCommandBuffer);
-        CommandBuffer preFrameCommandBuffer = _preFrameCommandBuffer;
-        SubmitInfo preFrameCommandsSubmitInfo = new(
-            sType: StructureType.SubmitInfo,
-            pNext: null,
-            waitSemaphoreCount: 0,
-            pWaitSemaphores: null,
-            pWaitDstStageMask: null,
-            commandBufferCount: 1,
-            pCommandBuffers: &preFrameCommandBuffer,
-            signalSemaphoreCount: 0,
-            pSignalSemaphores: null
-        );
-        Vk.QueueSubmit(GraphicsQueue, 1, in preFrameCommandsSubmitInfo, default);
+        Vk.EndCommandBuffer(_postFrameCommandBuffer);
+
+        int numCommandBuffersToSubmit = _passesToSubmit.Count + 2;
         
         // Gather the command buffers in order of submission
-        if (_reusedCommandBufferList.Length < _passesToSubmit.Count) {
+        
+        if (_reusedCommandBufferList.Length < numCommandBuffersToSubmit) {
             // 64 is arbitrary. Seems like a nice size to grow by.
-            _reusedCommandBufferList = new CommandBuffer[AlignUtil.AlignUp((ulong)_passesToSubmit.Count, 64)];  
+            _reusedCommandBufferList = new CommandBuffer[AlignUtil.AlignUp((ulong)numCommandBuffersToSubmit, 64)];  
         }
+        
+        _reusedCommandBufferList[0] = _preFrameCommandBuffer;
+        _reusedCommandBufferList[numCommandBuffersToSubmit - 1] = _postFrameCommandBuffer;
+        
         
         VulkanCommandEncoder? currentEncoder = _encoderListStart.Next;
         for (int i = 0, ilen = _passesToSubmit.Count; i < ilen; ++i) {
@@ -693,22 +722,25 @@ public sealed class VulkanRenderer : IRenderer
             // Finish recording if it wasn't finished already.
             currentEncoder.Finish();
 
-            _reusedCommandBufferList[i] = currentEncoder.CommandBuffer;
+            _reusedCommandBufferList[i + 1] = currentEncoder.CommandBuffer;
             currentEncoder = currentEncoder.Next;
         }
 
         // Submit the passes
+        Semaphore acquireImageSemaphore = _acquireImageSemaphores[WorkingFrame];
+        PipelineStageFlags acquireImageWaitStage = PipelineStageFlags.ColorAttachmentOutputBit;
+        Semaphore presentSemaphore = _presentationSemaphores[WorkingFrame];
         fixed (CommandBuffer* pCommandBuffers = _reusedCommandBufferList) {
             SubmitInfo submitInfo = new SubmitInfo(
                 sType: StructureType.SubmitInfo,
                 pNext: null,
-                waitSemaphoreCount: 0,
-                pWaitSemaphores: null,
-                pWaitDstStageMask: null,
-                commandBufferCount: (uint)_passesToSubmit.Count,
+                waitSemaphoreCount: 1,
+                pWaitSemaphores: &acquireImageSemaphore,
+                pWaitDstStageMask: &acquireImageWaitStage,
+                commandBufferCount: (uint)numCommandBuffersToSubmit,
                 pCommandBuffers: pCommandBuffers,
-                signalSemaphoreCount: 0,
-                pSignalSemaphores: null
+                signalSemaphoreCount: 1,
+                pSignalSemaphores: &presentSemaphore
             );
             Vk.QueueSubmit(GraphicsQueue, 1, in submitInfo, default)
                 .AssertSuccess("Failed to submit command buffers to graphics queue.");
@@ -719,7 +751,27 @@ public sealed class VulkanRenderer : IRenderer
             encoder.Dispose();
         }
 
+        //
+        // Present the frame
+        //
+        SwapchainKHR swapchain = Swapchain;
+        uint imageToPresent = (uint)CurrentFrameSwapchainImageIndex;
+        PresentInfoKHR presentInfo = new(
+            sType: StructureType.PresentInfoKhr,
+            pNext: null,
+            waitSemaphoreCount: 1,
+            pWaitSemaphores: &presentSemaphore,
+            swapchainCount: 1,
+            pSwapchains: &swapchain,
+            pImageIndices: &imageToPresent,
+            pResults: null
+        );
+        VkKhrSwapchain.QueuePresent(PresentationQueue, in presentInfo)
+            .AssertSuccess("Failed to present");
+        
+        //
         // Prepare next frame
+        //
         _passesToSubmit.Clear();
         _encoderListStart.ResetAsFront(_encoderListEnd);
 
@@ -732,7 +784,86 @@ public sealed class VulkanRenderer : IRenderer
         }
         deferredDisposables.Clear();
 
-        PreparePreFrameCommandBuffer();
+        NewFrame();
+    }
+
+    private unsafe void NewFrame()
+    {
+        PreparePreAndPostFrameCommandBuffer();
+        
+        // Acquire the next swapchain image
+        uint swapchainImageIndex = 0;
+        VkKhrSwapchain.AcquireNextImage(Device, Swapchain, UInt64.MaxValue, _acquireImageSemaphores[WorkingFrame], default, ref swapchainImageIndex)
+            .AssertSuccess("Failed to acquire next image");
+        CurrentFrameSwapchainImageIndex = (int)swapchainImageIndex;
+
+        // Add transition the current frame swapchain image in our pre-frame buffer.
+        ImageMemoryBarrier beginingImageBarrier = new(
+            sType: StructureType.ImageMemoryBarrier,
+            pNext: null,
+            srcAccessMask: AccessFlags.None,
+            dstAccessMask: AccessFlags.ColorAttachmentWriteBit,
+            oldLayout: ImageLayout.Undefined,
+            newLayout: ImageLayout.ColorAttachmentOptimal,
+            srcQueueFamilyIndex: Vk.QueueFamilyIgnored,
+            dstQueueFamilyIndex: Vk.QueueFamilyIgnored,
+            image: _swapchainRenderTarget._images[CurrentFrameSwapchainImageIndex],
+            subresourceRange: new ImageSubresourceRange(
+                ImageAspectFlags.ColorBit,
+                baseMipLevel: 0,
+                levelCount: 1,
+                baseArrayLayer: 0,
+                layerCount: 1
+            )
+        );
+        Vk.CmdPipelineBarrier(
+            commandBuffer: _preFrameCommandBuffer,
+            srcStageMask: PipelineStageFlags.TopOfPipeBit,
+            dstStageMask: PipelineStageFlags.ColorAttachmentOutputBit,
+            dependencyFlags: DependencyFlags.None,
+            memoryBarrierCount: 0,
+            pMemoryBarriers: null,
+            imageMemoryBarrierCount: 1,
+            pImageMemoryBarriers: &beginingImageBarrier,
+            bufferMemoryBarrierCount: 0,
+            pBufferMemoryBarriers: null
+        );
+        
+        // Schedule the swap chain image to be transitioned to the PresentSrc layout at the very end of this frame before presenting.
+        ImageMemoryBarrier endingImageBarrier = new(
+            sType: StructureType.ImageMemoryBarrier,
+            pNext: null,
+            srcAccessMask: AccessFlags.ColorAttachmentWriteBit,
+            // I think this is correct.. Presentation doesn't occur until the semaphore passed to submit has been signaled,
+            // and I think Vulkan has made all memory related to this image visible by then? 
+            // Besides, I don't know of an access mask flag that is appropriate for "presentation read"
+            dstAccessMask: AccessFlags.None, 
+            oldLayout: ImageLayout.ColorAttachmentOptimal,
+            newLayout: ImageLayout.PresentSrcKhr,
+            srcQueueFamilyIndex: Vk.QueueFamilyIgnored,
+            dstQueueFamilyIndex: Vk.QueueFamilyIgnored,
+            image: _swapchainRenderTarget._images[CurrentFrameSwapchainImageIndex],
+            subresourceRange: new ImageSubresourceRange(
+                ImageAspectFlags.ColorBit,
+                baseMipLevel: 0,
+                levelCount: 1,
+                baseArrayLayer: 0,
+                layerCount: 1
+            )
+        );
+        Vk.CmdPipelineBarrier(
+            commandBuffer: _postFrameCommandBuffer,
+            srcStageMask: PipelineStageFlags.ColorAttachmentOutputBit,
+            dstStageMask: PipelineStageFlags.BottomOfPipeBit,
+            dependencyFlags: DependencyFlags.None,
+            memoryBarrierCount: 0,
+            pMemoryBarriers: null,
+            imageMemoryBarrierCount: 1,
+            pImageMemoryBarriers: &endingImageBarrier,
+            bufferMemoryBarrierCount: 0,
+            pBufferMemoryBarriers: null
+        );
+        
         
     }
 
