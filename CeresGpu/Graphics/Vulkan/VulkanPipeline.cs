@@ -1,20 +1,19 @@
 ﻿using System;
+using System.Collections.Generic;
 using CeresGpu.Graphics.Shaders;
 using Silk.NET.Vulkan;
 using VkBlendOp = Silk.NET.Vulkan.BlendOp;
 
 namespace CeresGpu.Graphics.Vulkan;
 
-public class VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout> : IPipeline<TRenderPass, TShader, TVertexBufferLayout>
-    where TRenderPass : IRenderPass
+public class VulkanPipeline<TShader, TVertexBufferLayout> : IPipeline<TShader, TVertexBufferLayout>, IDeferredDisposable
     where TShader : IShader
     where TVertexBufferLayout : IVertexBufferLayout<TShader>
 {
     private readonly VulkanRenderer _renderer;
-
-    public readonly Pipeline Pipeline;
+    private readonly Dictionary<VulkanPassBacking, Pipeline> _pipelineByRenderPass = [];
     
-    public unsafe VulkanPipeline(VulkanRenderer renderer, PipelineDefinition definition, VulkanPassBacking pass, TShader shader, TVertexBufferLayout vertexBufferLayout)
+    public unsafe VulkanPipeline(VulkanRenderer renderer, PipelineDefinition definition, ReadOnlySpan<VulkanPassBacking> compatiblePasses, TShader shader, TVertexBufferLayout vertexBufferLayout)
     {
         _renderer = renderer;
         Vk vk = renderer.Vk;
@@ -30,10 +29,10 @@ public class VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout> : IPipeli
 
         PipelineColorBlendAttachmentState[] colorBlendAttachmentStates = CreateColorBlendAttachmentStates(definition);
 
-        Span<DynamicState> dynamicStates = stackalloc DynamicState[] {
+        Span<DynamicState> dynamicStates = [
             DynamicState.Viewport,
             DynamicState.Scissor
-        };
+        ];
         
         fixed (VertexInputBindingDescription* pVertexBindingDescriptions = vertexBindingDescriptions)
         fixed (VertexInputAttributeDescription* pVertexAttributeDescriptions = vertexAttributeDescriptions) 
@@ -42,7 +41,7 @@ public class VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout> : IPipeli
         fixed (byte* vertName = "main"u8)
         fixed (byte* fragName = "main"u8) {
 
-            Span<PipelineShaderStageCreateInfo> stages = stackalloc PipelineShaderStageCreateInfo[] {
+            Span<PipelineShaderStageCreateInfo> stages = [
                 new PipelineShaderStageCreateInfo(
                     StructureType.PipelineShaderStageCreateInfo,
                     pNext: null,
@@ -61,7 +60,7 @@ public class VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout> : IPipeli
                     pName: fragName,
                     pSpecializationInfo: null
                 )
-            };
+            ];
             
             PipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = new(
                 StructureType.PipelineInputAssemblyStateCreateInfo,
@@ -171,34 +170,44 @@ public class VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout> : IPipeli
                 dynamicStateCount: (uint)dynamicStates.Length,
                 pDynamicStates: pDynamicStates
             );
-            
-            
 
             fixed (PipelineShaderStageCreateInfo* pStages = stages) {
-                GraphicsPipelineCreateInfo createInfo = new(
-                    StructureType.GraphicsPipelineCreateInfo,
-                    pNext: null,
-                    flags: PipelineCreateFlags.None,
-                    stageCount: (uint)stages.Length,
-                    pStages: pStages, 
-                    pInputAssemblyState: &inputAssemblyStateCreateInfo,
-                    pVertexInputState: &vertexInputStateCreateInfo,
-                    pTessellationState: null,
-                    pViewportState: &viewportStateCreateInfo,
-                    pRasterizationState: &rasterizationStateCreateInfo,
-                    pMultisampleState: &multisampleStateCreateInfo,
-                    pDepthStencilState: &depthStencilStateCreateInfo,
-                    pColorBlendState: &colorBlendStateCreateInfo,
-                    pDynamicState: &dynamicStateCreateInfo,
-                    layout: shaderBacking.PipelineLayout,
-                    renderPass: pass.RenderPass,
-                    subpass: 0,
-                    basePipelineHandle: null,
-                    basePipelineIndex: -1
-                );
+                GraphicsPipelineCreateInfo[] createInfos = new GraphicsPipelineCreateInfo[compatiblePasses.Length];
+                Pipeline[] pipelines = new Pipeline[compatiblePasses.Length];
+                
+                for (int i = 0; i < compatiblePasses.Length; ++i) {
+                    createInfos[i] = new GraphicsPipelineCreateInfo(
+                        StructureType.GraphicsPipelineCreateInfo,
+                        pNext: null,
+                        flags: PipelineCreateFlags.None,
+                        stageCount: (uint)stages.Length,
+                        pStages: pStages,
+                        pInputAssemblyState: &inputAssemblyStateCreateInfo,
+                        pVertexInputState: &vertexInputStateCreateInfo,
+                        pTessellationState: null,
+                        pViewportState: &viewportStateCreateInfo,
+                        pRasterizationState: &rasterizationStateCreateInfo,
+                        pMultisampleState: &multisampleStateCreateInfo,
+                        pDepthStencilState: &depthStencilStateCreateInfo,
+                        pColorBlendState: &colorBlendStateCreateInfo,
+                        pDynamicState: &dynamicStateCreateInfo,
+                        layout: shaderBacking.PipelineLayout,
+                        renderPass: compatiblePasses[i].RenderPass,
+                        subpass: 0,
+                        basePipelineHandle: null,
+                        basePipelineIndex: -1
+                    );
+                }
 
-                vk.CreateGraphicsPipelines(renderer.Device, default, 1, &createInfo, null, out Pipeline)
-                    .AssertSuccess("Failed to create pipeline");
+                fixed (GraphicsPipelineCreateInfo* pCreateInfos = createInfos) 
+                fixed (Pipeline *pPipelines = pipelines) {
+                    vk.CreateGraphicsPipelines(renderer.Device, default, 1, pCreateInfos, null, pPipelines)
+                        .AssertSuccess("Failed to create pipeline");
+                }
+
+                for (int i = 0; i < compatiblePasses.Length; ++i) {
+                    _pipelineByRenderPass[compatiblePasses[i]] = pipelines[i];
+                }
             }
         }
     }
@@ -400,13 +409,17 @@ public class VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout> : IPipeli
             _ => throw new ArgumentOutOfRangeException(nameof(op), op, null)
         };
     }
-    
-    private unsafe void ReleaseUnmanagedResources()
+
+    public bool GetPipelineForPassBacking(VulkanPassBacking passBacking, out Pipeline pipeline)
     {
-        // TODO: Dispose needs to do defered disposal by placing this managed object into a queue to be deleted
-        //  after we're sure no recording render buffers could possible be referencing this pipeline.
-        
-        _renderer.Vk.DestroyPipeline(_renderer.Device, Pipeline, null);
+        return _pipelineByRenderPass.TryGetValue(passBacking, out pipeline);
+    }
+    
+    private void ReleaseUnmanagedResources()
+    {
+        if (!_renderer.IsDisposed) {
+            _renderer.DeferDisposal(this);
+        }
     }
 
     public void Dispose()
@@ -418,5 +431,12 @@ public class VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout> : IPipeli
     ~VulkanPipeline()
     {
         ReleaseUnmanagedResources();
+    }
+
+    public unsafe void DeferredDispose()
+    {
+        foreach (Pipeline pipeline in _pipelineByRenderPass.Values) {
+            _renderer.Vk.DestroyPipeline(_renderer.Device, pipeline, null);
+        }
     }
 }

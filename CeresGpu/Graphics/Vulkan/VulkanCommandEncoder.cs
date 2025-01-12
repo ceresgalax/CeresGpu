@@ -5,52 +5,25 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace CeresGpu.Graphics.Vulkan;
 
-interface IVulkanCommandEncoder : IDisposable
+//interface IVulkanCommandEncoder : IDisposable
+
+public interface IVulkanCommandEncoder
 {
-    //CommandBuffer CommandBuffer { get; }
+    IVulkanCommandEncoder? Prev { get; set; }
+    IVulkanCommandEncoder? Next { get; set; }
+    
+    CommandBuffer CommandBuffer { get; }
+    void Finish();
 }
 
-public abstract class VulkanCommandEncoder
+public class VulkanCommandEncoderAnchor : IVulkanCommandEncoder
 {
-    public abstract CommandBuffer CommandBuffer { get; }
+    public IVulkanCommandEncoder? Prev { get; set; }
+    public IVulkanCommandEncoder? Next { get; set; }
     
-    public VulkanCommandEncoder? Prev { get; protected set; }
-    public VulkanCommandEncoder? Next { get; protected set; }
-
-    public void Remove()
-    {
-        if (Prev != null || Next != null) {
-            if (Prev != null) {
-                Prev.Next = Next;
-            }
-            if (Next != null) {
-                Next.Prev = Prev;
-            }
-        }
-    }
+    public CommandBuffer CommandBuffer => throw new NotSupportedException();
     
-    public void InsertBefore(VulkanCommandEncoder other)
-    {
-        Prev = other.Prev;
-        other.Prev = this;
-        Next = other;
-    }
-
-    public void InsertAfter(VulkanCommandEncoder other)
-    {
-        Next = other.Next;
-        other.Next = this;
-        Prev = other;
-    }
-
-    public abstract void Finish();
-}
-
-public class VulkanCommandEncoderAnchor : VulkanCommandEncoder
-{
-    public override CommandBuffer CommandBuffer => throw new NotSupportedException();
-    
-    public override void Finish()
+    public void Finish()
     {
         // This should not be called on the anchors.
         throw new NotSupportedException();
@@ -63,19 +36,21 @@ public class VulkanCommandEncoderAnchor : VulkanCommandEncoder
     }
 }
 
-public sealed class VulkanCommandEncoder<TRenderPass> : VulkanCommandEncoder, IVulkanCommandEncoder, IPass<TRenderPass>, IDeferredDisposable 
-    where TRenderPass : IRenderPass
+public sealed class VulkanCommandEncoder : IVulkanCommandEncoder, IPass, IDeferredDisposable 
 {
     private readonly VulkanRenderer _renderer;
+    private readonly VulkanPassBacking _passBacking;
     private readonly CommandBuffer _commandBuffer;
 
-    public override CommandBuffer CommandBuffer => _commandBuffer;
+    public CommandBuffer CommandBuffer => _commandBuffer;
 
     private bool _isFinished;
-
+    
     public unsafe VulkanCommandEncoder(VulkanRenderer renderer, VulkanPassBacking passBacking, VulkanFramebuffer framebuffer)
     {
         _renderer = renderer;
+        _passBacking = passBacking;
+        
         Vk vk = renderer.Vk;
 
         // TODO: NEED TO MAKE SURE WE RE-USE UNDERLYING COMMAND BUFFERS
@@ -134,7 +109,7 @@ public sealed class VulkanCommandEncoder<TRenderPass> : VulkanCommandEncoder, IV
         vk.CmdSetScissor(_commandBuffer, 0, 1, in scissor);
     }
 
-    private unsafe void ReleaseUnmanagedResources()
+    private void ReleaseUnmanagedResources()
     {
         if (!_renderer.IsDisposed) {
             _renderer.DeferDisposal(this);
@@ -158,16 +133,49 @@ public sealed class VulkanCommandEncoder<TRenderPass> : VulkanCommandEncoder, IV
         _renderer.Vk.FreeCommandBuffers(_renderer.Device, _renderer.CommandPool, 1, in buffer);
     }
 
+    public IVulkanCommandEncoder? Prev { get; set; }
+    public IVulkanCommandEncoder? Next { get; set; }
+
+    public void Remove()
+    {
+        if (Prev != null || Next != null) {
+            if (Prev != null) {
+                Prev.Next = Next;
+            }
+            if (Next != null) {
+                Next.Prev = Prev;
+            }
+        }
+    }
+    
+    public void InsertBefore(IVulkanCommandEncoder other)
+    {
+        Prev = other.Prev;
+        other.Prev = this;
+        Next = other;
+    }
+
+    public void InsertAfter(IVulkanCommandEncoder other)
+    {
+        Next = other.Next;
+        other.Next = this;
+        Prev = other;
+    }
+    
     private IUntypedShaderInstance? _currentShaderInstance;
     
-    public void SetPipeline<TShader, TVertexBufferLayout>(IPipeline<TRenderPass, TShader, TVertexBufferLayout> pipeline, IShaderInstance<TShader, TVertexBufferLayout> shaderInstance) where TShader : IShader where TVertexBufferLayout : IVertexBufferLayout<TShader>
+    public void SetPipeline<TShader, TVertexBufferLayout>(IPipeline<TShader, TVertexBufferLayout> pipeline, IShaderInstance<TShader, TVertexBufferLayout> shaderInstance) where TShader : IShader where TVertexBufferLayout : IVertexBufferLayout<TShader>
     {
-        if (pipeline is not VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout> vulkanPipeline) {
+        // TODO: Verify that pipeline is compatible with this renderpass.
+        // TODO: ALSO THIS VERIFICATION SHOULD HAPPEN FOR ALL RENDERER IMPLS OF IPASS
+        
+        if (pipeline is not VulkanPipeline<TShader, TVertexBufferLayout> vulkanPipeline) {
             throw new ArgumentException("Incompatible pipeline backend type", nameof(pipeline));
         }
         
         Vk vk = _renderer.Vk;
-        vk.CmdBindPipeline(_commandBuffer, PipelineBindPoint.Graphics, vulkanPipeline.Pipeline);
+        vulkanPipeline.GetPipelineForPassBacking(_passBacking, out Pipeline vkPipeline);
+        vk.CmdBindPipeline(_commandBuffer, PipelineBindPoint.Graphics, vkPipeline);
 
         VulkanShaderInstanceBacking shaderInstanceBacking = (VulkanShaderInstanceBacking)shaderInstance.Backing;
 
@@ -187,7 +195,7 @@ public sealed class VulkanCommandEncoder<TRenderPass> : VulkanCommandEncoder, IV
         RefreshPipeline();
     }
 
-    public override void Finish()
+    public void Finish()
     {
         if (_isFinished) {
             return;

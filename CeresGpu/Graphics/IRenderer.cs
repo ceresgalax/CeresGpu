@@ -28,12 +28,13 @@ namespace CeresGpu.Graphics
 
         void RegisterPassType<TRenderPass>(RenderPassDefinition definition) where TRenderPass : IRenderPass;
         
-        IPipeline<TRenderPass, TShader, TVertexBufferLayout> CreatePipeline<TRenderPass, TShader, TVertexBufferLayout>(
+        IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(
             PipelineDefinition definition,
+            ReadOnlySpan<Type> supportedRenderPasses,
             TShader shader,
             TVertexBufferLayout vertexBufferLayout
         )
-            where TRenderPass : IRenderPass
+            //where TRenderPass : IRenderPass
             where TShader : IShader
             where TVertexBufferLayout : IVertexBufferLayout<TShader>;
 
@@ -49,17 +50,9 @@ namespace CeresGpu.Graphics
         /// Create a pass which renders to the given attachments.
         /// </summary>
         /// <returns>The created pass</returns>
-        IPass<TRenderPass> CreatePassEncoder<TRenderPass>(
+        IPass CreatePassEncoder<TRenderPass>(
             TRenderPass pass,
             IPass? occursBefore = null
-
-            // All of this is retrieved from the TRenderPass instance:
-            // ReadOnlySpan<ColorAttachment> colorAttachments,
-            // ITexture? depthStencilAttachment,
-            // LoadAction depthLoadAction,
-            // double depthClearValue,
-            // LoadAction stencilLoadAction,
-            // uint stenclClearValue 
         )
             where TRenderPass : IRenderPass;
 

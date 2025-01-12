@@ -133,16 +133,16 @@ namespace CeresGpu.Graphics.OpenGL
             throw new NotImplementedException();
         }
 
-        public IPipeline<TRenderPass, TShader, TVertexBufferLayout> CreatePipeline<TRenderPass, TShader, TVertexBufferLayout>(
+        public IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(
             PipelineDefinition definition,
+            ReadOnlySpan<Type> compatiblePasses,
             TShader shader,
             TVertexBufferLayout vertexBufferLayout
         )
-            where TRenderPass : IRenderPass
             where TShader : IShader
             where TVertexBufferLayout : IVertexBufferLayout<TShader>
         {
-            return new GLPipeline<TRenderPass, TShader, TVertexBufferLayout>(definition, shader, vertexBufferLayout);
+            return new GLPipeline<TShader, TVertexBufferLayout>(definition, shader, vertexBufferLayout);
         }
 
         public IFramebuffer CreateFramebuffer<TRenderPass>(ReadOnlySpan<IRenderTarget> colorAttachments, IRenderTarget? depthStencilAttachment) where TRenderPass : IRenderPass
@@ -165,7 +165,7 @@ namespace CeresGpu.Graphics.OpenGL
             throw new NotImplementedException();
         }
 
-        public IPass<TRenderPass> CreatePassEncoder<TRenderPass>(TRenderPass pass, IPass? occursBefore) where TRenderPass : IRenderPass
+        public IPass CreatePassEncoder<TRenderPass>(TRenderPass pass, IPass? occursBefore) where TRenderPass : IRenderPass
         {
             throw new NotImplementedException();
         }

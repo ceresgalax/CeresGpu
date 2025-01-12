@@ -46,7 +46,7 @@ public sealed class VulkanRenderer : IRenderer
     /// <summary>
     /// Contains the passes that are to be submitted this frame.
     /// </summary>
-    private readonly HashSet<IVulkanCommandEncoder> _passesToSubmit = new();
+    private readonly HashSet<VulkanCommandEncoder> _passesToSubmit = new();
     
     // NOTE: These are just anchors, and are not to be submitted.
     private readonly VulkanCommandEncoderAnchor _encoderListStart = new();
@@ -620,31 +620,34 @@ public sealed class VulkanRenderer : IRenderer
         _passBackings.Add(typeof(TRenderPass), new VulkanPassBacking(this, definition));
     }
 
-    private VulkanPassBacking GetPassBackingOrThrow<TRenderPass>()
+    private VulkanPassBacking GetPassBackingOrThrow(Type passType)
     {
-        if (!_passBackings.TryGetValue(typeof(TRenderPass), out VulkanPassBacking? passBacking)) {
-            throw new InvalidOperationException(
-                $"Pass of type {typeof(TRenderPass)} has not been registered. You must call RegisterPassType first.");
+        if (!_passBackings.TryGetValue(passType, out VulkanPassBacking? passBacking)) {
+            throw new InvalidOperationException($"Pass of type {passType} has not been registered. You must call RegisterPassType first.");
         }
         return passBacking;
     }
     
-    public IPipeline<TRenderPass, TShader, TVertexBufferLayout> CreatePipeline<TRenderPass, TShader, TVertexBufferLayout>(
-        PipelineDefinition definition, 
+    public IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(
+        PipelineDefinition definition,
+        ReadOnlySpan<Type> compatiblePasses,
         TShader shader,
         TVertexBufferLayout vertexBufferLayout
     )
-        where TRenderPass : IRenderPass
         where TShader : IShader
         where TVertexBufferLayout : IVertexBufferLayout<TShader>
     {
-        VulkanPassBacking passBacking = GetPassBackingOrThrow<TRenderPass>();
-        return new VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout>(this, definition, passBacking, shader, vertexBufferLayout);
+        VulkanPassBacking[] compatiblePassBackings = new VulkanPassBacking[compatiblePasses.Length];
+        for (int i = 0; i < compatiblePasses.Length; ++i) {
+            compatiblePassBackings[i] = GetPassBackingOrThrow(compatiblePasses[i]);
+        }
+        
+        return new VulkanPipeline<TShader, TVertexBufferLayout>(this, definition, compatiblePassBackings, shader, vertexBufferLayout);
     }
 
     public IFramebuffer CreateFramebuffer<TRenderPass>(ReadOnlySpan<IRenderTarget> colorAttachments, IRenderTarget? depthStencilAttachment) where TRenderPass : IRenderPass
     {
-        VulkanPassBacking passBacking = GetPassBackingOrThrow<TRenderPass>();
+        VulkanPassBacking passBacking = GetPassBackingOrThrow(typeof(TRenderPass));
         return new VulkanFramebuffer(this, passBacking, colorAttachments, depthStencilAttachment);
     }
 
@@ -669,7 +672,7 @@ public sealed class VulkanRenderer : IRenderer
         return _swapchainRenderTarget;
     }
 
-    public IPass<TRenderPass> CreatePassEncoder<TRenderPass>(
+    public IPass CreatePassEncoder<TRenderPass>(
         TRenderPass pass,
         IPass? occursBefore
     )
@@ -679,9 +682,8 @@ public sealed class VulkanRenderer : IRenderer
             throw new ArgumentException("Backend type of pass is not compatible with this renderer.", nameof(pass));
         }
         
-        VulkanPassBacking passBacking = GetPassBackingOrThrow<TRenderPass>();
-        
-        VulkanCommandEncoder<TRenderPass> encoder = new(this, passBacking, vkFramebuffer);
+        VulkanPassBacking passBacking = GetPassBackingOrThrow(typeof(TRenderPass));
+        VulkanCommandEncoder encoder = new(this, passBacking, vkFramebuffer);
         
         if (occursBefore == null) {
             encoder.InsertAfter(_encoderListEnd.Prev!);
@@ -713,8 +715,7 @@ public sealed class VulkanRenderer : IRenderer
         _reusedCommandBufferList[0] = _preFrameCommandBuffer;
         _reusedCommandBufferList[numCommandBuffersToSubmit - 1] = _postFrameCommandBuffer;
         
-        
-        VulkanCommandEncoder? currentEncoder = _encoderListStart.Next;
+        IVulkanCommandEncoder? currentEncoder = _encoderListStart.Next;
         for (int i = 0, ilen = _passesToSubmit.Count; i < ilen; ++i) {
             if (currentEncoder == null) {
                 throw new InvalidOperationException("Unexpected end of command buffer list. (Likely a bug in CeresGpu)");
@@ -750,7 +751,7 @@ public sealed class VulkanRenderer : IRenderer
         }
         
         // Dispose all command encoders -- this will defer deletion of the underlying command buffers appropriately.
-        foreach (IVulkanCommandEncoder encoder in _passesToSubmit) {
+        foreach (VulkanCommandEncoder encoder in _passesToSubmit) {
             encoder.Dispose();
         }
 

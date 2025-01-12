@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using CeresGLFW;
@@ -104,16 +103,16 @@ namespace CeresGpu.Graphics.Metal
             throw new NotImplementedException();
         }
 
-        public IPipeline<TRenderPass, TShader, TVertexBufferLayout> CreatePipeline<TRenderPass, TShader, TVertexBufferLayout>(
+        public IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(
             PipelineDefinition definition,
+            ReadOnlySpan<Type> supportedRenderPasses,
             TShader shader,
             TVertexBufferLayout layout
         )
-            where TRenderPass : IRenderPass
             where TShader : IShader
             where TVertexBufferLayout : IVertexBufferLayout<TShader>
         {
-            return new MetalPipeline<TRenderPass, TShader, TVertexBufferLayout>(this, definition, shader, layout);
+            return new MetalPipeline<TShader, TVertexBufferLayout>(this, definition, shader, layout);
         }
 
         public IFramebuffer CreateFramebuffer<TRenderPass>(ReadOnlySpan<IRenderTarget> colorAttachments, IRenderTarget? depthStencilAttachment) where TRenderPass : IRenderPass
@@ -137,7 +136,7 @@ namespace CeresGpu.Graphics.Metal
             throw new NotImplementedException();
         }
 
-        public IPass<TRenderPass> CreatePassEncoder<TRenderPass>(TRenderPass pass, IPass? occursBefore) where TRenderPass : IRenderPass
+        public IPass CreatePassEncoder<TRenderPass>(TRenderPass pass, IPass? occursBefore) where TRenderPass : IRenderPass
         {
             throw new NotImplementedException();
         }

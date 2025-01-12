@@ -5,8 +5,7 @@ using CeresGpu.Graphics.Shaders;
 
 namespace CeresGpu.Graphics.OpenGL
 {
-    public sealed class GLPass<TRenderPass> : IPass<TRenderPass> 
-        where TRenderPass : IRenderPass
+    public sealed class GLPass : IPass 
     {
         private readonly GLRenderer _renderer;
 
@@ -28,7 +27,7 @@ namespace CeresGpu.Graphics.OpenGL
         }
         
         public void SetPipeline<TShader, TVertexBufferLayout>(
-            IPipeline<TRenderPass, TShader, TVertexBufferLayout> pipeline,
+            IPipeline<TShader, TVertexBufferLayout> pipeline,
             IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
         ) 
             where TShader : IShader

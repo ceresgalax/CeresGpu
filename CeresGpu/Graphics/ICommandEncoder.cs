@@ -7,6 +7,13 @@ namespace CeresGpu.Graphics
         ScissorRect CurrentDynamicScissor { get; }
         Viewport CurrentDynamicViewport { get; }
         
+        void SetPipeline<TShader, TVertexBufferLayout>(
+            IPipeline<TShader, TVertexBufferLayout> pipeline,
+            IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
+        )
+            where TShader : IShader
+            where TVertexBufferLayout : IVertexBufferLayout<TShader>;
+        
         /// <summary>
         /// Encode any changes made to the active shader instance set by
         /// <see cref="SetPipeline{TShader,TVertexBufferLayout}"/>.
@@ -24,16 +31,14 @@ namespace CeresGpu.Graphics
         void DrawIndexedUint(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
     }
     
-    public interface ICommandEncoder<TRenderPass> : ICommandEncoder
-        where TRenderPass : IRenderPass
-    {
-        void SetPipeline<TShader, TVertexBufferLayout>(
-            IPipeline<TRenderPass, TShader, TVertexBufferLayout> pipeline,
-            IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
-        )
-            where TShader : IShader
-            where TVertexBufferLayout : IVertexBufferLayout<TShader>;
-
-        
-    }
+    // public interface ICommandEncoder<TRenderPass> : ICommandEncoder
+    //     where TRenderPass : IRenderPass
+    // {
+    //     void SetPipeline<TShader, TVertexBufferLayout>(
+    //         IPipeline<TRenderPass, TShader, TVertexBufferLayout> pipeline,
+    //         IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
+    //     )
+    //         where TShader : IShader
+    //         where TVertexBufferLayout : IVertexBufferLayout<TShader>;
+    // }
 }

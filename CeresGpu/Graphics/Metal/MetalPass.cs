@@ -6,8 +6,7 @@ using CeresGpu.MetalBinding;
 
 namespace CeresGpu.Graphics.Metal
 {
-    public sealed class MetalPass<TRenderPass> : IPass<TRenderPass> 
-        where TRenderPass : IRenderPass
+    public sealed class MetalPass
     {
         private readonly MetalRenderer _renderer;
         private IntPtr _encoder;
@@ -61,7 +60,7 @@ namespace CeresGpu.Graphics.Metal
         private object? _previousPipeline;
 
         public void SetPipeline<TShader, TVertexBufferLayout>(
-            IPipeline<TRenderPass, TShader, TVertexBufferLayout> pipeline,
+            IPipeline<TShader, TVertexBufferLayout> pipeline,
             IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
         )
             where TShader : IShader
@@ -69,7 +68,7 @@ namespace CeresGpu.Graphics.Metal
         {
             CheckCurrent();
             
-            if (pipeline is not MetalPipeline<TRenderPass, TShader, TVertexBufferLayout> metalPipeline) {
+            if (pipeline is not MetalPipeline<TShader, TVertexBufferLayout> metalPipeline) {
                 throw new ArgumentException("Incompatible pipeline", nameof(pipeline));
             }
             if (shaderInstance.Backing is not MetalShaderInstanceBacking shaderInstanceBacking) {
