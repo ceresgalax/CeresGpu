@@ -116,17 +116,18 @@ namespace CeresGpu.Graphics.Metal
             return new MetalPipeline<TRenderPass, TShader, TVertexBufferLayout>(this, definition, shader, layout);
         }
 
-        public IMutableFramebuffer CreateFramebuffer<TRenderPass>() where TRenderPass : IRenderPass
+        public IFramebuffer CreateFramebuffer<TRenderPass>(ReadOnlySpan<IRenderTarget> colorAttachments, IRenderTarget? depthStencilAttachment) where TRenderPass : IRenderPass
         {
             throw new NotImplementedException();
         }
 
-        public IRenderTarget CreateRenderTarget(ColorFormat format, uint width, uint height)
+
+        public IRenderTarget CreateRenderTarget(ColorFormat format, bool matchSwapchainSize, uint width, uint height)
         {
             throw new NotImplementedException();
         }
 
-        public IRenderTarget CreateRenderTarget(DepthStencilFormat format, uint width, uint height)
+        public IRenderTarget CreateRenderTarget(DepthStencilFormat format, bool matchSwapchainSize, uint width, uint height)
         {
             throw new NotImplementedException();
         }

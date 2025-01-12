@@ -1,11 +1,52 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using Silk.NET.Vulkan;
+using ArgumentOutOfRangeException = System.ArgumentOutOfRangeException;
 
 namespace CeresGpu.Graphics.Vulkan;
 
-public class VulkanFramebuffer : IMutableFramebuffer
-    //where TRenderPass : IRenderPass
+
+struct HashableFramebufferPermutation : IEquatable<HashableFramebufferPermutation>
+{
+    private readonly int[] _indices = [];
+    private readonly int _hashCode;
+
+    public HashableFramebufferPermutation(int[] indices)
+    {
+        _indices = indices;
+
+        uint hashCode = 0;
+        for (int i = 0; i < _indices.Length; ++i) {
+            hashCode = (hashCode * 397) ^ (uint)_indices[i];
+        }
+
+        _hashCode = (int)hashCode;
+    }
+
+    public bool Equals(HashableFramebufferPermutation other)
+    {
+        if (_indices.Length != other._indices.Length) {
+            return false;
+        }
+        
+        for (int i = 0; i < _indices.Length; ++i) {
+            if (_indices[i] != other._indices[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public override int GetHashCode()
+    {
+        return _hashCode;
+    }
+}
+
+public class VulkanFramebuffer : IFramebuffer
 {
     private record struct ColorAttachment(IVulkanRenderTarget? RenderTarget, Vector4 ClearColor);
     
@@ -13,142 +54,213 @@ public class VulkanFramebuffer : IMutableFramebuffer
     private readonly VulkanPassBacking _passBacking;
     
     private readonly ColorAttachment[] _colorAttachments;
-    private IVulkanRenderTarget? _depthStencilAttachment;
+    private readonly IVulkanRenderTarget? _depthStencilAttachment;
+    
     private double _depthClearValue;
     private uint _stencilClearValue;
-
-    private readonly Framebuffer[] _framebuffers;
     
-    private uint _currentWidth;
-    private uint _currentHeight;
-
-    private uint _targetWidth;
-    private uint _targetHeight;
-
-    private bool _needNewFramebuffers;
+    private readonly Dictionary<HashableFramebufferPermutation, Framebuffer> _framebuffers = [];
     
-    public uint Width => _currentWidth;
-    public uint Height => _currentHeight;
+    private readonly int[] _reusedCurrentFrameIndices;
     
-    public bool IsSetup { get; private set; }
+    public uint Width { get; private set; }
+    public uint Height { get; private set; }
     
-    public unsafe VulkanFramebuffer(VulkanRenderer renderer, VulkanPassBacking passBacking)
+    public VulkanFramebuffer(VulkanRenderer renderer, VulkanPassBacking passBacking, ReadOnlySpan<IRenderTarget> colorAttachments, IRenderTarget? depthStencilAttachment)
     {
         _renderer = renderer;
         _passBacking = passBacking;
         
+        if (colorAttachments.Length != passBacking.Definition.ColorAttachments.Length) {
+            throw new ArgumentOutOfRangeException(nameof(colorAttachments));
+        }
+
+        if (passBacking.Definition.DepthStencilAttachment.HasValue != (depthStencilAttachment != null)) {
+            throw new ArgumentOutOfRangeException(nameof(depthStencilAttachment));
+        }
+
+        uint width = 0;
+        uint height = 0;
+
+        bool hasCommittedOnFixedSize = false;
+        bool isMatchingSwapchainSize = false;
+
+        void UpdateSize(IRenderTarget target)
+        {
+            if (hasCommittedOnFixedSize && isMatchingSwapchainSize != target.MatchesSwapchainSize) {
+                throw new ArgumentOutOfRangeException();
+            }
+
+            hasCommittedOnFixedSize = true;
+            isMatchingSwapchainSize = target.MatchesSwapchainSize;
+
+            uint targetWidth = target.Width;
+            uint targetHeight = target.Height;
+            
+            if (width == 0) {
+                if (targetWidth == 0 || targetHeight == 0) {
+                    throw new ArgumentOutOfRangeException();
+                }
+                width = targetWidth;
+                height = targetHeight;
+                
+            } else if (width != targetWidth || height != targetHeight) {
+                throw new ArgumentOutOfRangeException(nameof(colorAttachments));
+            }
+        }
+        
         _colorAttachments = new ColorAttachment[passBacking.Definition.ColorAttachments.Length];
 
-        _framebuffers = new Framebuffer[renderer.FrameCount];
+        _reusedCurrentFrameIndices = new int[passBacking.Definition.ColorAttachments.Length +
+                                             (passBacking.Definition.DepthStencilAttachment == null ? 0 : 1)];
         
-        _needNewFramebuffers = true;
+        for (int i = 0; i < _colorAttachments.Length; ++i) {
+            if (colorAttachments[i] is not IVulkanRenderTarget vulkanRenderTarget) {
+                throw new ArgumentOutOfRangeException(nameof(colorAttachments));
+            }
+            _colorAttachments[i].RenderTarget = vulkanRenderTarget;
+            UpdateSize(colorAttachments[i]);
+        }
+
+        if (depthStencilAttachment != null) {
+            if (depthStencilAttachment is not IVulkanRenderTarget vulkanRenderTarget) {
+                throw new ArgumentException(nameof(depthStencilAttachment));
+            }
+            _depthStencilAttachment = vulkanRenderTarget;
+            UpdateSize(depthStencilAttachment);
+        }
+        
+        foreach (int[] indices in CalculatePossibleFramebufferPermutations()) {
+            _framebuffers[new HashableFramebufferPermutation(indices)] = CreateFramebuffer(indices, width, height);
+        }
+
+        Width = width;
+        Height = height;
     }
 
-
-    public void Setup(uint width, uint height)
+    private Framebuffer CreateFramebuffer(int[] indices, uint width, uint height)
     {
-        // TODO: Move this to common framebuffer validation.
-        if (width == 0 || height == 0) {
-            throw new ArgumentOutOfRangeException();
+        int numAttachmentViews = _passBacking.Definition.ColorAttachments.Length +
+                                 (_passBacking.Definition.DepthStencilAttachment == null ? 0 : 1);
+        ImageView[] attachmentViews = new ImageView[numAttachmentViews];
+        for (int colorIndex = 0; colorIndex < _passBacking.Definition.ColorAttachments.Length; ++colorIndex) {
+            // TODO: Should we assert earlier that all color attachments have been set before we attempt to 
+            //  use this framebuffer again after calling any of the mutating methods? 
+            attachmentViews[colorIndex] = _colorAttachments[colorIndex].RenderTarget?.GetImageView(indices[colorIndex]) ?? default;
+        }
+
+        if (_passBacking.Definition.DepthStencilAttachment != null) {
+            // TODO: Should we assert earlier that the depth stencil attachment has been set before we attempt to 
+            //  use this framebuffer again after calling any of the mutating methods? 
+            attachmentViews[^1] = _depthStencilAttachment?.GetImageView(indices[^1]) ?? default;
         }
         
-        _targetWidth = width;
-        _targetHeight = height;
-
-        for (int i = 0; i < _colorAttachments.Length; ++i) {
-            _colorAttachments[i].RenderTarget = null;
+        unsafe {
+            fixed (ImageView* pAttachmentViews = attachmentViews) {
+                FramebufferCreateInfo createInfo = new(
+                    sType: StructureType.FramebufferCreateInfo,
+                    pNext: null,
+                    flags: FramebufferCreateFlags.None,
+                    renderPass: _passBacking.RenderPass,
+                    attachmentCount: (uint)attachmentViews.Length,
+                    pAttachments: pAttachmentViews,
+                    width: width,
+                    height: height,
+                    layers: 1
+                );
+                _renderer.Vk.CreateFramebuffer(_renderer.Device, &createInfo, null, out Framebuffer framebuffer)
+                    .AssertSuccess("Failed to create framebuffer");
+                return framebuffer;
+            }
         }
-        _depthStencilAttachment = null;
-
-        _needNewFramebuffers = true;
-
-        IsSetup = true;
     }
     
-    public void SetColorAttachment(int index, IRenderTarget target, Vector4 clearColor)
+    public void SetColorAttachmentProperties(int index, Vector4 clearColor)
     {
-        if (target is not IVulkanRenderTarget vulkanTarget) {
-            throw new ArgumentException("Texture must be an IVulkanRenderTarget", nameof(target));
-        }
-        
-        // TODO: Throw if incompatible with RenderPassDefinition! (Also make this validation shared across all CeresGpu renderer impls)
-        
-        _colorAttachments[index] = new ColorAttachment(vulkanTarget, clearColor);
+        _colorAttachments[index].ClearColor = clearColor;
     }
 
-    public void SetDepthStencilAttachment(IRenderTarget target, double clearDepth, uint clearStencil)
+    public void SetDepthStencilAttachmentProperties(double clearDepth, uint clearStencil)
     {
-        if (target is not IVulkanRenderTarget vulkanTarget) {
-            throw new ArgumentException("Texture must be an IVulkanRenderTarget", nameof(target));
-        }
-        
-        // TODO: Throw if incompatible with RenderPassDefinition!  (Also make this validation shared across all CeresGpu renderer impls)
-        _depthStencilAttachment = vulkanTarget;
         _depthClearValue = clearDepth;
         _stencilClearValue = clearStencil;
     }
 
+
+    private IEnumerable<int[]> CalculatePossibleFramebufferPermutations()
+    {
+        List<int> staticAttachmentIndices = [];
+        List<int> workingFrameVaryingIndices = [];
+        List<int> fullyVaryingIndices = [];
+        
+        for (int i = 0; i < _colorAttachments.Length; ++i) {
+            IVulkanRenderTarget? target = _colorAttachments[i].RenderTarget;
+            if (target?.IsBufferedByWorkingFrame ?? true) {
+                workingFrameVaryingIndices.Add(i);
+            } else {
+                fullyVaryingIndices.Add(i);
+            }
+        }
+
+        if (_depthStencilAttachment != null) {
+            if (_depthStencilAttachment.IsBufferedByWorkingFrame) {
+                workingFrameVaryingIndices.Add(_colorAttachments.Length);
+            } else {
+                fullyVaryingIndices.Add(_colorAttachments.Length);
+            }
+        }
+
+        int[] attachmentMapping = staticAttachmentIndices
+            .Concat(workingFrameVaryingIndices)
+            .Concat(fullyVaryingIndices)
+            .ToArray();
+        
+        // Base on static attachment indices first
+        IEnumerable<int[]> permutations = [Enumerable.Repeat(0, staticAttachmentIndices.Count).ToArray()];
+        
+        //Now add in working frame varying indices
+        if (workingFrameVaryingIndices.Count > 0) {
+            permutations = MakePermutation(permutations, workingFrameVaryingIndices.Count, _renderer.FrameCount);    
+        }
+        
+        // Now add in full varying indices
+        for (int i = 0; i < fullyVaryingIndices.Count; ++i) {
+            // This assumes we always have swapchain images == FrameCount.
+            permutations = MakePermutation(permutations, 1, _renderer.FrameCount);
+        }
+        
+        // Now map all the columns back to correspond with their attachment indices.
+        return permutations.Select(x => Remap(x, attachmentMapping));
+    }
+
+    private int[] Remap(int[] indices, int[] mappings)
+    {
+        if (indices.Length != mappings.Length) {
+            throw new ArgumentOutOfRangeException(nameof(indices));
+        }
+        return mappings.Select(x => indices[x]).ToArray();
+    }
+
+    private IEnumerable<int[]> MakePermutation(IEnumerable<int[]> basedOn, int numElements, int numPermutations)
+    {
+        for (int i = 0; i < numPermutations; ++i) {
+            foreach (int[] set in basedOn) {
+                yield return set.Concat(Enumerable.Repeat(i, numElements)).ToArray();
+            }    
+        }
+    }
+    
     public Framebuffer GetFramebuffer()
     {
-        Vk vk = _renderer.Vk;
+        for (int i = 0; i < _colorAttachments.Length; ++i) {
+            _reusedCurrentFrameIndices[i] = _colorAttachments[i].RenderTarget?.ImageViewIndexForCurrentFrame ?? 0;
+        }
+
+        if (_depthStencilAttachment != null) {
+            _reusedCurrentFrameIndices[^1] = _depthStencilAttachment.ImageViewIndexForCurrentFrame;
+        }
         
-        if (_needNewFramebuffers) {
-            // bye bye old framebuffers
-            foreach (Framebuffer framebuffer in _framebuffers) {
-                if (framebuffer.Handle == 0) {
-                    continue;
-                }
-                unsafe {
-                    // TODO: Defered destroy of in-flight framebuffers.
-                    vk.DestroyFramebuffer(_renderer.Device, framebuffer, null);
-                }
-            }
-            
-            _currentWidth = _targetWidth;
-            _currentHeight = _targetHeight;
-            _needNewFramebuffers = false;
-        }
-
-        if (_framebuffers[_renderer.WorkingFrame].Handle == 0) {
-            // Need ourselves a framebuffer
-
-            int numAttachmentViews = _passBacking.Definition.ColorAttachments.Length +
-                                     (_passBacking.Definition.DepthStencilAttachment == null ? 0 : 1);
-            ImageView[] attachmentViews = new ImageView[numAttachmentViews];
-            for (int colorIndex = 0; colorIndex < _passBacking.Definition.ColorAttachments.Length; ++colorIndex) {
-                // TODO: Should we assert earlier that all color attachments have been set before we attempt to 
-                //  use this framebuffer again after calling any of the mutating methods? 
-                attachmentViews[colorIndex] = _colorAttachments[colorIndex].RenderTarget?.GetImageViewForWorkingFrame() ?? default;
-            }
-
-            if (_passBacking.Definition.DepthStencilAttachment != null) {
-                // TODO: Should we assert earlier that the depth stencil attachment has been set before we attempt to 
-                //  use this framebuffer again after calling any of the mutating methods? 
-                attachmentViews[^1] = _depthStencilAttachment?.GetImageViewForWorkingFrame() ?? default;
-            }
-            
-            unsafe {
-                fixed (ImageView* pAttachmentViews = attachmentViews) {
-                    FramebufferCreateInfo createInfo = new(
-                        sType: StructureType.FramebufferCreateInfo,
-                        pNext: null,
-                        flags: FramebufferCreateFlags.None,
-                        renderPass: _passBacking.RenderPass,
-                        attachmentCount: (uint)attachmentViews.Length,
-                        pAttachments: pAttachmentViews,
-                        width: _currentWidth,
-                        height: _currentHeight,
-                        layers: 1
-                    );
-                    vk.CreateFramebuffer(_renderer.Device, &createInfo, null, out Framebuffer framebuffer)
-                        .AssertSuccess("Failed to create framebuffer for current working frame.");
-                    
-                    _framebuffers[_renderer.WorkingFrame] = framebuffer;
-                }
-            }
-        }
-
-        return _framebuffers[_renderer.WorkingFrame];
+        return _framebuffers[new HashableFramebufferPermutation(_reusedCurrentFrameIndices)];
     }
 
     public ClearColorValue GetClearColor(int colorAttachmentIndex)

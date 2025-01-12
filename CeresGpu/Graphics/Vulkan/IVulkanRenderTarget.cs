@@ -4,5 +4,8 @@ namespace CeresGpu.Graphics.Vulkan;
 
 public interface IVulkanRenderTarget
 {
-    ImageView GetImageViewForWorkingFrame();
+    bool IsBufferedByWorkingFrame { get; }
+    
+    int ImageViewIndexForCurrentFrame { get; }
+    ImageView GetImageView(int index);
 }

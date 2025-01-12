@@ -4,6 +4,11 @@ namespace CeresGpu.Graphics;
 
 public interface IRenderTarget : ISampleable, IDisposable
 {
+    /// <summary>
+    /// If true, this render target will always match the size of the swapchain.
+    /// </summary>
+    bool MatchesSwapchainSize { get; }
+    
     uint Width { get; }
     uint Height { get; }
     

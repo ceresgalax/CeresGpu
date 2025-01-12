@@ -15,11 +15,10 @@ FramebufferPass.RegisterSelf(renderer);
 
 using ShaderManager shaderManager = new ShaderManager(renderer);
 using TestRenderer testRenderer = new TestRenderer(renderer, shaderManager);
-using FramebufferPass pass = new FramebufferPass(renderer);
+using FramebufferPass pass = new FramebufferPass(renderer, renderer.GetSwapchainColorTarget());
+pass.SetClearColor(new Vector4(0f, 1f, 1f, 1f));
 //using IRenderTarget colorTarget = renderer.CreateRenderTarget(ColorFormat.R8G8B8A8_UNORM, 512, 512); 
 //pass.Setup(colorTarget, new Vector4(0f, 1f, 1f, 1f));
-
-pass.Setup(renderer.GetSwapchainColorTarget(), new Vector4(0f, 1f, 1f, 1f));
 
 while (!window.ShouldClose) {
     IPass<FramebufferPass> encoder = renderer.CreatePassEncoder(pass);

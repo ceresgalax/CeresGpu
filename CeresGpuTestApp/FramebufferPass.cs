@@ -5,7 +5,7 @@ namespace CeresGpuTestApp;
 
 public sealed class FramebufferPass : IRenderPass
 {
-    private readonly IMutableFramebuffer _framebuffer;
+    private readonly IFramebuffer _framebuffer;
 
     public IFramebuffer Framebuffer => _framebuffer;
 
@@ -25,15 +25,14 @@ public sealed class FramebufferPass : IRenderPass
         });
     }
     
-    public FramebufferPass(IRenderer renderer)
+    public FramebufferPass(IRenderer renderer, IRenderTarget colorTarget)
     {
-        _framebuffer = renderer.CreateFramebuffer<FramebufferPass>();
+        _framebuffer = renderer.CreateFramebuffer<FramebufferPass>([colorTarget], null);
     }
 
-    public void Setup(IRenderTarget colorTarget, Vector4 clearColor)
+    public void SetClearColor(Vector4 clearColor)
     {
-        _framebuffer.Setup(colorTarget.Width, colorTarget.Height);
-        _framebuffer.SetColorAttachment(0, colorTarget, clearColor);
+        _framebuffer.SetColorAttachmentProperties(0, clearColor);
     }
 
     public void Dispose()

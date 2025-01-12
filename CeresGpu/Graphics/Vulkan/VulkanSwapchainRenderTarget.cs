@@ -10,7 +10,8 @@ public sealed class VulkanSwapchainRenderTarget : IVulkanRenderTarget, IRenderTa
     private readonly Extent2D _extent;
     public readonly Image[] _images;
     private readonly ImageView[] _imageViews;
-    
+
+    public bool MatchesSwapchainSize => true;
     public uint Width => _extent.Width;
     public uint Height => _extent.Height;
 
@@ -100,9 +101,12 @@ public sealed class VulkanSwapchainRenderTarget : IVulkanRenderTarget, IRenderTa
         
     }
 
-    public ImageView GetImageViewForWorkingFrame()
+    public bool IsBufferedByWorkingFrame => false;
+    public int ImageViewIndexForCurrentFrame => _renderer.CurrentFrameSwapchainImageIndex;
+
+    public ImageView GetImageView(int index)
     {
-        return _imageViews[_renderer.CurrentFrameSwapchainImageIndex];
+        return _imageViews[index];
     }
 
     private void ReleaseUnmanagedResources()

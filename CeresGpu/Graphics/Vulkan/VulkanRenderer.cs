@@ -29,7 +29,7 @@ public sealed class VulkanRenderer : IRenderer
 
     private readonly Semaphore[] _acquireImageSemaphores;
     private readonly Semaphore[] _presentationSemaphores;
-    // TODO: ADD FENCES FOR PRESENTATION
+    private readonly Fence[] _workFences;
 
     private readonly VulkanSwapchainRenderTarget _swapchainRenderTarget;
         
@@ -500,22 +500,29 @@ public sealed class VulkanRenderer : IRenderer
             pNext: null,
             flags: SemaphoreCreateFlags.None
         );
+        FenceCreateInfo workFenceCreateInfo = new(
+            sType: StructureType.FenceCreateInfo,
+            pNext: null,
+            // These work fences start off as signaled, since there's no work that 
+            flags: FenceCreateFlags.SignaledBit
+        );
+        
         _acquireImageSemaphores = new Semaphore[FrameCount];
+        _presentationSemaphores = new Semaphore[FrameCount];
+        _workFences = new Fence[FrameCount];
+        
         for (int i = 0; i < _acquireImageSemaphores.Length; ++i) {
             Vk.CreateSemaphore(Device, in semaphoreCreateInfo, null, out _acquireImageSemaphores[i])
-                .AssertSuccess("Failed to create semaphore");    
-        }
-
-        _presentationSemaphores = new Semaphore[FrameCount];
-        for (int i = 0; i < _presentationSemaphores.Length; ++i) {
+                .AssertSuccess("Failed to create semaphore");
             Vk.CreateSemaphore(Device, in semaphoreCreateInfo, null, out _presentationSemaphores[i])
                 .AssertSuccess("Failed to create semaphore");
+            Vk.CreateFence(Device, in workFenceCreateInfo, null, out _workFences[i])
+                .AssertSuccess("Failed to create fence.");
         }
 
         //
         // Prepare the first first frame.
         //
-        _encoderListStart.ResetAsFront(_encoderListEnd);
         NewFrame();
         
         //
@@ -635,23 +642,23 @@ public sealed class VulkanRenderer : IRenderer
         return new VulkanPipeline<TRenderPass, TShader, TVertexBufferLayout>(this, definition, passBacking, shader, vertexBufferLayout);
     }
 
-    public IMutableFramebuffer CreateFramebuffer<TRenderPass>() where TRenderPass : IRenderPass
+    public IFramebuffer CreateFramebuffer<TRenderPass>(ReadOnlySpan<IRenderTarget> colorAttachments, IRenderTarget? depthStencilAttachment) where TRenderPass : IRenderPass
     {
         VulkanPassBacking passBacking = GetPassBackingOrThrow<TRenderPass>();
-        return new VulkanFramebuffer(this, passBacking);
+        return new VulkanFramebuffer(this, passBacking, colorAttachments, depthStencilAttachment);
     }
 
-    public IRenderTarget CreateRenderTarget(ColorFormat format, uint width, uint height)
+    public IRenderTarget CreateRenderTarget(ColorFormat format, bool matchesSwapchainSize, uint width, uint height)
     {
-        return new VulkanRenderTarget(this, true, format, default, width, height,
+        return new VulkanRenderTarget(this, true, format, default, matchesSwapchainSize, width, height,
             ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit,
             ImageAspectFlags.ColorBit
         );
     }
 
-    public IRenderTarget CreateRenderTarget(DepthStencilFormat format, uint width, uint height)
+    public IRenderTarget CreateRenderTarget(DepthStencilFormat format, bool matchesSwapchainSize, uint width, uint height)
     {
-        return new VulkanRenderTarget(this, false, default, format, width, height, 
+        return new VulkanRenderTarget(this, false, default, format, matchesSwapchainSize, width, height, 
             ImageUsageFlags.DepthStencilAttachmentBit | ImageUsageFlags.SampledBit,
             ImageAspectFlags.DepthBit | ImageAspectFlags.StencilBit
         );
@@ -668,12 +675,6 @@ public sealed class VulkanRenderer : IRenderer
     )
         where TRenderPass : IRenderPass
     {
-        // TODO: Move this check to shared CeresGPU renderer checkes.
-        if (!pass.Framebuffer.IsSetup) {
-            throw new InvalidOperationException(
-                "Framebuffer has not been set up. Make sure your render pass impl sets up the framebuffer.");
-        }
-        
         if (pass.Framebuffer is not VulkanFramebuffer vkFramebuffer) {
             throw new ArgumentException("Backend type of pass is not compatible with this renderer.", nameof(pass));
         }
@@ -725,6 +726,8 @@ public sealed class VulkanRenderer : IRenderer
             _reusedCommandBufferList[i + 1] = currentEncoder.CommandBuffer;
             currentEncoder = currentEncoder.Next;
         }
+        
+        _passesToSubmit.Clear();
 
         // Submit the passes
         Semaphore acquireImageSemaphore = _acquireImageSemaphores[WorkingFrame];
@@ -742,7 +745,7 @@ public sealed class VulkanRenderer : IRenderer
                 signalSemaphoreCount: 1,
                 pSignalSemaphores: &presentSemaphore
             );
-            Vk.QueueSubmit(GraphicsQueue, 1, in submitInfo, default)
+            Vk.QueueSubmit(GraphicsQueue, 1, in submitInfo, _workFences[WorkingFrame])
                 .AssertSuccess("Failed to submit command buffers to graphics queue.");
         }
         
@@ -772,10 +775,21 @@ public sealed class VulkanRenderer : IRenderer
         //
         // Prepare next frame
         //
-        _passesToSubmit.Clear();
-        _encoderListStart.ResetAsFront(_encoderListEnd);
-
         WorkingFrame = (WorkingFrame + 1) % FrameCount;
+
+        NewFrame();
+    }
+
+    private unsafe void NewFrame()
+    {
+        _encoderListStart.ResetAsFront(_encoderListEnd);
+        
+        // Wait for the existing work in this working frame to be completed.
+        Fence fence = _workFences[WorkingFrame];
+        Vk.WaitForFences(Device, 1, in fence, Vk.True, UInt64.MaxValue)
+            .AssertSuccess("Failed to wait for fence.");
+        Vk.ResetFences(Device, 1, in fence)
+            .AssertSuccess("Failed to reset fence.");
         
         // Delete anything that's ready to be disposed now
         List<IDeferredDisposable> deferredDisposables = _deferedDisposableByWorkingFrame[WorkingFrame];
@@ -783,12 +797,7 @@ public sealed class VulkanRenderer : IRenderer
             deferredDisposables[i].DeferredDispose();
         }
         deferredDisposables.Clear();
-
-        NewFrame();
-    }
-
-    private unsafe void NewFrame()
-    {
+        
         PreparePreAndPostFrameCommandBuffer();
         
         // Acquire the next swapchain image
@@ -819,7 +828,8 @@ public sealed class VulkanRenderer : IRenderer
         Vk.CmdPipelineBarrier(
             commandBuffer: _preFrameCommandBuffer,
             srcStageMask: PipelineStageFlags.TopOfPipeBit,
-            dstStageMask: PipelineStageFlags.ColorAttachmentOutputBit,
+            // dstStageMask: PipelineStageFlags.ColorAttachmentOutputBit,
+            dstStageMask: PipelineStageFlags.AllGraphicsBit,
             dependencyFlags: DependencyFlags.None,
             memoryBarrierCount: 0,
             pMemoryBarriers: null,

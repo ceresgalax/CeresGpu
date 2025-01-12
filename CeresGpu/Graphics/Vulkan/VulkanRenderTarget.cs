@@ -18,6 +18,7 @@ public sealed class VulkanRenderTarget : IVulkanRenderTarget, IRenderTarget
     private readonly Image[] ImageByWorkingFrame;
     private readonly ImageView[] ImageViewByWorkingFrame;
     
+    public bool MatchesSwapchainSize { get; }
     public uint Width { get; }
     public uint Height { get; }
     
@@ -25,11 +26,12 @@ public sealed class VulkanRenderTarget : IVulkanRenderTarget, IRenderTarget
     public ColorFormat ColorFormat { get; }
     public DepthStencilFormat DepthStencilFormat { get; }
     
-    public unsafe VulkanRenderTarget(VulkanRenderer renderer, bool isColor, ColorFormat colorFormat, DepthStencilFormat depthStencilFormat, uint width, uint height, ImageUsageFlags usage, ImageAspectFlags aspectMask)
+    public unsafe VulkanRenderTarget(VulkanRenderer renderer, bool isColor, ColorFormat colorFormat, DepthStencilFormat depthStencilFormat, bool matchesSwapchainSize, uint width, uint height, ImageUsageFlags usage, ImageAspectFlags aspectMask)
     {
         _renderer = renderer;
         ImageByWorkingFrame = new Image[renderer.FrameCount];
         
+        MatchesSwapchainSize = matchesSwapchainSize;
         Width = width;
         Height = height;
         IsColor = isColor;
@@ -37,6 +39,8 @@ public sealed class VulkanRenderTarget : IVulkanRenderTarget, IRenderTarget
         DepthStencilFormat = depthStencilFormat;
 
         Format format = colorFormat.ToVkFormat();
+
+        // TODO: NEED TO HOOK UP WAY FOR THIS TARGET TO GET RE-CREATED INTERNALLY IF SWAPCHAIN SIZE CHANGES
         
         // Create images for each working frame!
 
@@ -163,9 +167,12 @@ public sealed class VulkanRenderTarget : IVulkanRenderTarget, IRenderTarget
         }
     }
 
-    public ImageView GetImageViewForWorkingFrame()
+    public bool IsBufferedByWorkingFrame => true;
+    public int ImageViewIndexForCurrentFrame => _renderer.WorkingFrame;
+    
+    public ImageView GetImageView(int index)
     {
-        return ImageViewByWorkingFrame[_renderer.WorkingFrame];
+        return ImageViewByWorkingFrame[index];
     }
 
     private void ReleaseUnmanagedResources()
