@@ -26,6 +26,7 @@ namespace CeresGpu.Graphics
         IShaderInstanceBacking CreateShaderInstanceBacking(IShader shader);
         IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints);
 
+        bool IsPassRegistered<TRenderPass>() where TRenderPass : IRenderPass;
         void RegisterPassType<TRenderPass>(RenderPassDefinition definition) where TRenderPass : IRenderPass;
         
         IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(

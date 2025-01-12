@@ -98,6 +98,11 @@ namespace CeresGpu.Graphics.Metal
             return new MetalDescriptorSet(this, function, stage, index, in hints);
         }
 
+        public bool IsPassRegistered<TRenderPass>() where TRenderPass : IRenderPass
+        {
+            throw new NotImplementedException();
+        }
+
         public void RegisterPassType<TRenderPass>(RenderPassDefinition definition) where TRenderPass : IRenderPass
         {
             throw new NotImplementedException();

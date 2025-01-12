@@ -615,6 +615,11 @@ public sealed class VulkanRenderer : IRenderer
         return new VulkanDescriptorSet(this, vulkanShaderBacking, index, in hints);
     }
 
+    public bool IsPassRegistered<TRenderPass>() where TRenderPass : IRenderPass
+    {
+        return _passBackings.ContainsKey(typeof(TRenderPass));
+    }
+
     public void RegisterPassType<TRenderPass>(RenderPassDefinition definition) where TRenderPass : IRenderPass
     {
         _passBackings.Add(typeof(TRenderPass), new VulkanPassBacking(this, definition));

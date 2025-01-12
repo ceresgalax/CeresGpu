@@ -128,6 +128,11 @@ namespace CeresGpu.Graphics.OpenGL
             return new GLDescriptorSet(this, in hints);
         }
 
+        public bool IsPassRegistered<TRenderPass>() where TRenderPass : IRenderPass
+        {
+            throw new NotImplementedException();
+        }
+
         public void RegisterPassType<TRenderPass>(RenderPassDefinition definition) where TRenderPass : IRenderPass
         {
             throw new NotImplementedException();

@@ -11,7 +11,7 @@
             <GgenVersionFile>%(RecursiveDir)%(Filename).ggen_version</GgenVersionFile>
             <LogicalDirectory>$(MSBuildProjectName).$([System.String]::new('%(RecursiveDir)').Replace('/', '.').Replace('\', '.'))</LogicalDirectory>
             <CsFile>%(RecursiveDir)$([System.IO.Path]::GetFileNameWithoutExtension('%(Filename)')).Generated.cs</CsFile>
-            <VulkanFile>%(RecursiveDir)$([System.IO.Path]::GetFileNameWithoutExtension('%(Filename)')).vulkan</VulkanFile>
+            <VulkanFilename>$([System.IO.Path]::GetFileNameWithoutExtension('%(Filename)')).vulkan</VulkanFilename>
         </GlslVertFile>
         <GlslFragFile Include="**\*.frag.glsl">
             <GgenVersionFile>%(RecursiveDir)%(Filename).ggen_version</GgenVersionFile>
@@ -93,8 +93,8 @@
                 <Link>%(GlslVertFile.CsFile)</Link>
             </Compile>
 
-            <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(VulkanFile)')">
-                <LogicalName>%(GlslVertFile.LogicalDirectory)%(GlslVertFile.VulkanFile)</LogicalName>
+            <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)%(VulkanFilename)')">
+                <LogicalName>%(GlslVertFile.LogicalDirectory)%(GlslVertFile.VulkanFilename)</LogicalName>
             </EmbeddedResource>
             <EmbeddedResource Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RecursiveDir)/%(Filename).spv')">
                 <LogicalName>%(GlslVertFile.LogicalDirectory)%(GlslVertFile.Filename).spv</LogicalName>
@@ -116,7 +116,7 @@
             </EmbeddedResource>
             
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(CsFile)')" />
-            <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(VulkanFile)')" />
+            <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(VulkanFile)')" />
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).spv')" />
             <FileWrites Include="@(GlslFragFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).spv')" />
             <FileWrites Include="@(GlslVertFile -> '$(IntermediateOutputPath)ggen/%(RelativeDir)%(Filename).reflection.json')" />
