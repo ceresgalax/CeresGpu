@@ -581,7 +581,9 @@ public sealed class VulkanRenderer : IRenderer
 
     public IStreamingBuffer<T> CreateStreamingBuffer<T>(int elementCount) where T : unmanaged
     {
-        throw new NotImplementedException();
+        VulkanStreamingBuffer<T> buffer = new VulkanStreamingBuffer<T>(this);
+        buffer.Allocate((uint)elementCount);
+        return buffer;
     }
 
     public ITexture CreateTexture()
@@ -604,16 +606,16 @@ public sealed class VulkanRenderer : IRenderer
         if (shader.Backing is not VulkanShaderBacking backing) {
             throw new ArgumentException("Shader's backing is incompatible with this renderer.", nameof(shader));
         }
-        return new VulkanShaderInstanceBacking(backing);
+        return new VulkanShaderInstanceBacking(this, backing);
     }
 
-    public IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints)
-    {
-        if (shader is not VulkanShaderBacking vulkanShaderBacking) {
-            throw new ArgumentException("Given shader backing is not compatible with this renderer.", nameof(shader));
-        }
-        return new VulkanDescriptorSet(this, vulkanShaderBacking, index, in hints);
-    }
+    // public IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints)
+    // {
+    //     if (shader is not VulkanShaderBacking vulkanShaderBacking) {
+    //         throw new ArgumentException("Given shader backing is not compatible with this renderer.", nameof(shader));
+    //     }
+    //     return new VulkanDescriptorSet(this, vulkanShaderBacking, index, in hints);
+    // }
 
     public bool IsPassRegistered<TRenderPass>() where TRenderPass : IRenderPass
     {

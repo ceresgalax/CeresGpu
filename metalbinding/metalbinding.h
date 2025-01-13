@@ -42,7 +42,7 @@ void metalbinding_release_command_encoder(id<MTLRenderCommandEncoder> NS_RELEASE
 void metalbinding_command_encoder_end_encoding(id<MTLRenderCommandEncoder> encoder);
 void metalbinding_command_encoder_set_pipeline(id<MTLRenderCommandEncoder> encoder, id<MTLRenderPipelineState> pipeline);
 void metalbinding_command_encoder_set_scissor(id<MTLRenderCommandEncoder> encoder, int32_t x, int32_t y, uint32_t w, uint32_t h);
-void metalbinding_command_encoder_set_viewport(id<MTLRenderCommandEncoder> encoder, uint32_t x, uint32_t y, uint32_t w, uint32_t h);
+void metalbinding_command_encoder_set_viewport(id<MTLRenderCommandEncoder> encoder, double x, double y, double w, double h);
 void metalbinding_command_encoder_set_cull_mode(id<MTLRenderCommandEncoder> encoder, MTLCullMode cullMode);
 void metalbinding_command_encoder_set_dss(id<MTLRenderCommandEncoder> encoder, id<MTLDepthStencilState> dss);
 void metalbinding_command_encoder_set_vertex_buffer(id<MTLRenderCommandEncoder> encoder, id<MTLBuffer> buffer, uint32_t offset, uint32_t index);

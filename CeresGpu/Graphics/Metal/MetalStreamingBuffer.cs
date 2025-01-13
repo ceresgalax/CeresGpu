@@ -42,10 +42,8 @@ namespace CeresGpu.Graphics.Metal
             Commit();
         }
 
-        public override void Allocate(uint elementCount)
+        protected override void AllocateImpl(uint elementCount)
         {
-            base.Allocate(elementCount);
-
             if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
                 _lastAllocationFrameId = _renderer.UniqueFrameId;
                 _activeIndex = (_activeIndex + 1) % _renderer.FrameCount;    
@@ -79,10 +77,8 @@ namespace CeresGpu.Graphics.Metal
             }
         }
         
-        public override void Set(uint offset, ReadOnlySpan<T> elements, uint count)
+        protected override void SetImpl(uint offset, ReadOnlySpan<T> elements, uint count)
         {
-            base.Set(offset, elements, count);
-
             if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
                 Allocate(Count);
             }
@@ -100,9 +96,8 @@ namespace CeresGpu.Graphics.Metal
             MetalBufferUtil.CopyBuffer(buffer, offset, elements, count, Count);
         }
 
-        public override void SetDirect(IBuffer<T>.DirectSetter setter)
+        protected override void SetDirectImpl(IBuffer<T>.DirectSetter setter)
         {
-            base.SetDirect(setter);
             IntPtr buffer = _buffers[_activeIndex];
 
             Span<T> directBuffer;

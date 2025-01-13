@@ -101,12 +101,8 @@ public sealed class VulkanCommandEncoder : IVulkanCommandEncoder, IPass, IDeferr
         //
         // Set initial viewport and scissor
         //
-        
-        Silk.NET.Vulkan.Viewport viewport = new (0, 0, framebuffer.Width, framebuffer.Height, 0f, 1f);
-        vk.CmdSetViewport(_commandBuffer, 0, 1, in viewport);
-        
-        Rect2D scissor = new (new Offset2D(0, 0), new Extent2D(framebuffer.Width, framebuffer.Height));
-        vk.CmdSetScissor(_commandBuffer, 0, 1, in scissor);
+        SetViewport(new Viewport(0, 0, framebuffer.Width, framebuffer.Height));
+        SetScissor(new ScissorRect(0, 0, framebuffer.Width, framebuffer.Height));
     }
 
     private void ReleaseUnmanagedResources()
@@ -179,14 +175,13 @@ public sealed class VulkanCommandEncoder : IVulkanCommandEncoder, IPass, IDeferr
 
         VulkanShaderInstanceBacking shaderInstanceBacking = (VulkanShaderInstanceBacking)shaderInstance.Backing;
 
-        ReadOnlySpan<IDescriptorSet> descriptorSets = shaderInstance.GetDescriptorSets();
-        for (int i = 0; i < descriptorSets.Length; ++i) {
-            IDescriptorSet descriptorSet = descriptorSets[i];
-            VulkanDescriptorSet vulkanDescriptorSet = (VulkanDescriptorSet)descriptorSet;
-            DescriptorSet handle = vulkanDescriptorSet.GetDescriptorSetForCurrentFrame();
-            // TODO: Get smart and find a way to call this once to bind all descriptor sets without churning garbage.
-            unsafe {
-                vk.CmdBindDescriptorSets(_commandBuffer, PipelineBindPoint.Graphics, shaderInstanceBacking.Shader.PipelineLayout, (uint)i, 1, in handle, dynamicOffsetCount: 0, null);    
+        uint numDescriptorSets = shaderInstanceBacking.Shader.NumDescriptorSets;
+        int startSet = _renderer.WorkingFrame * (int)numDescriptorSets;
+        ReadOnlySpan<DescriptorSet> descriptorSets = shaderInstanceBacking.DescriptorSets[startSet..(startSet+(int)numDescriptorSets)];
+        
+        unsafe {
+            fixed (DescriptorSet* pDescriptorSets = descriptorSets) {
+                vk.CmdBindDescriptorSets(_commandBuffer, PipelineBindPoint.Graphics, shaderInstanceBacking.Shader.PipelineLayout, 0, numDescriptorSets, pDescriptorSets, dynamicOffsetCount: 0, null);
             }
         }
         
@@ -211,19 +206,17 @@ public sealed class VulkanCommandEncoder : IVulkanCommandEncoder, IPass, IDeferr
         _renderer.Vk.EndCommandBuffer(CommandBuffer).AssertSuccess("Failed to end command buffer.");
     }
 
-    public ScissorRect CurrentDynamicScissor { get; }
-    public Viewport CurrentDynamicViewport { get; }
+    public ScissorRect CurrentDynamicScissor { get; private set; }
+    public Viewport CurrentDynamicViewport { get; private set; }
     
     public void RefreshPipeline()
     {
         if (_currentShaderInstance == null) {
             throw new InvalidOperationException("No pipeline has been set. Call SetPipeline first!");
         }
-        
-        ReadOnlySpan<IDescriptorSet> descriptorSets = _currentShaderInstance.GetDescriptorSets();
-        foreach (IDescriptorSet descriptorSet in descriptorSets) {
-            ((VulkanDescriptorSet)descriptorSet).Update();
-        }
+
+        VulkanShaderInstanceBacking vulkanShaderInstanceBacking = (VulkanShaderInstanceBacking)_currentShaderInstance.Backing;
+        vulkanShaderInstanceBacking.Update();
         
         ReadOnlySpan<object?> vertexBuffers = _currentShaderInstance.VertexBufferAdapter.VertexBuffers;
             
@@ -248,12 +241,16 @@ public sealed class VulkanCommandEncoder : IVulkanCommandEncoder, IPass, IDeferr
 
     public void SetScissor(ScissorRect scissor)
     {
-        throw new NotImplementedException();
+        Rect2D vkScissor = new (new Offset2D(scissor.X, scissor.Y), new Extent2D(scissor.Width, scissor.Height));
+        _renderer.Vk.CmdSetScissor(_commandBuffer, 0, 1, in vkScissor);
+        CurrentDynamicScissor = scissor;  
     }
 
     public void SetViewport(Viewport viewport)
     {
-        throw new NotImplementedException();
+        Silk.NET.Vulkan.Viewport vkViewport = new (viewport.X, viewport.Y, viewport.Width, viewport.Height, 0f, 1f);
+        _renderer.Vk.CmdSetViewport(_commandBuffer, 0, 1, in vkViewport);
+        CurrentDynamicViewport = viewport;
     }
 
     public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)

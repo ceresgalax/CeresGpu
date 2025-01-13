@@ -6,17 +6,17 @@ public abstract class StreamingBuffer<T> : IStreamingBuffer<T> where T : unmanag
 {
     private uint _lastFrameCommited = uint.MaxValue;
 
-    // private readonly ValidRegionTracker _validRegionTracker = new();
-    
     public abstract uint Count { get; }
 
     protected abstract IRenderer Renderer { get; }
 
-    public virtual void Allocate(uint elementCount)
+    public void Allocate(uint elementCount)
     {
         PrepareToModify();
-        // _validRegionTracker.Reset();
+        AllocateImpl(elementCount);
     }
+
+    protected abstract void AllocateImpl(uint elementCount);
 
     public void Set(uint offset, ReadOnlySpan<T> elements)
     {
@@ -47,15 +47,24 @@ public abstract class StreamingBuffer<T> : IStreamingBuffer<T> where T : unmanag
         }
     }
     
-    public virtual void Set(uint offset, ReadOnlySpan<T> elements, uint count)
+    public void Set(uint offset, ReadOnlySpan<T> elements, uint count)
     {
         PrepareToModify();
+        if (count + offset > Count) {
+            throw new IndexOutOfRangeException();
+        }
+        SetImpl(offset, elements, count);
+    }
+    
+    protected abstract void SetImpl(uint offset, ReadOnlySpan<T> elements, uint count);
+
+    public void SetDirect(IBuffer<T>.DirectSetter setter)
+    {
+        PrepareToModify();
+        SetDirectImpl(setter);
     }
 
-    public virtual void SetDirect(IBuffer<T>.DirectSetter setter)
-    {
-        PrepareToModify();
-    }
+    protected abstract void SetDirectImpl(IBuffer<T>.DirectSetter setter);
 
     protected virtual void Commit()
     {

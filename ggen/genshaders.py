@@ -431,7 +431,46 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     # Write Descriptor info
     f.indent()
     
-    def write_descriptor_info_field_for_buffer(buffer: BufferInput, reflection: SpirvReflection, cs_descriptor_type: str):
+    # Figure out flattened arg buffer indices for metal impl
+    argbuffer_indices_by_name = {}
+    flattened_arg_buffers: Dict[Any, int] = {} 
+    
+    for stage, reflection in shader.reflections_by_stage.items():
+        for abb in reflection.arg_buffer_bindings:
+            key = (stage, abb.index)
+            
+            index = flattened_arg_buffers.get(key)
+            if index is None:
+                index = len(flattened_arg_buffers)
+                flattened_arg_buffers[key] = index
+                print(f'{repr(key)} = {index}')
+
+            name = abb.name
+            # Annoying hack, since spir-v reflection doesn't give us the variable names that we find in the metal shader.
+            if not abb.typename.startswith('texture2d<') and abb.typename != 'sampler':
+                name = abb.typename
+
+            # For some reason spirv-cross reflects the Uniform typename as the name.
+            argbuffer_indices_by_name[name] = index
+
+    def get_cs_shader_stage(stage: ShaderStage) -> str:
+        return 'ShaderStage.Vertex' if stage == ShaderStage.VERTEX else 'ShaderStage.Fragment'
+
+    def write_descriptor_info_field_for_buffer(stage: ShaderStage, buffer: BufferInput, reflection: SpirvReflection, cs_descriptor_type: str):
+
+        # Figure out what the metal argument buffer binding index is
+        def get_argument_buffer() -> ArgumentBufferBinding:
+            for abb in reflection.arg_buffer_bindings:
+                # For some reason spirv-cross reflects the Uniform typename as the name.
+                if abb.typename == buffer.name:
+                    return abb
+
+        if buffer.type[0] == '_':
+            type_name = reflection.types[buffer.type].name
+        else:
+            type_name = spirv_to_cs_types[buffer.type]
+
+        abb = get_argument_buffer()
 
         # TODO: METAL BUFFER IDS WILL NOT MATCH THE SPIR-V BINDING INDEX WHEN ARRAYS OF BUFFERS ARE USED.
         # Metal uses an argument buffer Id for each array element, where Vulkan uses the same binding.
@@ -440,24 +479,17 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         # instead of regex detection of the generated metal source.
         # https://github.com/KhronosGroup/SPIRV-Cross#msl-20
 
-        # Figure out what the metal argument buffer binding index is
-        def get_binding_index():
-            for abb in reflection.arg_buffer_bindings:
-                # For some reason spirv-cross reflects the Uniform typename as the name.
-                if abb.typename == buffer.name:
-                    return abb.index
-
-        if buffer.type[0] == '_':
-            type_name = reflection.types[buffer.type].name
-        else:
-            type_name = spirv_to_cs_types[buffer.type]
-
         f.write_line(
             'new DescriptorInfo {',
             '    Binding = MakeBinding(',
             '        backend,',
-            f'        gl: new GLDescriptorBindingInfo {{ BindingIndex = {buffer.binding} }},',  # TODO: Do we need locations for GL?
-            f'        metal: new MetalDescriptorBindingInfo {{ BindingIndex = {get_binding_index()} }},',
+            f'        gl: new GLDescriptorBindingInfo {{ Location = {buffer.binding} }},',  
+            f'        metal: new MetalDescriptorBindingInfo {{',
+            f'            FunctionArgumentBufferIndex = {buffer.set},',
+            f'            AbstractedBufferIndex = {argbuffer_indices_by_name[buffer.name]},',
+            f'            Stage = {get_cs_shader_stage(stage)},',
+            f'            BufferId = {buffer.binding}',
+            f'        }},',
             f'        vulkan: new VulkanDescriptorBindingInfo {{ Set = {buffer.set}, Binding = {buffer.binding} }}',
             '    ),',
             f'    DescriptorType = DescriptorType.{cs_descriptor_type},',
@@ -466,11 +498,10 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             '},'
         )
 
-    def write_descriptor_info_field_for_texture(texture: TextureInput, reflection: SpirvReflection):
+    def write_descriptor_info_field_for_texture(stage: ShaderStage, texture: TextureInput, reflection: SpirvReflection):
         # Figure out what the metal argument buffer binding index is
         def get_binding_index(name: str):
             for abb in reflection.arg_buffer_bindings:
-                # For some reason spirv-cross reflects the Uniform typename as the name.
                 if abb.name == name:
                     return abb.index
             return 0
@@ -484,8 +515,14 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             'new DescriptorInfo {',
             '    Binding = MakeBinding(',
             '        backend,',
-            f'        gl: new GLDescriptorBindingInfo {{ BindingIndex = {texture.binding} }},',
-            f'        metal: new MetalDescriptorBindingInfo {{ BindingIndex = {texture_binding}, SamplerIndex = {sampler_binding} }},',
+            f'        gl: new GLDescriptorBindingInfo {{ Location = {texture.binding} }},',
+            f'        metal: new MetalDescriptorBindingInfo {{',
+            f'            FunctionArgumentBufferIndex = {texture.set},',
+            f'            AbstractedBufferIndex = {argbuffer_indices_by_name[texture.name]},',
+            f'            Stage = {get_cs_shader_stage(stage)},',
+            f'            BufferId = {texture_binding},',
+            f'            SamplerBufferId = {sampler_binding},',
+            f'        }},',
             f'        vulkan: new VulkanDescriptorBindingInfo {{ Set = {texture.set}, Binding = {texture_binding} }}',
             '    ),',
             '    DescriptorType = DescriptorType.Texture,',
@@ -496,13 +533,13 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
 
     for stage, reflection in shader.reflections_by_stage.items():
         for ubo in reflection.ubos:
-            write_descriptor_info_field_for_buffer(ubo, reflection, 'UniformBuffer')
+            write_descriptor_info_field_for_buffer(stage, ubo, reflection, 'UniformBuffer')
 
         for ssbo in reflection.ssbos:
-            write_descriptor_info_field_for_buffer(ssbo, reflection, 'ShaderStorageBuffer')
+            write_descriptor_info_field_for_buffer(stage, ssbo, reflection, 'ShaderStorageBuffer')
 
         for texture in reflection.textures:
-            write_descriptor_info_field_for_texture(texture, reflection)
+            write_descriptor_info_field_for_texture(stage, texture, reflection)
     
     # Close Descriptors initialization
     f.deindent()
@@ -689,36 +726,9 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     )
     f.indent()
 
-    #
-    # Declare variables for each descriptor set
-    #
-    descriptor_set_variable_names = []
-    descriptor_set_indices_by_stage: Dict[str, Set[int]] = {}
-
-    for stage, reflection in shader.reflections_by_stage.items():
-        descriptor_set_indices: Set[int] = set()
-        descriptor_set_indices.update(ubo.set for ubo in reflection.ubos)
-        descriptor_set_indices.update(ssbo.set for ssbo in reflection.ssbos)
-        descriptor_set_indices.update(texture.set for texture in reflection.textures)
-        descriptor_set_indices_by_stage[stage] = descriptor_set_indices
-
-        stage_name = 'vertex' if stage == ShaderStage.VERTEX else 'fragment'
-
-        for set_index in descriptor_set_indices:
-            var_name = f'_{stage_name}DescriptorSet{set_index}'
-            f.write_line(f'private readonly IDescriptorSet {var_name};')
-            descriptor_set_variable_names.append(var_name)
-
-    f.write_line('', 'private readonly IDescriptorSet[] _descriptorSets;')
-
     f.write_line(
         '',
         'public IShaderInstanceBacking Backing => _backing;',
-        '',
-        'public ReadOnlySpan<IDescriptorSet> GetDescriptorSets()',
-        '{',
-        '    return new ReadOnlySpan<IDescriptorSet>(_descriptorSets);',
-        '}',
         '',
         f'public TVertexBufferAdapter VertexBuffers;',
         '',
@@ -735,38 +745,21 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         f'public Instance(IRenderer renderer, {class_name} shader, TVertexBufferAdapter buffers)',
         '{',
         '    _backing = renderer.CreateShaderInstanceBacking(shader);',
-        f'    _descriptorSets = new IDescriptorSet[{len(descriptor_set_variable_names)}];',
         '    VertexBuffers = buffers;',
+        '}',
         ''
     )
-    f.indent()
-
-    # set_array_index = 0
-    for stage, indices in descriptor_set_indices_by_stage.items():
-        for index in indices:
-            stage_name = 'vertex' if stage == ShaderStage.VERTEX else 'fragment'
-            var_name = f'{stage_name}DescriptorSet{index}'
-            hints_var_name = var_name + 'Hints'
-            f.write_line(
-                '// TODO: Actually fill out these hints',
-                f'DescriptorSetCreationHints {hints_var_name} = new DescriptorSetCreationHints();',
-                f'_{var_name} = renderer.CreateDescriptorSet(shader.Backing!, ShaderStage.{stage_name.capitalize()}, {index}, in {hints_var_name});',
-                f'_descriptorSets[{index}] = _{var_name};'
-            )
-            # set_array_index += 1
-
-    f.deindent()
-    f.write_line('}', '')
 
     #
     # Generate ShaderInstance Dispose Method
     #
-    f.write_line('public void Dispose()', '{', )
-    f.indent()
-    for var_name in descriptor_set_variable_names:
-        f.write_line(f'{var_name}.Dispose();')
-    f.deindent()
-    f.write_line('}', '')
+    f.write_line(
+        'public void Dispose()',
+        '{',
+        '    _backing.Dispose();',
+        '}',
+        ''
+    )
     
     #
     # Buffer Setters
@@ -784,7 +777,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         f.write_line(
             f'public void Set{input.name}(IBuffer<{type_name}> buffer)',
             '{',
-            f'    _{stage_name}DescriptorSet{input.set}.{method_name}(buffer, in {class_name}.Descriptors[{descriptor_index}]);',
+            f'    _backing.{method_name}(buffer, in {class_name}.Descriptors[{descriptor_index}]);',
             '}',
             ''
         )
@@ -804,12 +797,12 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             f.write_line(
                 f'public void Set{texture.name}(ITexture texture)',
                 '{',
-                f'    _{stage_name}DescriptorSet{texture.set}.SetTextureDescriptor(texture, in {class_name}.Descriptors[{descriptor_index}]);',
+                f'    _backing.SetTextureDescriptor(texture, in {class_name}.Descriptors[{descriptor_index}]);',
                 '}',
                 '',
                 f'public void Set{texture.name}Sampler(ISampler sampler)',
                 '{',
-                f'    _{stage_name}DescriptorSet{texture.set}.SetSamplerDescriptor(sampler, in {class_name}.Descriptors[{descriptor_index}]);',
+                f'    _backing.SetSamplerDescriptor(sampler, in {class_name}.Descriptors[{descriptor_index}]);',
                 '}',
                 ''
             )

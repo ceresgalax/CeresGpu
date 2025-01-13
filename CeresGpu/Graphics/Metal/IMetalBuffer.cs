@@ -2,7 +2,7 @@ using System;
 
 namespace CeresGpu.Graphics.Metal
 {
-    public interface IMetalBuffer
+    public interface IMetalBuffer : IDisposable
     {
         /// <summary>
         /// Returns the underlying buffer handle that represents the buffer contents for this frame.

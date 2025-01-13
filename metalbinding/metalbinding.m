@@ -270,7 +270,7 @@ void metalbinding_command_encoder_set_scissor(id<MTLRenderCommandEncoder> encode
     [encoder setScissorRect:rect];
 }
 
-void metalbinding_command_encoder_set_viewport(id<MTLRenderCommandEncoder> encoder, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+void metalbinding_command_encoder_set_viewport(id<MTLRenderCommandEncoder> encoder, double x, double y, double w, double h) {
     MTLViewport viewport = {};
     viewport.originX = x;
     viewport.originY = y;

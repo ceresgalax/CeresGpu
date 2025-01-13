@@ -34,10 +34,8 @@ public sealed class DebugStreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer wh
 
     protected override IRenderer Renderer => _renderer;
 
-    public override void Allocate(uint elementCount)
+    protected override void AllocateImpl(uint elementCount)
     {
-        base.Allocate(elementCount);
-        
         if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
             _lastAllocationFrameId = _renderer.UniqueFrameId;
             _activeIndex = (_activeIndex + 1) % _renderer.WorkingFrameCount;    
@@ -48,15 +46,31 @@ public sealed class DebugStreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer wh
          RecreateBufferIfNecesary();
     }
 
-    public override void Set(uint offset, ReadOnlySpan<T> elements, uint count)
+    protected override void SetImpl(uint offset, ReadOnlySpan<T> elements, uint count)
     {
-        base.Set(offset, elements, count);
-        
         if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
             Allocate(Count);
         }
         
         _buffers[_activeIndex].Set(offset, elements, count);
+    }
+    
+    private T[] _directBuffer = [];
+    
+    protected override void SetDirectImpl(IBuffer<T>.DirectSetter setter)
+    {
+        if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
+            Allocate(Count);
+        }
+        
+        // TODO: This is pretty inefficient. We should memory map the buffer instead?
+        
+        if (_directBuffer.Length != Count) {
+            _directBuffer = new T[Count];
+        }
+
+        setter(_directBuffer);
+        _buffers[_activeIndex].Set(0, _directBuffer, Count);
     }
 
     public override void Dispose()

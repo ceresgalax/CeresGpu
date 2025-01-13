@@ -26,24 +26,20 @@ public sealed class StreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer where T
 
     protected override IRenderer Renderer => _renderer;
 
-    public override void Allocate(uint elementCount)
+    protected override void AllocateImpl(uint elementCount)
     {
-        base.Allocate(elementCount);
         _inner.Allocate(elementCount, BufferUsageARB.STREAM_DRAW);
     }
 
-    public override void Set(uint offset, ReadOnlySpan<T> elements, uint count)
+    protected override void SetImpl(uint offset, ReadOnlySpan<T> elements, uint count)
     {
-        base.Set(offset, elements, count);
         _inner.Set(offset, elements, count);
     }
 
     private T[] _directBuffer = [];
     
-    public override void SetDirect(IBuffer<T>.DirectSetter setter)
+    protected override void SetDirectImpl(IBuffer<T>.DirectSetter setter)
     {
-        base.SetDirect(setter);
-
         // TODO: This is pretty inefficient. We should memory map the buffer instead?
         
         if (_directBuffer.Length != Count) {

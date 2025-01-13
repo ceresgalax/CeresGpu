@@ -76,7 +76,7 @@ namespace CeresGpu.MetalBinding
         public static extern void metalbinding_command_encoder_set_scissor(IntPtr encoder, int x, int y, uint w, uint h);
         
         [DllImport(DLL_NAME)]
-        public static extern void metalbinding_command_encoder_set_viewport(IntPtr encoder, uint x, uint y, uint w, uint h);
+        public static extern void metalbinding_command_encoder_set_viewport(IntPtr encoder, double x, double y, double w, double h);
         
         [DllImport(DLL_NAME)]
         public static extern void metalbinding_command_encoder_set_cull_mode(IntPtr encoder, MTLCullMode cullMode);

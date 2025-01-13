@@ -20,6 +20,8 @@ public class VulkanShaderBacking : IShaderBacking
     private readonly DescriptorSetLayout[] _descriptorSetLayouts;
     private readonly (VkDescriptorType, int)[][] _descriptorCountsBySet;
     
+    public uint NumDescriptorSets { get; }
+    
     public unsafe VulkanShaderBacking(VulkanRenderer renderer, IShader shader)
     {
         _renderer = renderer;
@@ -66,6 +68,7 @@ public class VulkanShaderBacking : IShaderBacking
         }
         _descriptorSetLayouts = new DescriptorSetLayout[numDescriptorSets];
         _descriptorCountsBySet = new (VkDescriptorType, int)[numDescriptorSets][];
+        NumDescriptorSets = numDescriptorSets;
 
         //
         // Create the layouts

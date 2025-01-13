@@ -175,7 +175,7 @@ public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer, IDef
 
             ulong atomSize = _renderer.PhysicalDeviceLimits.NonCoherentAtomSize;
             ulong unalignedEnd = _count * (uint)sizeof(T);
-            ulong alignedEnd = AlignUtil.AlignUp(unalignedEnd, atomSize); ;
+            ulong alignedEnd = AlignUtil.AlignUp(unalignedEnd, atomSize);
             
             void* mapped = null;
             vk.MapMemory(_renderer.Device, _memory, 0, alignedEnd, MemoryMapFlags.None, ref mapped)

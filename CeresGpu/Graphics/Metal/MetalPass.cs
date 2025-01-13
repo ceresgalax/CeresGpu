@@ -79,22 +79,23 @@ namespace CeresGpu.Graphics.Metal
                 MetalApi.metalbinding_command_encoder_set_pipeline(_encoder, metalPipeline.Handle);
                 _previousPipeline = pipeline;
             }
-            
-            foreach (IDescriptorSet set in shaderInstance.GetDescriptorSets()) {
-                MetalDescriptorSet metalSet = (MetalDescriptorSet)set;
-                
-                metalSet.ArgumentBuffer.PrepareToUpdateExternally();
 
-                switch (metalSet.Stage) {
+            for (int i = 0; i < shaderInstanceBacking.Shader.ArgumentBufferDetails.Length; ++i) {
+                MetalShaderBacking.ArgumentBufferInfo argBufferInfo = shaderInstanceBacking.Shader.ArgumentBufferDetails[i];
+
+                IMetalBuffer argumentBuffer = shaderInstanceBacking.ArgumentBuffers[i];
+                argumentBuffer.PrepareToUpdateExternally();
+                
+                switch (argBufferInfo.Stage) {
                     case ShaderStage.Vertex:
-                        MetalApi.metalbinding_command_encoder_set_vertex_buffer(_encoder, metalSet.ArgumentBuffer.GetHandleForCurrentFrame(), 0, metalSet.BufferIndex);
+                        MetalApi.metalbinding_command_encoder_set_vertex_buffer(_encoder, argumentBuffer.GetHandleForCurrentFrame(), 0, argBufferInfo.FunctionIndex);
                         break;
                     case ShaderStage.Fragment:
-                        MetalApi.metalbinding_command_encoder_set_fragment_buffer(_encoder, metalSet.ArgumentBuffer.GetHandleForCurrentFrame(), 0, metalSet.BufferIndex);
+                        MetalApi.metalbinding_command_encoder_set_fragment_buffer(_encoder, argumentBuffer.GetHandleForCurrentFrame(), 0, argBufferInfo.FunctionIndex);
                         break;
                 }
             }
-
+            
             _shaderInstance = shaderInstance;
             _shaderInstanceBacking = shaderInstanceBacking;
             UpdateShaderInstance();
@@ -189,10 +190,7 @@ namespace CeresGpu.Graphics.Metal
                 }
             }
             
-            foreach (IDescriptorSet set in _shaderInstance.GetDescriptorSets()) {
-                MetalDescriptorSet metalSet = (MetalDescriptorSet)set;
-                metalSet.UpdateArgumentBuffer(_encoder);
-            }
+            _shaderInstanceBacking.Update(_encoder);
         }
         
         public void Finish()

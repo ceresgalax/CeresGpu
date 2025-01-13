@@ -80,8 +80,8 @@ namespace CeresGpu.Graphics.OpenGL
             CheckCurrent();
             GL gl = _renderer.GLProvider.Gl;
             // OpenGL viewport coords originate from bottom-left, CeresGPU viewport coords originate from top-left.
-            uint y = _attachmentHeight - viewport.Y - viewport.Height;
-            gl.Viewport((int)viewport.X, (int)y, (int)viewport.Width, (int)viewport.Height);
+            float y = _attachmentHeight - viewport.Y - viewport.Height;
+            gl.ViewportIndexedf(0, viewport.X, y, viewport.Width, viewport.Height);
         }
 
         public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
@@ -129,17 +129,7 @@ namespace CeresGpu.Graphics.OpenGL
             }
 
             _shaderInstanceBacking.PrepareAndBindVertexArrayObject(_currentPipeline.VertexBufferLayout, _shaderInstance.VertexBufferAdapter);
-
-            if (_shaderInstance != null) {
-                foreach (IDescriptorSet set in _shaderInstance.GetDescriptorSets()) {
-                    GLDescriptorSet glSet = (GLDescriptorSet)set;
-                    glSet.Apply();
-                }
-            }
-        }
-
-        public void Dispose()
-        {
+            _shaderInstanceBacking.UpdateBoundVao();
         }
     }
 }

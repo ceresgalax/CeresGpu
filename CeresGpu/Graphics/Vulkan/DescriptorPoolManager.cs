@@ -62,7 +62,7 @@ public sealed class DescriptorPoolManager : IDisposable
 
     private readonly HashSet<int> _tempA = [];
     
-    public void AllocateDescriptorSets(ReadOnlySpan<DescriptorSetLayout> layouts, ReadOnlySpan<(DescriptorType type, int count)> descriptorCounts, out DescriptorPool poolAllocatedFrom, DescriptorSet[] outDescriptorSets)
+    public void AllocateDescriptorSets(ReadOnlySpan<DescriptorSetLayout> layouts, ReadOnlySpan<(DescriptorType type, int count)> descriptorCounts, out DescriptorPool poolAllocatedFrom, Span<DescriptorSet> outDescriptorSets)
     {
         _tempA.Clear();
 
@@ -92,7 +92,7 @@ public sealed class DescriptorPoolManager : IDisposable
             .AssertSuccess("Failed to allocate descriptorSet from a brand new pool.");
     }
 
-    public void FreeDescriptorSets(DescriptorSet[] descriptorSets, DescriptorPool pool, ReadOnlySpan<(DescriptorType type, int count)> descriptorCounts)
+    public void FreeDescriptorSets(ReadOnlySpan<DescriptorSet> descriptorSets, DescriptorPool pool, ReadOnlySpan<(DescriptorType type, int count)> descriptorCounts)
     {
         unsafe {
             fixed (DescriptorSet* pDescriptorSets = descriptorSets) {
@@ -151,7 +151,7 @@ public sealed class DescriptorPoolManager : IDisposable
         return index;
     }
 
-    private Result AllocateDescriptorSetFromPool(int poolIndex, ReadOnlySpan<DescriptorSetLayout> layouts, ReadOnlySpan<(DescriptorType type, int count)> descriptorCounts, out DescriptorPool poolAllocatedFrom, DescriptorSet[] outDescriptorSets)
+    private Result AllocateDescriptorSetFromPool(int poolIndex, ReadOnlySpan<DescriptorSetLayout> layouts, ReadOnlySpan<(DescriptorType type, int count)> descriptorCounts, out DescriptorPool poolAllocatedFrom, Span<DescriptorSet> outDescriptorSets)
     {
         PoolInfo poolInfo = _pools[poolIndex];
         poolAllocatedFrom = poolInfo.Pool;

@@ -123,10 +123,10 @@ namespace CeresGpu.Graphics.OpenGL
             return new GLShaderInstanceBacking(this, shader);
         }
 
-        public IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints)
-        {
-            return new GLDescriptorSet(this, in hints);
-        }
+        // public IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints)
+        // {
+        //     return new GLDescriptorSet(this, in hints);
+        // }
 
         public bool IsPassRegistered<TRenderPass>() where TRenderPass : IRenderPass
         {

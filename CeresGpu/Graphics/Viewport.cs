@@ -1,18 +1,10 @@
 namespace CeresGpu.Graphics
 {
-    public struct Viewport
+    public struct Viewport(uint x, uint y, uint width, uint height)
     {
-        public uint X;
-        public uint Y;
-        public uint Width;
-        public uint Height;
-
-        public Viewport(uint x, uint y, uint width, uint height)
-        {
-            X = x;
-            Y = y;
-            Width = width;
-            Height = height;
-        }
+        public float X = x;
+        public float Y = y;
+        public float Width = width;
+        public float Height = height;
     }
 }

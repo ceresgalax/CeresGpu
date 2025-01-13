@@ -5,7 +5,7 @@ namespace CeresGpu.Graphics.OpenGL;
 public struct GLDescriptorBindingInfo : IDescriptorBindingInfo
 {
     /// <summary>
-    /// The binding index of this resource.
+    /// The uniform location of this descriptor in the glsl shader.
     /// </summary>
-    public required uint BindingIndex;
+    public required uint Location;
 }
