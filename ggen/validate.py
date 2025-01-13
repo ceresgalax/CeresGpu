@@ -3,6 +3,8 @@
 from .genshaders import Shader
 
 
+# TODO: SHOULD VERIFY THAT SSBO USAGES IN VERTEX SHADERS ARE MARKED AS READONLY (Required by Vulkan)
+
 def validate_descriptor_set_bindings(shader: Shader):
     """
     Validate that `layout(set=X, binding=Y)` has been set correctly in the source shader.

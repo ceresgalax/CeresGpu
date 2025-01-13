@@ -12,7 +12,7 @@ namespace CeresGpu.Graphics.Vulkan;
 
 public sealed class VulkanRenderer : IRenderer
 {
-    public uint UniqueFrameId { get; }
+    public uint UniqueFrameId { get; private set; }
 
     public readonly Vk Vk = Vk.GetApi();
     public readonly KhrSurface VkKhrSurface;
@@ -776,6 +776,7 @@ public sealed class VulkanRenderer : IRenderer
         // Prepare next frame
         //
         WorkingFrame = (WorkingFrame + 1) % FrameCount;
+        ++UniqueFrameId;
 
         NewFrame();
     }

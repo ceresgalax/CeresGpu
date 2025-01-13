@@ -80,6 +80,10 @@ public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer, IDef
             _buffer = default;
         }
 
+        if (elementCount < 0) {
+            return;
+        }
+
         BufferCreateInfo createInfo = new(
             sType: StructureType.BufferCreateInfo,
             pNext: null,

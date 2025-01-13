@@ -72,25 +72,26 @@ public sealed class VulkanStreamingBuffer<T> : StreamingBuffer<T>, IVulkanBuffer
           | BufferUsageFlags.VertexBufferBit
           | BufferUsageFlags.IndirectBufferBit;
         
-        BufferCreateInfo createInfo = new(
-            sType: StructureType.BufferCreateInfo,
-            pNext: null,
-            flags: BufferCreateFlags.None,
-            size: (ulong)(elementCount * sizeof(T)),
-            usage: usageFlags,
-            sharingMode: SharingMode.Exclusive,
-            // Ignored when SharingMode is Exclusive:
-            queueFamilyIndexCount: 0,
-            pQueueFamilyIndices: null
-        );
-
-        _buffers = new VkBuffer[_renderer.FrameCount];
-        for (int i = 0; i < _renderer.FrameCount; ++i) {
-            vk.CreateBuffer(_renderer.Device, in createInfo, null, out _buffers[i])
-                .AssertSuccess("Failed to create buffer");    
-        }
-
         if (_elementCount > 0) {
+            
+            BufferCreateInfo createInfo = new(
+                sType: StructureType.BufferCreateInfo,
+                pNext: null,
+                flags: BufferCreateFlags.None,
+                size: (ulong)(elementCount * sizeof(T)),
+                usage: usageFlags,
+                sharingMode: SharingMode.Exclusive,
+                // Ignored when SharingMode is Exclusive:
+                queueFamilyIndexCount: 0,
+                pQueueFamilyIndices: null
+            );
+
+            _buffers = new VkBuffer[_renderer.FrameCount];
+            for (int i = 0; i < _renderer.FrameCount; ++i) {
+                vk.CreateBuffer(_renderer.Device, in createInfo, null, out _buffers[i])
+                    .AssertSuccess("Failed to create buffer");    
+            }
+        
             // Allocate memory to be used by the buffers.
 
             // NOTE: This assumes the buffers will all have the same memory requirements.

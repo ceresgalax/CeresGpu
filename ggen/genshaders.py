@@ -443,7 +443,6 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             if index is None:
                 index = len(flattened_arg_buffers)
                 flattened_arg_buffers[key] = index
-                print(f'{repr(key)} = {index}')
 
             name = abb.name
             # Annoying hack, since spir-v reflection doesn't give us the variable names that we find in the metal shader.
@@ -523,7 +522,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             f'            BufferId = {texture_binding},',
             f'            SamplerBufferId = {sampler_binding},',
             f'        }},',
-            f'        vulkan: new VulkanDescriptorBindingInfo {{ Set = {texture.set}, Binding = {texture_binding} }}',
+            f'        vulkan: new VulkanDescriptorBindingInfo {{ Set = {texture.set}, Binding = {texture.binding} }}',
             '    ),',
             '    DescriptorType = DescriptorType.Texture,',
             f'    Name = "{make_cs_string_literal(texture.name)}",',
