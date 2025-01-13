@@ -609,14 +609,6 @@ public sealed class VulkanRenderer : IRenderer
         return new VulkanShaderInstanceBacking(this, backing);
     }
 
-    // public IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints)
-    // {
-    //     if (shader is not VulkanShaderBacking vulkanShaderBacking) {
-    //         throw new ArgumentException("Given shader backing is not compatible with this renderer.", nameof(shader));
-    //     }
-    //     return new VulkanDescriptorSet(this, vulkanShaderBacking, index, in hints);
-    // }
-
     public bool IsPassRegistered<TRenderPass>() where TRenderPass : IRenderPass
     {
         return _passBackings.ContainsKey(typeof(TRenderPass));

@@ -83,21 +83,6 @@ namespace CeresGpu.Graphics.Metal
             return new MetalShaderInstanceBacking(this, (MetalShaderBacking)shader.Backing!);
         }
 
-        // public IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints)
-        // {
-        //     if (shader is not MetalShaderBacking metalShader) {
-        //         throw new ArgumentException("Incompatible shader", nameof(shader));
-        //     }
-        //
-        //     IntPtr function = stage switch {
-        //         ShaderStage.Vertex => metalShader.VertexFunction
-        //         , ShaderStage.Fragment => metalShader.FragmentFunction
-        //         , _ => throw new ArgumentOutOfRangeException(nameof(stage), stage, null)
-        //     };
-        //     
-        //     return new MetalDescriptorSet(this, function, stage, index, in hints);
-        // }
-
         public bool IsPassRegistered<TRenderPass>() where TRenderPass : IRenderPass
         {
             throw new NotImplementedException();
