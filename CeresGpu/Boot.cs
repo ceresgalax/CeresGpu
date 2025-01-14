@@ -159,42 +159,7 @@ public static class Boot
 
         return hints;
     }
-
-    // public static GLFWWindow MakeWindow(WindowHints hints, int width, int height, string title)
-    // {
-    //     if (GLFW.MainThread == null) {
-    //         GLFW.Init();
-    //     }
-    //         
-    //     // GLFW does not allow width or height of 0.
-    //     if (width == 0) {
-    //         // TODO: Should we log somehow?
-    //         width = 1;
-    //     }
-    //     if (height == 0) {
-    //         // TODO: Should we log somehow?
-    //         height = 1;
-    //     }
-    //
-    //     GLFWWindow window = new(
-    //         width: width,
-    //         height: height,
-    //         title: title,
-    //         share: null,
-    //         hints);
-    //
-    //     GLFW.MakeContextCurrent(window);
-    //         
-    //     return window;
-    // }
-        
-    // private static GLFWWindow MakeWindow(int width, int height, string title, bool maximized)
-    // {
-    //     WindowHints hints = MakeWindowHints();
-    //     hints.Maximized = maximized;
-    //     return MakeWindow(hints, width, height, title);
-    // }
-
+    
     public static IRenderer MakeRenderer(IWindowFactory windowFactory)
     {
         // TODO: Better API selection.
@@ -207,31 +172,18 @@ public static class Boot
         }
         
         // Try Vulkan
-        if (!isMacOs && windowFactory is IVulkanWindowFactory vulkanWindowFactory) {
-            return new VulkanRenderer(vulkanWindowFactory);
-        }
+        // if (!isMacOs && windowFactory is IVulkanWindowFactory vulkanWindowFactory) {
+        //     return new VulkanRenderer(vulkanWindowFactory);
+        // }
         
         // Try OpenGL
         if (windowFactory is IGLWindowFactory glWindowFactory) {
+            glWindowFactory.SetOpenGLInfo(4, 6, true);
             return new GLRenderer(windowFactory.GetOrCreateWindow());
         }
         
         // TODO: Different exception type? 
         throw new InvalidOperationException("Failed to find an appropriate renderer impl.");
     }
-        
-    // public static (IRenderer, GLFWWindow) MakeRenderer(WindowHints hints, int width, int height, string title)
-    // {
-    //     GLFWWindow window = MakeWindow(hints, width, height, title);
-    //     IRenderer renderer = MakeRenderer(window);
-    //     return (renderer, window);
-    // }
-    //
-    // public static (IRenderer, GLFWWindow) MakeRenderer(int width, int height, string title, bool maximized = true)
-    // {
-    //     GLFWWindow window = MakeWindow(width, height, title, maximized);
-    //     IRenderer renderer = MakeRenderer(window);
-    //     return (renderer, window);
-    // }
 
 }

@@ -71,43 +71,7 @@ public class VulkanFramebuffer : IFramebuffer
         _renderer = renderer;
         _passBacking = passBacking;
         
-        if (colorAttachments.Length != passBacking.Definition.ColorAttachments.Length) {
-            throw new ArgumentOutOfRangeException(nameof(colorAttachments));
-        }
-
-        if (passBacking.Definition.DepthStencilAttachment.HasValue != (depthStencilAttachment != null)) {
-            throw new ArgumentOutOfRangeException(nameof(depthStencilAttachment));
-        }
-
-        uint width = 0;
-        uint height = 0;
-
-        bool hasCommittedOnFixedSize = false;
-        bool isMatchingSwapchainSize = false;
-
-        void UpdateSize(IRenderTarget target)
-        {
-            if (hasCommittedOnFixedSize && isMatchingSwapchainSize != target.MatchesSwapchainSize) {
-                throw new ArgumentOutOfRangeException();
-            }
-
-            hasCommittedOnFixedSize = true;
-            isMatchingSwapchainSize = target.MatchesSwapchainSize;
-
-            uint targetWidth = target.Width;
-            uint targetHeight = target.Height;
-            
-            if (width == 0) {
-                if (targetWidth == 0 || targetHeight == 0) {
-                    throw new ArgumentOutOfRangeException();
-                }
-                width = targetWidth;
-                height = targetHeight;
-                
-            } else if (width != targetWidth || height != targetHeight) {
-                throw new ArgumentOutOfRangeException(nameof(colorAttachments));
-            }
-        }
+        FramebufferUtil.ValidateAttachments(in passBacking.Definition, colorAttachments, depthStencilAttachment, out uint width, out uint height);
         
         _colorAttachments = new ColorAttachment[passBacking.Definition.ColorAttachments.Length];
 
@@ -119,7 +83,6 @@ public class VulkanFramebuffer : IFramebuffer
                 throw new ArgumentOutOfRangeException(nameof(colorAttachments));
             }
             _colorAttachments[i].RenderTarget = vulkanRenderTarget;
-            UpdateSize(colorAttachments[i]);
         }
 
         if (depthStencilAttachment != null) {
@@ -127,7 +90,6 @@ public class VulkanFramebuffer : IFramebuffer
                 throw new ArgumentException(nameof(depthStencilAttachment));
             }
             _depthStencilAttachment = vulkanRenderTarget;
-            UpdateSize(depthStencilAttachment);
         }
         
         foreach (int[] indices in CalculatePossibleFramebufferPermutations()) {
@@ -144,14 +106,10 @@ public class VulkanFramebuffer : IFramebuffer
                                  (_passBacking.Definition.DepthStencilAttachment == null ? 0 : 1);
         ImageView[] attachmentViews = new ImageView[numAttachmentViews];
         for (int colorIndex = 0; colorIndex < _passBacking.Definition.ColorAttachments.Length; ++colorIndex) {
-            // TODO: Should we assert earlier that all color attachments have been set before we attempt to 
-            //  use this framebuffer again after calling any of the mutating methods? 
             attachmentViews[colorIndex] = _colorAttachments[colorIndex].RenderTarget?.GetImageView(indices[colorIndex]) ?? default;
         }
 
         if (_passBacking.Definition.DepthStencilAttachment != null) {
-            // TODO: Should we assert earlier that the depth stencil attachment has been set before we attempt to 
-            //  use this framebuffer again after calling any of the mutating methods? 
             attachmentViews[^1] = _depthStencilAttachment?.GetImageView(indices[^1]) ?? default;
         }
         

@@ -10,7 +10,7 @@ namespace CeresGpu.Graphics.OpenGL;
 public sealed class GLShaderInstanceBacking : IShaderInstanceBacking
 {
     private readonly GLRenderer _renderer;
-    private readonly IShader _shader;
+    public readonly IShader Shader;
         
     private readonly VertexArray[] _vaos;
         
@@ -22,7 +22,7 @@ public sealed class GLShaderInstanceBacking : IShaderInstanceBacking
     public GLShaderInstanceBacking(GLRenderer renderer, IShader shader)
     {
         _renderer = renderer;
-        _shader = shader;
+        Shader = shader;
             
         IGLProvider provider = renderer.GLProvider;
             
@@ -43,7 +43,7 @@ public sealed class GLShaderInstanceBacking : IShaderInstanceBacking
             buffer?.Commit();
         }
 
-        vao.RecreateIfNecesaryAndBind(_shader, layout, adapter);
+        vao.RecreateIfNecesaryAndBind(Shader, layout, adapter);
     }
 
     public void Dispose()
@@ -51,7 +51,7 @@ public sealed class GLShaderInstanceBacking : IShaderInstanceBacking
         foreach (VertexArray vao in _vaos) {
             vao.Dispose();
         }
-        _shader.Dispose();
+        Shader.Dispose();
     }
         
     private GLDescriptorBindingInfo GetBinding(in DescriptorInfo descriptorInfo)

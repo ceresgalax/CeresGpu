@@ -727,8 +727,6 @@ public sealed class VulkanRenderer : IRenderer
             currentEncoder = currentEncoder.Next;
         }
         
-        _passesToSubmit.Clear();
-
         // Submit the passes
         Semaphore acquireImageSemaphore = _acquireImageSemaphores[WorkingFrame];
         PipelineStageFlags acquireImageWaitStage = PipelineStageFlags.ColorAttachmentOutputBit;
@@ -753,6 +751,7 @@ public sealed class VulkanRenderer : IRenderer
         foreach (VulkanCommandEncoder encoder in _passesToSubmit) {
             encoder.Dispose();
         }
+        _passesToSubmit.Clear();
 
         //
         // Present the frame

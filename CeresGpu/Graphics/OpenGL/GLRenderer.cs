@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using CeresGL;
@@ -34,6 +33,20 @@ namespace CeresGpu.Graphics.OpenGL
         
         private readonly DebugCallback? _debugCallback;
 
+        private readonly Dictionary<Type, GLPassBacking> _passBackings = [];
+
+        /// <summary>
+        /// Contains the passes that are to be submitted this frame.
+        /// </summary>
+        private readonly HashSet<GLPass> _passesToSubmit = new();
+    
+        // NOTE: These are just anchors, and are not to be submitted.
+        private readonly GLPassAnchor _encoderListStart = new();
+        private readonly GLPassAnchor _encoderListEnd = new();
+
+        private readonly GLSwapchainTarget _swapchainTarget = new GLSwapchainTarget();
+        private readonly GLFramebuffer _swapchainBlitSrcFramebuffer;
+        
         public GLRenderer(GLFWWindow window, bool isDebugContext = false)
         {
             GL gl = new();
@@ -65,6 +78,19 @@ namespace CeresGpu.Graphics.OpenGL
 
             FallbackTexture = (GLTexture)RendererUtil.CreateFallbackTexture(this);
             FallbackSampler = (GLSampler)CreateSampler(default);
+            
+            _encoderListStart.ResetAsFront(_encoderListEnd);
+            
+            // TODO: Support resizing.
+            window.GetFramebufferSize(out int framebufferWidth, out int framebufferHeight);
+            _swapchainTarget.InnerBuffer = new GLRenderBuffer(this, true, ColorFormat.R8G8B8A8_UNORM, default, (uint)framebufferWidth, (uint)framebufferHeight);
+
+            _swapchainBlitSrcFramebuffer = new GLFramebuffer(this, new GLPassBacking(new RenderPassDefinition {
+                ColorAttachments = [
+                    new ColorAttachment { Format = ColorFormat.R8G8B8A8_UNORM, LoadAction = LoadAction.DontCare }
+                ],
+                DepthStencilAttachment = null
+            }), [_swapchainTarget], null);
         }
 
         private delegate void DebugCallback(DebugSource source, DebugType type, uint id, DebugSeverity severity, uint length, IntPtr message, IntPtr userParam); 
@@ -125,12 +151,20 @@ namespace CeresGpu.Graphics.OpenGL
 
         public bool IsPassRegistered<TRenderPass>() where TRenderPass : IRenderPass
         {
-            throw new NotImplementedException();
+            return _passBackings.ContainsKey(typeof(TRenderPass));
         }
 
         public void RegisterPassType<TRenderPass>(RenderPassDefinition definition) where TRenderPass : IRenderPass
         {
-            throw new NotImplementedException();
+            _passBackings.Add(typeof(TRenderPass), new GLPassBacking(definition));
+        }
+        
+        private GLPassBacking GetPassBackingOrThrow(Type passType)
+        {
+            if (!_passBackings.TryGetValue(passType, out GLPassBacking? passBacking)) {
+                throw new InvalidOperationException($"Pass of type {passType} has not been registered. You must call RegisterPassType first.");
+            }
+            return passBacking;
         }
 
         public IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(
@@ -147,7 +181,8 @@ namespace CeresGpu.Graphics.OpenGL
 
         public IFramebuffer CreateFramebuffer<TRenderPass>(ReadOnlySpan<IRenderTarget> colorAttachments, IRenderTarget? depthStencilAttachment) where TRenderPass : IRenderPass
         {
-            throw new NotImplementedException();
+            GLPassBacking passBacking = GetPassBackingOrThrow(typeof(TRenderPass));
+            return new GLFramebuffer(this, passBacking, colorAttachments, depthStencilAttachment);
         }
 
         public IRenderTarget CreateRenderTarget(ColorFormat format, bool matchSwapchainSize, uint width, uint height)
@@ -162,68 +197,58 @@ namespace CeresGpu.Graphics.OpenGL
 
         public IRenderTarget GetSwapchainColorTarget()
         {
-            throw new NotImplementedException();
+            return _swapchainTarget;
         }
 
         public IPass CreatePassEncoder<TRenderPass>(TRenderPass pass, IPass? occursBefore) where TRenderPass : IRenderPass
         {
-            throw new NotImplementedException();
+            if (pass.Framebuffer is not GLFramebuffer framebuffer) {
+                throw new ArgumentException("Backend type of pass is not compatible with this renderer.", nameof(pass));
+            }
+            
+            GLPassBacking passBacking = GetPassBackingOrThrow(typeof(TRenderPass));
+            GLPass encoder = new(this, passBacking, framebuffer);
+            
+            if (occursBefore == null) {
+                encoder.InsertAfter(_encoderListEnd.Prev!);
+            } else {
+                encoder.InsertBefore((GLPass)occursBefore);
+            }
+
+            _passesToSubmit.Add(encoder);
+            return encoder;
         }
-
-        /// <summary>
-        /// To be called by GLPass when encoding has finished.
-        /// </summary>
-        public void FinishPass()
-        {
-            //_currentPass = null;
-        }
-
-        // private GLPass SetCurrentPass(GLPass pass)
-        // {
-        //     _currentPass?.Finish();
-        //     _currentPass = pass;
-        //     return pass;
-        // }
-
-        // public IPass CreateFramebufferPass(LoadAction colorLoadAction, Vector4 clearColor, bool withDepthStencil, double depthClearValue, uint stencilClearValue)
-        // {
-        //     _window.GetFramebufferSize(out int width, out int height);
-        //     GLPass pass = SetCurrentPass(new GLPass(this, (uint)width, (uint)height));
-        //     
-        //     // TODO: Need to better clarify which methods CeresGPU API allows to be performed outside of the main thread.
-        //     // If the CeresGPU API allows CreateFramebuffer pass to be called outside of the main thread, We will need
-        //     // to serially queue the GL commands here to the GL thread.
-        //     GL gl = GLProvider.Gl;
-        //     gl.Viewport(0, 0, width, height);
-        //
-        //     ClearBufferMask clearMask = 0;
-        //     if (colorLoadAction == LoadAction.Clear) {
-        //         gl.ClearColor(clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
-        //         clearMask |= ClearBufferMask.COLOR_BUFFER_BIT;
-        //     }
-        //     if (withDepthStencil) {
-        //         gl.ClearDepth(depthClearValue);
-        //         gl.ClearStencil((int)stencilClearValue);
-        //         clearMask |= ClearBufferMask.DEPTH_BUFFER_BIT | ClearBufferMask.STENCIL_BUFFER_BIT;
-        //     }
-        //
-        //     pass.SetScissor(new ScissorRect(0, 0, (uint)width, (uint)height));
-        //
-        //     if (clearMask != 0) {
-        //         gl.Clear(clearMask);    
-        //     }
-        //     
-        //     return pass;
-        // }
-        //
-        // public IPass CreatePass(ReadOnlySpan<ColorAttachment> colorAttachments, ITexture? depthStencilAttachment, LoadAction depthLoadAction
-        //     , double depthClearValue, LoadAction stencilLoadAction, uint stenclClearValue)
-        // {
-        //     throw new NotImplementedException();
-        // }
 
         public void Present(float minimumElapsedSeocnds)
         {
+            GL gl = GLProvider.Gl;
+            
+            IGLPass? currentEncoder = _encoderListStart.Next;
+            for (int i = 0, ilen = _passesToSubmit.Count; i < ilen; ++i) {
+                if (currentEncoder == null) {
+                    throw new InvalidOperationException("Unexpected end of command buffer list. (Likely a bug in CeresGpu)");
+                }
+                
+                currentEncoder.ExecuteCommands(gl);
+                
+                currentEncoder = currentEncoder.Next;
+            }
+            
+            _passesToSubmit.Clear();
+            _encoderListStart.ResetAsFront(_encoderListEnd);
+            
+            // Now blit our fake swapchain renderbuffer onto the actual backbuffer
+            gl.Viewport(0, 0, (int)_swapchainTarget.Width, (int)_swapchainTarget.Height);
+            gl.Scissor(0, 0, (int)_swapchainTarget.Width, (int)_swapchainTarget.Height);
+            gl.BindFramebuffer(FramebufferTarget.READ_FRAMEBUFFER, _swapchainBlitSrcFramebuffer.FramebufferHandle);
+            gl.BindFramebuffer(FramebufferTarget.DRAW_FRAMEBUFFER, 0);
+            gl.BlitFramebuffer(
+                0, 0, (int)_swapchainTarget.Width, (int)_swapchainTarget.Height,
+                0, 0, (int)_swapchainTarget.Width, (int)_swapchainTarget.Height,
+                ClearBufferMask.COLOR_BUFFER_BIT,
+                BlitFramebufferFilter.NEAREST
+            );
+            
             _window.SwapBuffers();
             ++UniqueFrameId;
             WorkingFrame = (WorkingFrame + 1) % WorkingFrameCount;

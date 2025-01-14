@@ -1,10 +1,8 @@
 ﻿using System;
-using CeresGpu.Graphics;
-using CeresGpu.Graphics.Vulkan;
 using Silk.NET.Vulkan;
 using VkBuffer = Silk.NET.Vulkan.Buffer;
 
-namespace CeresGpu;
+namespace CeresGpu.Graphics.Vulkan;
 
 sealed class DestroyBufferDeferable(VulkanRenderer renderer) : IDeferredDisposable
 {
@@ -179,7 +177,7 @@ public sealed class VulkanStreamingBuffer<T> : StreamingBuffer<T>, IVulkanBuffer
         try {
             // Copy the elements
             fixed (T* pElements = elements) {
-                System.Buffer.MemoryCopy(pElements, (byte*)mapped + mappingOffset, mappingSize - mappingOffset, (uint)elements.Length * (uint)sizeof(T));    
+                System.Buffer.MemoryCopy(pElements, (byte*)mapped + mappingOffset, mappingSize - mappingOffset, count * (uint)sizeof(T));    
             }
                 
             // Flush the writen memory.

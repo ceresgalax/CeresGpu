@@ -248,7 +248,8 @@ public sealed class VulkanCommandEncoder : IVulkanCommandEncoder, IPass, IDeferr
 
     public void SetViewport(Viewport viewport)
     {
-        Silk.NET.Vulkan.Viewport vkViewport = new (viewport.X, viewport.Y, viewport.Width, viewport.Height, 0f, 1f);
+        // Silk.NET.Vulkan.Viewport vkViewport = new (viewport.X, viewport.Y, viewport.Width, viewport.Height, 0f, 1f);
+        Silk.NET.Vulkan.Viewport vkViewport = new (viewport.X, viewport.Height - viewport.Y, viewport.Width, -viewport.Height, 0f, 1f);
         _renderer.Vk.CmdSetViewport(_commandBuffer, 0, 1, in vkViewport);
         CurrentDynamicViewport = viewport;
     }
