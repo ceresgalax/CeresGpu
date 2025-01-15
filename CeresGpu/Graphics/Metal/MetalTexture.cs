@@ -43,7 +43,7 @@ namespace CeresGpu.Graphics.Metal
                 _texture = IntPtr.Zero;
             }
             
-            _texture = MetalApi.metalbinding_new_texture(_renderer.Context, width, height, GetMetalPixelFormat(format));
+            _texture = MetalApi.metalbinding_new_texture(_renderer.Context, width, height, format.ToMtlPixelFormat());
 
             Width = width;
             Height = height;
@@ -69,16 +69,6 @@ namespace CeresGpu.Graphics.Metal
         {
             MinFilter = min;
             MagFilter = mag;
-        }
-
-        private MetalApi.MTLPixelFormat GetMetalPixelFormat(ColorFormat format)
-        {
-            return format switch { 
-                ColorFormat.R8G8B8A8_UNORM => MetalApi.MTLPixelFormat.RGBA8Unorm,
-                ColorFormat.B8G8R8A8_UNORM => MetalApi.MTLPixelFormat.BGRA8Unorm,
-                ColorFormat.R8_UNORM => MetalApi.MTLPixelFormat.R8Unorm,
-                _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
-            };
         }
 
         private void ReleaseUnmanagedResources()

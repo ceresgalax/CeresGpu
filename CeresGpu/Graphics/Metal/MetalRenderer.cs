@@ -12,17 +12,29 @@ namespace CeresGpu.Graphics.Metal
     {
         public readonly IntPtr Context;
         private readonly GLFWWindow _glfwWindow;
-        private IntPtr _currentFrameCommandBuffer;
+        //private IntPtr _currentFrameCommandBuffer;
 
-        //private MetalPass? _currentPass;
-        
         public readonly MetalTexture FallbackTexture;
         public readonly MetalSampler FallbackSampler;
         
         public int FrameCount => 3; 
         public int WorkingFrame { get; private set; }
         public uint UniqueFrameId { get; private set; }
-        //public MetalPass? CurrentPass => _currentPass;
+
+        private bool _hasAcquiredDrawable;
+        
+        private Dictionary<Type, MetalPassBacking> _passBackings = [];
+        
+        /// <summary>
+        /// Contains the passes that are to be submitted this frame.
+        /// </summary>
+        private readonly HashSet<MetalPass> _passesToSubmit = new();
+    
+        // NOTE: These are just anchors, and are not to be submitted.
+        private readonly MetalPassAnchor _encoderListStart = new();
+        private readonly MetalPassAnchor _encoderListEnd = new();
+
+        private readonly MetalSwapchainTarget _swapchainTarget = new();
 
         public MetalRenderer(IntPtr window, GLFWWindow glfwWindow)
         {
@@ -32,6 +44,12 @@ namespace CeresGpu.Graphics.Metal
 
             FallbackTexture = (MetalTexture)RendererUtil.CreateFallbackTexture(this);
             FallbackSampler = (MetalSampler)CreateSampler(default);
+
+            glfwWindow.GetFramebufferSize(out int framebufferWidth, out int framebufferHeight);
+            _swapchainTarget.Width = (uint)framebufferWidth;
+            _swapchainTarget.Height = (uint)framebufferHeight;
+            
+            NewFrame();
         }
 
         public void Dispose()
@@ -85,12 +103,20 @@ namespace CeresGpu.Graphics.Metal
 
         public bool IsPassRegistered<TRenderPass>() where TRenderPass : IRenderPass
         {
-            throw new NotImplementedException();
+            return _passBackings.ContainsKey(typeof(TRenderPass));
         }
 
         public void RegisterPassType<TRenderPass>(RenderPassDefinition definition) where TRenderPass : IRenderPass
         {
-            throw new NotImplementedException();
+            _passBackings.Add(typeof(TRenderPass), new MetalPassBacking(definition));
+        }
+        
+        private MetalPassBacking GetPassBackingOrThrow(Type passType)
+        {
+            if (!_passBackings.TryGetValue(passType, out MetalPassBacking? passBacking)) {
+                throw new InvalidOperationException($"Pass of type {passType} has not been registered. You must call RegisterPassType first.");
+            }
+            return passBacking;
         }
 
         public IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(
@@ -107,9 +133,9 @@ namespace CeresGpu.Graphics.Metal
 
         public IFramebuffer CreateFramebuffer<TRenderPass>(ReadOnlySpan<IRenderTarget> colorAttachments, IRenderTarget? depthStencilAttachment) where TRenderPass : IRenderPass
         {
-            throw new NotImplementedException();
+            MetalPassBacking passBacking = GetPassBackingOrThrow(typeof(TRenderPass));
+            return new MetalFramebuffer(passBacking, colorAttachments, depthStencilAttachment);
         }
-
 
         public IRenderTarget CreateRenderTarget(ColorFormat format, bool matchSwapchainSize, uint width, uint height)
         {
@@ -123,160 +149,99 @@ namespace CeresGpu.Graphics.Metal
 
         public IRenderTarget GetSwapchainColorTarget()
         {
-            throw new NotImplementedException();
+            return _swapchainTarget;
         }
 
         public IPass CreatePassEncoder<TRenderPass>(TRenderPass pass, IPass? occursBefore) where TRenderPass : IRenderPass
         {
-            throw new NotImplementedException();
-        }
+            // TODO: Maybe we can be smarter and only acquire the drawable if the framebuffer uses a swapchain target?
+            // We need to acquire the drawable as late as possible.
+            EnsureDrawableAcquired();
 
-        private void AcquireCurrentFrameCommandBuffer()
-        {
-            if (_currentFrameCommandBuffer == IntPtr.Zero) {
-                
-                _glfwWindow.GetContentScale(out float scale, out _);
-                _glfwWindow.GetSize(out int width, out int height);
-                MetalApi.metalbinding_set_content_scale(Context, scale, (uint)width, (uint)height);
-                
-                // Acquire this frame's command buffer for the first time.
-                _currentFrameCommandBuffer = MetalApi.metalbinding_acquire_command_buffer(Context);
+            if (pass.Framebuffer is not MetalFramebuffer framebuffer) {
+                throw new ArgumentOutOfRangeException(nameof(pass), "Incompatible framebuffer");
             }
+            
+            MetalPassBacking passBacking = GetPassBackingOrThrow(typeof(TRenderPass));
+            MetalPass encoder = new MetalPass(this, passBacking, framebuffer);
+
+            if (occursBefore == null) {
+                encoder.InsertAfter(_encoderListEnd.Prev!);
+            } else {
+                encoder.InsertBefore((MetalPass)occursBefore);
+            }
+
+            _passesToSubmit.Add(encoder);
+            return encoder;
         }
-
-        /// <summary>
-        /// To be called by MetalPass when encoding has finished.
-        /// </summary>
-        public void FinishPass()
-        {
-            //_currentPass = null;
-        }
-
-        // private MetalPass SetCurrentPass(MetalPass pass)
-        // {
-        //     _currentPass?.Finish();
-        //     _currentPass = pass;
-        //     return pass;
-        // }
-
-        //public IPass CreateFramebufferPass(bool clear, Vector4 clearColor)
-        // public IPass CreateFramebufferPass(LoadAction colorLoadAction, Vector4 clearColor, bool withDepthStencil, double depthClearValue, uint stencilClearValue)
-        // {
-        //     //MetalApi.metalbinding_capture(Context);
-        //     
-        //     AcquireCurrentFrameCommandBuffer();
-        //
-        //     IntPtr drawableTexture = MetalApi.metalbinding_get_current_frame_drawable_texture(Context);
-        //     if (drawableTexture == IntPtr.Zero) {
-        //         throw new InvalidOperationException("Failed to get drawable texture for current frame");
-        //     }
-        //
-        //     IntPtr passDescriptor = MetalApi.metalbinding_create_render_pass_descriptor();
-        //     //IntPtr passDescriptor = MetalApi.metalbinding_create_current_frame_render_pass_descriptor(Context, clear, clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
-        //     if (passDescriptor == IntPtr.Zero) {
-        //         throw new InvalidOperationException("Failed to create a pass descriptor for the current frame.");
-        //     }
-        //     try {
-        //         MetalApi.MTLLoadAction metalLoadAction = MetalRenderPassUtil.TranslateLoadAction(colorLoadAction);
-        //         MetalApi.metalbinding_set_render_pass_descriptor_color_attachment(
-        //             passDescriptor,
-        //             0,
-        //             drawableTexture,
-        //             metalLoadAction,
-        //             MetalApi.MTLStoreAction.Store,
-        //             clearColor.X, clearColor.Y, clearColor.Z, clearColor.W
-        //         );
-        //         
-        //         // TODO: Need to support depth stencil
-        //         
-        //         return SetCurrentPass(new MetalPass(this, _currentFrameCommandBuffer, passDescriptor));
-        //     } finally {
-        //         MetalApi.metalbinding_release_render_pass_descriptor(passDescriptor);
-        //     }
-        // }
-
-        // public IPass CreatePass(
-        //     ReadOnlySpan<ColorAttachment> colorAttachments,
-        //     ITexture? depthStencilAttachment,
-        //     LoadAction depthLoadAction,
-        //     double depthClearValue,
-        //     LoadAction stencilLoadAction,
-        //     uint stenclClearValue
-        // )
-        // {
-        //     AcquireCurrentFrameCommandBuffer();
-        //     
-        //     IntPtr passDescriptor = MetalApi.metalbinding_create_render_pass_descriptor();
-        //     //IntPtr passDescriptor = MetalApi.metalbinding_create_current_frame_render_pass_descriptor(Context, clear, clearColor.X, clearColor.Y, clearColor.Z, clearColor.W);
-        //     if (passDescriptor == IntPtr.Zero) {
-        //         throw new InvalidOperationException("Failed to create a pass descriptor for the current frame.");
-        //     }
-        //     try {
-        //         
-        //         for (int i = 0, ilen = colorAttachments.Length; i < ilen; ++i) {
-        //             ColorAttachment attachment = colorAttachments[i];
-        //             IntPtr textureHandle = IntPtr.Zero;
-        //             if (attachment.Texture is MetalTexture metalTexture) {
-        //                 textureHandle = metalTexture.Handle;
-        //             }
-        //             
-        //             MetalApi.metalbinding_set_render_pass_descriptor_color_attachment(passDescriptor, (uint)i, 
-        //                 textureHandle, MetalRenderPassUtil.TranslateLoadAction(attachment.LoadAction),
-        //                 MetalApi.MTLStoreAction.Store, 
-        //                 attachment.ClearColor.X,
-        //                 attachment.ClearColor.Y,
-        //                 attachment.ClearColor.Z,
-        //                 attachment.ClearColor.W
-        //             );
-        //         }
-        //
-        //         if (depthStencilAttachment != null) {
-        //             IntPtr depthStencilTextureHandle = IntPtr.Zero;
-        //             if (depthStencilAttachment is MetalTexture metalDepthStencilTexture) {
-        //                 depthStencilTextureHandle = metalDepthStencilTexture.Handle;
-        //             }
-        //             MetalApi.metalbinding_set_render_pass_descriptor_depth_attachment(
-        //                 passDescriptor,
-        //                 depthStencilTextureHandle,
-        //                 MetalRenderPassUtil.TranslateLoadAction(depthLoadAction),
-        //                 MetalApi.MTLStoreAction.Store,
-        //                 depthClearValue
-        //             );
-        //             MetalApi.metalbinding_set_render_pass_descriptor_stencil_attachment(
-        //                 passDescriptor,
-        //                 depthStencilTextureHandle,
-        //                 MetalRenderPassUtil.TranslateLoadAction(stencilLoadAction),
-        //                 MetalApi.MTLStoreAction.Store,
-        //                 stenclClearValue
-        //             );
-        //         }
-        //         
-        //         return SetCurrentPass(new MetalPass(this, _currentFrameCommandBuffer, passDescriptor));
-        //     } finally {
-        //         MetalApi.metalbinding_release_render_pass_descriptor(passDescriptor);
-        //     }
-        // }
 
         public void Present(float minimumElapsedSeocnds)
         {
-            AcquireCurrentFrameCommandBuffer();
+            // Ensure we acquired the drawable - in case we didn't encode any render passes.
+            EnsureDrawableAcquired();
+
+            IMetalPass? currentEncoder = _encoderListStart.Next;
+            for (int i = 0, ilen = _passesToSubmit.Count; i < ilen; ++i) {
+                if (currentEncoder == null) {
+                    throw new InvalidOperationException("Unexpected end of command buffer list. (Likely a bug in CeresGpu)");
+                }
+                
+                currentEncoder.Finish();
+                MetalApi.metalbinding_commit_command_buffer(currentEncoder.CommandBuffer);
+                currentEncoder = currentEncoder.Next;
+            }
             
-            // TODO: Need to make sure all unfinished pass encoders are finished.
-            // _currentPass?.Finish();
-            // _currentPass = null;
+            _passesToSubmit.Clear();
+            _encoderListStart.ResetAsFront(_encoderListEnd);
             
-            MetalApi.metalbinding_present_current_frame_after_minimum_duration(Context, _currentFrameCommandBuffer, minimumElapsedSeocnds);
-            MetalApi.metalbinding_commit_command_buffer(_currentFrameCommandBuffer);
-            
-            MetalApi.metalbinding_release_command_buffer(_currentFrameCommandBuffer);
-            _currentFrameCommandBuffer = IntPtr.Zero;
+            // One final command buffer to present 
+            // (TODO: Could we cache these?)
+
+            IntPtr finalCommandBuffer = MetalApi.metalbinding_create_command_buffer(Context);
+            try {
+                MetalApi.metalbinding_present_current_frame_after_minimum_duration(Context, finalCommandBuffer, minimumElapsedSeocnds);
+                MetalApi.metalbinding_commit_command_buffer(finalCommandBuffer);
+            }
+            finally {
+                MetalApi.metalbinding_release_command_buffer(finalCommandBuffer);
+            }
             
             WorkingFrame = (WorkingFrame + 1) % FrameCount;
             ++UniqueFrameId;
-            
-            //MetalApi.metalbinding_stop_capture(Context);
 
             MetalApi.metalbinding_arp_drain(Context);
+            
+            NewFrame();
+        }
+
+        private void EnsureDrawableAcquired()
+        {
+            if (!_hasAcquiredDrawable) {
+                _hasAcquiredDrawable = true;
+
+                _glfwWindow.GetContentScale(out float scale, out _);
+                _glfwWindow.GetSize(out int width, out int height);
+                MetalApi.metalbinding_set_content_scale(Context, scale, (uint)width, (uint)height);
+
+                MetalApi.metalbinding_acquire_drawable(Context);
+                IntPtr texture = MetalApi.metalbinding_get_current_frame_drawable_texture(Context);
+                uint texWidth = 0, texHeight = 0;
+                MetalApi.MTLPixelFormat pixelFormat = default;
+                MetalApi.metalbinding_get_texture_info(texture, ref texWidth, ref texHeight, ref pixelFormat);
+                _swapchainTarget.Drawable = texture;
+                _swapchainTarget.Width = texWidth;
+                _swapchainTarget.Height = texHeight;
+                _swapchainTarget.ColorFormat = pixelFormat.ToColorFormat();
+
+                // Acquire this frame's command buffer for the first time.
+                //_currentFrameCommandBuffer = MetalApi.metalbinding_acquire_command_buffer(Context);
+            }
+        }
+
+        private void NewFrame()
+        {
+            _hasAcquiredDrawable = false;
+            _encoderListStart.ResetAsFront(_encoderListEnd);
         }
 
         public void GetDiagnosticInfo(IList<(string key, object value)> entries)

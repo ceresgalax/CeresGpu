@@ -71,14 +71,17 @@ public sealed class MetalShaderInstanceBacking : IShaderInstanceBacking
     
     public void Update(IntPtr renderCommandEncoder)
     {
-        // TODO: Iterating over these dictionaries probably generates garbage.
+        for (int i = 0; i < ArgumentBuffers.Length; ++i) {
+            MetalApi.metalbinding_set_argument_buffer(_argumentEncoders[i], ArgumentBuffers[i].GetHandleForCurrentFrame());
+        }
         
+        // TODO: Iterating over these dictionaries probably generates garbage.
         foreach ((MetalDescriptorBindingInfo binding, IMetalBuffer buffer) in _uniformBuffersByBinding) {
             IntPtr encoder = _argumentEncoders[binding.AbstractedBufferIndex];
             uint stages = binding.Stage == ShaderStage.Vertex ? 0b01u : 0b10u;
             
             buffer.Commit();
-            MetalApi.metalbinding_encode_buffer_argument(encoder, renderCommandEncoder, buffer.GetHandleForCurrentFrame(), 0, binding.FunctionArgumentBufferIndex, stages);
+            MetalApi.metalbinding_encode_buffer_argument(encoder, renderCommandEncoder, buffer.GetHandleForCurrentFrame(), 0, binding.BufferId, stages);
         }
         
         foreach ((MetalDescriptorBindingInfo binding, IMetalBuffer buffer) in _storageBuffersByBinding) {
@@ -86,7 +89,7 @@ public sealed class MetalShaderInstanceBacking : IShaderInstanceBacking
             uint stages = binding.Stage == ShaderStage.Vertex ? 0b01u : 0b10u;
             
             buffer.Commit();
-            MetalApi.metalbinding_encode_buffer_argument(encoder, renderCommandEncoder, buffer.GetHandleForCurrentFrame(), 0, binding.FunctionArgumentBufferIndex, stages);
+            MetalApi.metalbinding_encode_buffer_argument(encoder, renderCommandEncoder, buffer.GetHandleForCurrentFrame(), 0, binding.BufferId, stages);
         }
         
         foreach ((MetalDescriptorBindingInfo binding, MetalTexture texture) in _texturesByBinding) {
@@ -98,7 +101,7 @@ public sealed class MetalShaderInstanceBacking : IShaderInstanceBacking
             }
 
             MetalApi.metalbinding_encode_sampler_argument(encoder, sampler.Handle, binding.SamplerBufferId);
-            MetalApi.metalbinding_encode_texture_argument(encoder, renderCommandEncoder, texture.Handle, binding.FunctionArgumentBufferIndex, stages);
+            MetalApi.metalbinding_encode_texture_argument(encoder, renderCommandEncoder, texture.Handle, binding.BufferId, stages);
         }
         
     }

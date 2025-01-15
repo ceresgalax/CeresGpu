@@ -32,17 +32,17 @@ public sealed class GLFramebuffer : IFramebuffer
         _colorAttachments = new ColorAttachment[passBacking.Definition.ColorAttachments.Length];
         
         for (int i = 0; i < _colorAttachments.Length; ++i) {
-            if (colorAttachments[i] is not IGLRenderTarget vulkanRenderTarget) {
+            if (colorAttachments[i] is not IGLRenderTarget target) {
                 throw new ArgumentOutOfRangeException(nameof(colorAttachments));
             }
-            _colorAttachments[i].RenderTarget = vulkanRenderTarget;
+            _colorAttachments[i].RenderTarget = target;
         }
 
         if (depthStencilAttachment != null) {
-            if (depthStencilAttachment is not IGLRenderTarget vulkanRenderTarget) {
+            if (depthStencilAttachment is not IGLRenderTarget target) {
                 throw new ArgumentException(nameof(depthStencilAttachment));
             }
-            DepthStencilAttachment = vulkanRenderTarget;
+            DepthStencilAttachment = target;
         }
 
         GL gl = renderer.GLProvider.Gl;

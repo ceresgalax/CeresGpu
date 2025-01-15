@@ -432,25 +432,26 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     f.indent()
     
     # Figure out flattened arg buffer indices for metal impl
-    argbuffer_indices_by_name = {}
+    abstracted_argbuffer_indices_by_name = {}
     flattened_arg_buffers: Dict[Any, int] = {} 
     
     for stage, reflection in shader.reflections_by_stage.items():
-        for abb in reflection.arg_buffer_bindings:
-            key = (stage, abb.index)
+        descriptors: List[(str, int)] = []  # (name, set)
+        descriptors.extend(((ubo.name, ubo.set) for ubo in reflection.ubos))
+        descriptors.extend(((ssbo.name, ssbo.set) for ssbo in reflection.ssbos))
+        descriptors.extend(((tex.name, tex.set) for tex in reflection.textures))
             
+        for name, set in descriptors:
+            key = (stage, set)
             index = flattened_arg_buffers.get(key)
             if index is None:
                 index = len(flattened_arg_buffers)
                 flattened_arg_buffers[key] = index
 
-            name = abb.name
-            # Annoying hack, since spir-v reflection doesn't give us the variable names that we find in the metal shader.
-            if not abb.typename.startswith('texture2d<') and abb.typename != 'sampler':
-                name = abb.typename
-
-            # For some reason spirv-cross reflects the Uniform typename as the name.
-            argbuffer_indices_by_name[name] = index
+            abstracted_argbuffer_indices_by_name[name] = index
+            
+    print(abstracted_argbuffer_indices_by_name)
+    print(flattened_arg_buffers)
 
     def get_cs_shader_stage(stage: ShaderStage) -> str:
         return 'ShaderStage.Vertex' if stage == ShaderStage.VERTEX else 'ShaderStage.Fragment'
@@ -485,7 +486,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             f'        gl: new GLDescriptorBindingInfo {{ Location = {buffer.binding} }},',  
             f'        metal: new MetalDescriptorBindingInfo {{',
             f'            FunctionArgumentBufferIndex = {buffer.set},',
-            f'            AbstractedBufferIndex = {argbuffer_indices_by_name[buffer.name]},',
+            f'            AbstractedBufferIndex = {abstracted_argbuffer_indices_by_name[buffer.name]},',
             f'            Stage = {get_cs_shader_stage(stage)},',
             f'            BufferId = {buffer.binding}',
             f'        }},',
@@ -517,7 +518,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             f'        gl: new GLDescriptorBindingInfo {{ Location = {texture.binding} }},',
             f'        metal: new MetalDescriptorBindingInfo {{',
             f'            FunctionArgumentBufferIndex = {texture.set},',
-            f'            AbstractedBufferIndex = {argbuffer_indices_by_name[texture.name]},',
+            f'            AbstractedBufferIndex = {abstracted_argbuffer_indices_by_name[texture.name]},',
             f'            Stage = {get_cs_shader_stage(stage)},',
             f'            BufferId = {texture_binding},',
             f'            SamplerBufferId = {sampler_binding},',

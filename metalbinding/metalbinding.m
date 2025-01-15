@@ -212,22 +212,26 @@ void metalbinding_set_render_pass_descriptor_stencil_attachment(MTLRenderPassDes
 void metalbinding_release_render_pass_descriptor(MTLRenderPassDescriptor* NS_RELEASES_ARGUMENT rpd) {}
 
 //
-// Command Buffers
+// Swapchain
 //
-id<MTLCommandBuffer> metalbinding_acquire_command_buffer(MetalBindingContext* context) NS_RETURNS_RETAINED {
-    id<MTLCommandBuffer> commandBuffer = [context->commandQueue commandBuffer];
-    dispatch_semaphore_wait(context->semaphore, DISPATCH_TIME_FOREVER);
-    [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull _) {
-        dispatch_semaphore_signal(context->semaphore);
-    }];
-    
+void metalbinding_acquire_drawable(MetalBindingContext* context) NS_RETURNS_RETAINED {
     id<CAMetalDrawable> drawable = [context->layer nextDrawable];
     if (!drawable) {
         NSLog(@"WTF: nextDrawable returned NULL? This shouldn't happen if setAllowsNextDrawableTimeout is set to NO");
     }
     context->currentDrawable = drawable;
+}
+
+//
+// Command Buffers
+//
+id<MTLCommandBuffer> metalbinding_create_command_buffer(MetalBindingContext* context) NS_RETURNS_RETAINED {
+    return [context->commandQueue commandBuffer];
     
-    return commandBuffer;
+//     dispatch_semaphore_wait(context->semaphore, DISPATCH_TIME_FOREVER);
+//     [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> _Nonnull _) {
+//         dispatch_semaphore_signal(context->semaphore);
+//     }];
 }
 
 void metalbinding_release_command_buffer(id<MTLCommandBuffer> NS_RELEASES_ARGUMENT commandBuffer) {}
@@ -367,6 +371,12 @@ void metalbinding_set_texture_data(id<MTLTexture> texture, uint32_t width, uint3
                mipmapLevel:0
                  withBytes:data
                bytesPerRow:bytesPerRow];
+}
+
+void metalbinding_get_texture_info(id<MTLTexture> texture, uint32_t* ref_width, uint32_t* ref_height, MTLPixelFormat* ref_format) {
+    *ref_width = [texture width];
+    *ref_height = [texture height];
+    *ref_format = [texture pixelFormat];
 }
 
 //

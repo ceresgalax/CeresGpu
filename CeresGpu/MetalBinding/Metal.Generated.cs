@@ -49,7 +49,10 @@ namespace CeresGpu.MetalBinding
         public static extern void metalbinding_release_render_pass_descriptor(IntPtr rpd);
         
         [DllImport(DLL_NAME)]
-        public static extern IntPtr metalbinding_acquire_command_buffer(IntPtr context);
+        public static extern void metalbinding_acquire_drawable(IntPtr context);
+        
+        [DllImport(DLL_NAME)]
+        public static extern IntPtr metalbinding_create_command_buffer(IntPtr context);
         
         [DllImport(DLL_NAME)]
         public static extern void metalbinding_release_command_buffer(IntPtr commandBuffer);
@@ -119,6 +122,9 @@ namespace CeresGpu.MetalBinding
         
         [DllImport(DLL_NAME)]
         public static extern void metalbinding_set_texture_data(IntPtr texture, uint width, uint height, IntPtr data, uint bytesPerRow);
+        
+        [DllImport(DLL_NAME)]
+        public static extern void metalbinding_get_texture_info(IntPtr texture, ref uint ref_width, ref uint ref_height, ref MTLPixelFormat ref_format);
         
         [DllImport(DLL_NAME)]
         public static extern IntPtr metalbinding_new_library(IntPtr context, string utf8Source);

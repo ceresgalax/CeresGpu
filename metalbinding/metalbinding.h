@@ -27,12 +27,18 @@ void metalbinding_set_render_pass_descriptor_stencil_attachment(MTLRenderPassDes
 void metalbinding_release_render_pass_descriptor(MTLRenderPassDescriptor* NS_RELEASES_ARGUMENT rpd);
 
 //
+// Swapchain
+//
+void metalbinding_acquire_drawable(MetalBindingContext* context);
+
+//
 // Command Buffers
 //
-id<MTLCommandBuffer> metalbinding_acquire_command_buffer(MetalBindingContext* context) NS_RETURNS_RETAINED;
+id<MTLCommandBuffer> metalbinding_create_command_buffer(MetalBindingContext* context) NS_RETURNS_RETAINED;
 void metalbinding_release_command_buffer(id<MTLCommandBuffer> NS_RELEASES_ARGUMENT commandBuffer);
 void metalbinding_present_current_frame_after_minimum_duration(MetalBindingContext* context, id<MTLCommandBuffer> commandBuffer, double seconds);
 void metalbinding_commit_command_buffer(id<MTLCommandBuffer> commandBuffer);
+
 
 //
 // Command Encoders
@@ -66,6 +72,7 @@ void* metalbinding_buffer_get_contents(id<MTLBuffer> buffer);
 id<MTLTexture> metalbinding_new_texture(MetalBindingContext* context, uint32_t width, uint32_t height, MTLPixelFormat format) NS_RETURNS_RETAINED;
 void metalbinding_release_texture(id<MTLTexture> NS_RELEASES_ARGUMENT texture);
 void metalbinding_set_texture_data(id<MTLTexture> texture, uint32_t width, uint32_t height, void* data, uint32_t bytesPerRow);
+void metalbinding_get_texture_info(id<MTLTexture> texture, uint32_t* ref_width, uint32_t* ref_height, MTLPixelFormat* ref_format);
 
 //
 // Libraries
