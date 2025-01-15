@@ -24,7 +24,6 @@ namespace CeresGpu.Graphics
         ISampler CreateSampler(in SamplerDescription description);
         IShaderBacking CreateShaderBacking(IShader shader);
         IShaderInstanceBacking CreateShaderInstanceBacking(IShader shader);
-        // IDescriptorSet CreateDescriptorSet(IShaderBacking shader, ShaderStage stage, int index, in DescriptorSetCreationHints hints);
 
         bool IsPassRegistered<TRenderPass>() where TRenderPass : IRenderPass;
         void RegisterPassType<TRenderPass>(RenderPassDefinition definition) where TRenderPass : IRenderPass;
@@ -35,7 +34,6 @@ namespace CeresGpu.Graphics
             TShader shader,
             TVertexBufferLayout vertexBufferLayout
         )
-            //where TRenderPass : IRenderPass
             where TShader : IShader
             where TVertexBufferLayout : IVertexBufferLayout<TShader>;
 
@@ -51,10 +49,7 @@ namespace CeresGpu.Graphics
         /// Create a pass which renders to the given attachments.
         /// </summary>
         /// <returns>The created pass</returns>
-        IPass CreatePassEncoder<TRenderPass>(
-            TRenderPass pass,
-            IPass? occursBefore = null
-        )
+        IPass CreatePassEncoder<TRenderPass>(TRenderPass pass, IPass? occursBefore = null)
             where TRenderPass : IRenderPass;
 
         void Present(float minimumElapsedSeocnds);

@@ -14,8 +14,6 @@ namespace CeresGpu.Graphics.OpenGL
         private readonly GLContext _context;
         private readonly GLFWWindow _window;
         
-        //private GLPass? _currentPass;
-        
         /// <summary>
         /// This is arbitrary, but should always be more than one so that it's easy for users to rat out bugs with
         /// mis-used streaming buffers while using the GL Renderer impl.
@@ -26,7 +24,6 @@ namespace CeresGpu.Graphics.OpenGL
         public uint UniqueFrameId { get; private set; }
         
         public IGLProvider GLProvider => _context;
-        // public GLPass? CurrentPass => _currentPass;
 
         public readonly GLTexture FallbackTexture;
         public readonly GLSampler FallbackSampler;
@@ -44,7 +41,7 @@ namespace CeresGpu.Graphics.OpenGL
         private readonly GLPassAnchor _encoderListStart = new();
         private readonly GLPassAnchor _encoderListEnd = new();
 
-        private readonly GLSwapchainTarget _swapchainTarget = new GLSwapchainTarget();
+        private readonly GLSwapchainTarget _swapchainTarget = new();
         private readonly GLFramebuffer _swapchainBlitSrcFramebuffer;
         
         public GLRenderer(GLFWWindow window, bool isDebugContext = false)
@@ -107,7 +104,7 @@ namespace CeresGpu.Graphics.OpenGL
                 throw new ArgumentOutOfRangeException(nameof(elementCount));
             }
             
-            StaticGLBuffer<T> buffer = new StaticGLBuffer<T>(_context); 
+            StaticGLBuffer<T> buffer = new(_context); 
             buffer.Allocate((uint)elementCount);
             return buffer;
         }

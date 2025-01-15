@@ -12,7 +12,6 @@ namespace CeresGpu.Graphics.Metal
     {
         public readonly IntPtr Context;
         private readonly GLFWWindow _glfwWindow;
-        //private IntPtr _currentFrameCommandBuffer;
 
         public readonly MetalTexture FallbackTexture;
         public readonly MetalSampler FallbackSampler;
@@ -23,7 +22,7 @@ namespace CeresGpu.Graphics.Metal
 
         private bool _hasAcquiredDrawable;
         
-        private Dictionary<Type, MetalPassBacking> _passBackings = [];
+        private readonly Dictionary<Type, MetalPassBacking> _passBackings = [];
         
         /// <summary>
         /// Contains the passes that are to be submitted this frame.
@@ -260,7 +259,7 @@ namespace CeresGpu.Graphics.Metal
         }
 
         // No-BOM utf-8 encoding.
-        public static readonly UTF8Encoding UTF8NoBOM = new(false);
+        public static readonly UTF8Encoding Utf8NoBom = new(false);
         
         public string GetLastError()
         {
@@ -269,7 +268,7 @@ namespace CeresGpu.Graphics.Metal
             try {
                 MetalApi.metalbinding_get_last_error(Context, buffer, len);
                 unsafe {
-                    return UTF8NoBOM.GetString((byte*)buffer, checked((int)len));
+                    return Utf8NoBom.GetString((byte*)buffer, checked((int)len));
                 }
             } finally {
                 Marshal.FreeHGlobal(buffer);
