@@ -4,7 +4,7 @@ namespace CeresGpu.Graphics;
 
 static class FramebufferUtil
 {
-    public static void ValidateAttachments(in RenderPassDefinition passDefinition, ReadOnlySpan<IRenderTarget> colorAttachments, IRenderTarget? depthStencilAttachment, out uint width, out uint height)
+    public static void ValidateAttachments(in RenderPassDefinition passDefinition, ReadOnlySpan<IRenderTarget> colorAttachments, IRenderTarget? depthStencilAttachment, out uint width, out uint height, out bool matchesSwapchainSize)
     {
         if (colorAttachments.Length != passDefinition.ColorAttachments.Length) {
             throw new ArgumentOutOfRangeException(nameof(colorAttachments));
@@ -54,6 +54,7 @@ static class FramebufferUtil
 
         width = currentWidth;
         height = currentHeight;
+        matchesSwapchainSize = isMatchingSwapchainSize;
     }
     
 }

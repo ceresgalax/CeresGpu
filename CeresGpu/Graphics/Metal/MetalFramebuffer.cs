@@ -20,7 +20,7 @@ public sealed class MetalFramebuffer : IFramebuffer
     
     public MetalFramebuffer(MetalPassBacking pass, ReadOnlySpan<IRenderTarget> colorAttachments, IRenderTarget? depthStencilAttachment)
     {
-        FramebufferUtil.ValidateAttachments(in pass.Definition, colorAttachments, depthStencilAttachment, out uint width, out uint height);
+        FramebufferUtil.ValidateAttachments(in pass.Definition, colorAttachments, depthStencilAttachment, out uint width, out uint height, out _);
         
         _colorAttachments = new ColorAttachment[pass.Definition.ColorAttachments.Length];
         

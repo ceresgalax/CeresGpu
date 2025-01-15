@@ -1,4 +1,5 @@
-﻿using CeresGL;
+﻿using System;
+using CeresGL;
 
 namespace CeresGpu.Graphics.OpenGL.VirtualCommands;
 
@@ -18,6 +19,6 @@ public class SetViewportCommand(Viewport viewport, uint _attachmentHeight) : IVi
     {
         // OpenGL viewport coords originate from bottom-left, CeresGPU viewport coords originate from top-left.
         float y = _attachmentHeight - viewport.Y - viewport.Height;
-        gl.ViewportIndexedf(0, viewport.X, y, viewport.Width, viewport.Height);
+        gl.Viewport((int)MathF.Round(viewport.X), (int)MathF.Round(y), (int)MathF.Round(viewport.Width), (int)MathF.Round(viewport.Height)); 
     }
 }

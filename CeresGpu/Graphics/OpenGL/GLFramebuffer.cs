@@ -16,8 +16,9 @@ public sealed class GLFramebuffer : IFramebuffer
     public double DepthClearValue { get; private set; }
     public uint StencilClearValue { get; private set; }
     
-    public uint Width { get; }
-    public uint Height { get; }
+    private bool _matchesSwapchainSize;
+    private uint _width;
+    private uint _height;
     
     public ReadOnlySpan<ColorAttachment> ColorAttachments => _colorAttachments;
 
@@ -27,7 +28,8 @@ public sealed class GLFramebuffer : IFramebuffer
     {
         _renderer = renderer;
         
-        FramebufferUtil.ValidateAttachments(in passBacking.Definition, colorAttachments, depthStencilAttachment, out uint width, out uint height);
+        FramebufferUtil.ValidateAttachments(in passBacking.Definition, colorAttachments, depthStencilAttachment, out uint width, out uint height, out bool matchesSwapchainSize);
+        _matchesSwapchainSize = matchesSwapchainSize;
         
         _colorAttachments = new ColorAttachment[passBacking.Definition.ColorAttachments.Length];
         
@@ -66,8 +68,20 @@ public sealed class GLFramebuffer : IFramebuffer
             glTarget.BindToFramebuffer(gl, FramebufferHandle, FramebufferAttachment.DEPTH_STENCIL_ATTACHMENT);
         }
         
-        Width = width;
-        Height = height;
+        _width = width;
+        _height = height;
+    }
+
+    public void GetSize(out uint width, out uint height)
+    {
+        if (_matchesSwapchainSize) {
+            width = _renderer.GetSwapchainColorTarget().Width;
+            height = _renderer.GetSwapchainColorTarget().Height;
+            return;
+        }
+
+        width = _width;
+        height = _height;
     }
     
     public void SetColorAttachmentProperties(int index, Vector4 clearColor)

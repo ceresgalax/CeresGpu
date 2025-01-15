@@ -8,10 +8,9 @@ public class BeginPassCommand(GLPassBacking passBacking, GLFramebuffer framebuff
 {
     public void Execute(GL gl)
     {
-        //_window.GetFramebufferSize(out int width, out int height);
-        //GLPass pass = SetCurrentPass(new GLPass(this, (uint)width, (uint)height));
-        
-        gl.Viewport(0, 0, (int)framebuffer.Width, (int)framebuffer.Height);
+        framebuffer.GetSize(out uint width, out uint height);
+        gl.Viewport(0, 0, (int)width, (int)height);
+        gl.Scissor(0, 0, (int)width, (int)height);
         
         gl.BindFramebuffer(FramebufferTarget.DRAW_FRAMEBUFFER, framebuffer.FramebufferHandle);
 

@@ -71,7 +71,7 @@ public class VulkanFramebuffer : IFramebuffer
         _renderer = renderer;
         _passBacking = passBacking;
         
-        FramebufferUtil.ValidateAttachments(in passBacking.Definition, colorAttachments, depthStencilAttachment, out uint width, out uint height);
+        FramebufferUtil.ValidateAttachments(in passBacking.Definition, colorAttachments, depthStencilAttachment, out uint width, out uint height, out _);
         
         _colorAttachments = new ColorAttachment[passBacking.Definition.ColorAttachments.Length];
 

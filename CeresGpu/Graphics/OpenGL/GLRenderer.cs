@@ -76,18 +76,14 @@ namespace CeresGpu.Graphics.OpenGL
             FallbackTexture = (GLTexture)RendererUtil.CreateFallbackTexture(this);
             FallbackSampler = (GLSampler)CreateSampler(default);
             
-            _encoderListStart.ResetAsFront(_encoderListEnd);
-            
-            // TODO: Support resizing.
-            window.GetFramebufferSize(out int framebufferWidth, out int framebufferHeight);
-            _swapchainTarget.InnerBuffer = new GLRenderBuffer(this, true, ColorFormat.R8G8B8A8_UNORM, default, (uint)framebufferWidth, (uint)framebufferHeight);
-
+            _swapchainTarget.InnerBuffer = new GLRenderBuffer(this, true, ColorFormat.R8G8B8A8_UNORM, default, 1, 1);
             _swapchainBlitSrcFramebuffer = new GLFramebuffer(this, new GLPassBacking(new RenderPassDefinition {
                 ColorAttachments = [
                     new ColorAttachment { Format = ColorFormat.R8G8B8A8_UNORM, LoadAction = LoadAction.DontCare }
                 ],
                 DepthStencilAttachment = null
             }), [_swapchainTarget], null);
+            NewFrame();
         }
 
         private delegate void DebugCallback(DebugSource source, DebugType type, uint id, DebugSeverity severity, uint length, IntPtr message, IntPtr userParam); 
@@ -237,7 +233,7 @@ namespace CeresGpu.Graphics.OpenGL
             // Now blit our fake swapchain renderbuffer onto the actual backbuffer
             gl.Viewport(0, 0, (int)_swapchainTarget.Width, (int)_swapchainTarget.Height);
             gl.Scissor(0, 0, (int)_swapchainTarget.Width, (int)_swapchainTarget.Height);
-            gl.BindFramebuffer(FramebufferTarget.READ_FRAMEBUFFER, _swapchainBlitSrcFramebuffer.FramebufferHandle);
+            gl.BindFramebuffer(FramebufferTarget.READ_FRAMEBUFFER, _swapchainBlitSrcFramebuffer!.FramebufferHandle);
             gl.BindFramebuffer(FramebufferTarget.DRAW_FRAMEBUFFER, 0);
             gl.BlitFramebuffer(
                 0, 0, (int)_swapchainTarget.Width, (int)_swapchainTarget.Height,
@@ -250,7 +246,20 @@ namespace CeresGpu.Graphics.OpenGL
             ++UniqueFrameId;
             WorkingFrame = (WorkingFrame + 1) % WorkingFrameCount;
             
+            NewFrame();
+        }
+
+        private void NewFrame()
+        {
             _context.ProcessFinalizerActions();
+            
+            _encoderListStart.ResetAsFront(_encoderListEnd);
+            
+            _window.GetFramebufferSize(out int framebufferWidth, out int framebufferHeight);
+            if (framebufferWidth != _swapchainTarget.Width || framebufferHeight != _swapchainTarget.Height) {
+                _swapchainTarget.InnerBuffer!.Resize((uint)framebufferWidth, (uint)framebufferHeight);
+            }
+            
         }
 
         public void GetDiagnosticInfo(IList<(string key, object value)> entries)

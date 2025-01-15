@@ -44,7 +44,6 @@ public sealed class GLPass : IGLPass, IPass
     private readonly GLRenderer _renderer;
    
     private IGLPipeline? _currentPipeline;
-    private object? _previousPipeline;
     private IUntypedShaderInstance? _shaderInstance;
     private GLShaderInstanceBacking? _shaderInstanceBacking;
 
@@ -87,11 +86,8 @@ public sealed class GLPass : IGLPass, IPass
     public GLPass(GLRenderer renderer, GLPassBacking passBacking, GLFramebuffer framebuffer)
     {
         _renderer = renderer;
-        _attachmentWidth = framebuffer.Width;
-        _attachmentHeight = framebuffer.Height;
-        
+        framebuffer.GetSize(out _attachmentWidth, out _attachmentHeight);
         _commands.Add(new BeginPassCommand(passBacking, framebuffer));
-        _commands.Add(new SetScissorCommand(new ScissorRect(0, 0, framebuffer.Width, framebuffer.Height), _attachmentHeight));
     }
         
     public void SetPipeline<TShader, TVertexBufferLayout>(

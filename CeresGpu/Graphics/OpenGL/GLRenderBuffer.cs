@@ -10,8 +10,8 @@ public sealed class GLRenderBuffer : IGLRenderTarget, IRenderTarget
     private readonly uint _renderbufferHandle;
 
     public bool MatchesSwapchainSize => false;
-    public uint Width { get; }
-    public uint Height { get; }
+    public uint Width { get; private set; }
+    public uint Height { get; private set; }
     public bool IsColor { get; }
     public ColorFormat ColorFormat { get; }
     public DepthStencilFormat DepthStencilFormat { get; }
@@ -29,24 +29,31 @@ public sealed class GLRenderBuffer : IGLRenderTarget, IRenderTarget
         gl.BindRenderbuffer(RenderbufferTarget.RENDERBUFFER, _renderbufferHandle);
         
         IsColor = isColorBuffer;
-        Width = width;
-        Height = height;
         ColorFormat = colorFormat;
         DepthStencilFormat = depthStencilFormat;
 
-        InternalFormat internalFormat;
-        if (isColorBuffer) {
-            internalFormat = colorFormat.GetGLFormats().Item1;
-        } else {
-            internalFormat = depthStencilFormat.ToGLInternalFormat();
-        }
-        
-        gl.RenderbufferStorage(RenderbufferTarget.RENDERBUFFER, internalFormat, (int)width, (int)height);
+        Resize(width, height);
     }
     
     public void BindToFramebuffer(GL gl, uint framebufferHandle, FramebufferAttachment attachmentPoint)
     {
         gl.FramebufferRenderbuffer(FramebufferTarget.FRAMEBUFFER, attachmentPoint, RenderbufferTarget.RENDERBUFFER, _renderbufferHandle);
+    }
+
+    public void Resize(uint width, uint height)
+    {
+        Width = width;
+        Height = height;
+        
+        InternalFormat internalFormat;
+        if (IsColor) {
+            internalFormat = ColorFormat.GetGLFormats().Item1;
+        } else {
+            internalFormat = DepthStencilFormat.ToGLInternalFormat();
+        }
+
+        GL gl = _renderer.GLProvider.Gl;
+        gl.RenderbufferStorage(RenderbufferTarget.RENDERBUFFER, internalFormat, (int)width, (int)height);
     }
 
 
