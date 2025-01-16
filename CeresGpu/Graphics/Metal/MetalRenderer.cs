@@ -35,6 +35,8 @@ namespace CeresGpu.Graphics.Metal
 
         private readonly MetalSwapchainTarget _swapchainTarget = new();
 
+        private readonly List<WeakReference<MetalRenderTarget>> _swapchainSizedRenderTargets = []; 
+        
         public MetalRenderer(IntPtr window, GLFWWindow glfwWindow)
         {
             _glfwWindow = glfwWindow;
@@ -138,12 +140,20 @@ namespace CeresGpu.Graphics.Metal
 
         public IRenderTarget CreateRenderTarget(ColorFormat format, bool matchSwapchainSize, uint width, uint height)
         {
-            throw new NotImplementedException();
+            width = matchSwapchainSize ? _swapchainTarget.Width : width;
+            height = matchSwapchainSize ? _swapchainTarget.Height : height;
+            MetalRenderTarget target = new(this, true, format, default, matchSwapchainSize, width, height);
+            _swapchainSizedRenderTargets.Add(new WeakReference<MetalRenderTarget>(target));
+            return target;
         }
 
         public IRenderTarget CreateRenderTarget(DepthStencilFormat format, bool matchSwapchainSize, uint width, uint height)
         {
-            throw new NotImplementedException();
+            width = matchSwapchainSize ? _swapchainTarget.Width : width;
+            height = matchSwapchainSize ? _swapchainTarget.Height : height;
+            MetalRenderTarget target = new(this, false, default, format, matchSwapchainSize, width, height);
+            _swapchainSizedRenderTargets.Add(new WeakReference<MetalRenderTarget>(target));
+            return target;
         }
 
         public IRenderTarget GetSwapchainColorTarget()
@@ -227,13 +237,25 @@ namespace CeresGpu.Graphics.Metal
                 uint texWidth = 0, texHeight = 0;
                 MetalApi.MTLPixelFormat pixelFormat = default;
                 MetalApi.metalbinding_get_texture_info(texture, ref texWidth, ref texHeight, ref pixelFormat);
+                
+                
+                bool isNewSize = _swapchainTarget.Width != texWidth || _swapchainTarget.Height != texHeight; 
+                
                 _swapchainTarget.Drawable = texture;
                 _swapchainTarget.Width = texWidth;
                 _swapchainTarget.Height = texHeight;
                 _swapchainTarget.ColorFormat = pixelFormat.ToColorFormat();
 
-                // Acquire this frame's command buffer for the first time.
-                //_currentFrameCommandBuffer = MetalApi.metalbinding_acquire_command_buffer(Context);
+                if (isNewSize) {
+                    // Re-size all the swapchain-sized render targets to match
+
+                    foreach (WeakReference<MetalRenderTarget> targetRef in _swapchainSizedRenderTargets) {
+                        // TODO: Removed garbage collected target references from this list? 
+                        if (targetRef.TryGetTarget(out MetalRenderTarget? target)) {
+                            target.HandleSwapchainResized(texWidth, texHeight);
+                        }
+                    }
+                }
             }
         }
 

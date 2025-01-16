@@ -142,10 +142,10 @@ public static class GLFormatUtil
     {
         return format switch {
             DepthStencilFormat.D16_UNORM => InternalFormat.DEPTH_COMPONENT16,
-            DepthStencilFormat.X8D24_UNORM_PACK32 => throw new NotImplementedException(),
+            //DepthStencilFormat.X8D24_UNORM_PACK32 => throw new NotImplementedException(),
             DepthStencilFormat.D32_SFLOAT => InternalFormat.DEPTH_COMPONENT32F,
             DepthStencilFormat.S8_UINT => InternalFormat.STENCIL_INDEX8,
-            DepthStencilFormat.D16_UNORM_S8_UINT => throw new NotImplementedException(),
+            //DepthStencilFormat.D16_UNORM_S8_UINT => throw new NotImplementedException(),
             DepthStencilFormat.D24_UNORM_S8_UINT => InternalFormat.DEPTH24_STENCIL8,
             DepthStencilFormat.D32_SFLOAT_S8_UINT => InternalFormat.DEPTH32F_STENCIL8,
             _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)

@@ -16,9 +16,6 @@ namespace CeresGpu.Graphics.Metal
         public IntPtr Handle => _texture;
         public IntPtr WeakHandle => _weakHandle;
         
-        public MinMagFilter MinFilter { get; private set; }
-        public MinMagFilter MagFilter { get; private set; }
-        
         public MetalTexture(MetalRenderer renderer)
         {
             _renderer = renderer;
@@ -53,22 +50,6 @@ namespace CeresGpu.Graphics.Metal
                     MetalApi.metalbinding_set_texture_data(_texture, width, height, new IntPtr(p), bytesPerPixel * width);
                 }
             }
-        }
-
-        public void DeclareMutationInPass()
-        {
-            throw new NotImplementedException();
-        }
-
-        public void DeclareReadInPass()
-        {
-            throw new NotImplementedException();
-        }
-
-        public void SetFilter(MinMagFilter min, MinMagFilter mag)
-        {
-            MinFilter = min;
-            MagFilter = mag;
         }
 
         private void ReleaseUnmanagedResources()

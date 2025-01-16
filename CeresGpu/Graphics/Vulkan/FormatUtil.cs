@@ -123,10 +123,10 @@ public static class FormatUtil
     {
         return format switch {
             DepthStencilFormat.D16_UNORM => Format.D16Unorm,
-            DepthStencilFormat.X8D24_UNORM_PACK32 => Format.X8D24UnormPack32,
+            //DepthStencilFormat.X8D24_UNORM_PACK32 => Format.X8D24UnormPack32,
             DepthStencilFormat.D32_SFLOAT => Format.D32Sfloat,
             DepthStencilFormat.S8_UINT => Format.S8Uint,
-            DepthStencilFormat.D16_UNORM_S8_UINT => Format.D16UnormS8Uint,
+            //DepthStencilFormat.D16_UNORM_S8_UINT => Format.D16UnormS8Uint,
             DepthStencilFormat.D24_UNORM_S8_UINT => Format.D24UnormS8Uint,
             DepthStencilFormat.D32_SFLOAT_S8_UINT => Format.D32SfloatS8Uint,
             _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
