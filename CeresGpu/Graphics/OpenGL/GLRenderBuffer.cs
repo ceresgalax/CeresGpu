@@ -9,14 +9,14 @@ public sealed class GLRenderBuffer : IGLRenderTarget, IRenderTarget
 
     private readonly uint _renderbufferHandle;
 
-    public bool MatchesSwapchainSize => false;
+    public bool MatchesSwapchainSize { get; }
     public uint Width { get; private set; }
     public uint Height { get; private set; }
     public bool IsColor { get; }
     public ColorFormat ColorFormat { get; }
     public DepthStencilFormat DepthStencilFormat { get; }
 
-    public GLRenderBuffer(GLRenderer renderer, bool isColorBuffer, ColorFormat colorFormat, DepthStencilFormat depthStencilFormat, uint width, uint height)
+    public GLRenderBuffer(GLRenderer renderer, bool isColorBuffer, ColorFormat colorFormat, DepthStencilFormat depthStencilFormat, bool matchesSwapchainSize, uint width, uint height)
     {
         _renderer = renderer;
 
@@ -25,9 +25,8 @@ public sealed class GLRenderBuffer : IGLRenderTarget, IRenderTarget
         Span<uint> renderbuffers = [0];
         gl.GenRenderbuffers(1, renderbuffers);
         _renderbufferHandle = renderbuffers[0];
-        
-        gl.BindRenderbuffer(RenderbufferTarget.RENDERBUFFER, _renderbufferHandle);
-        
+
+        MatchesSwapchainSize = matchesSwapchainSize;
         IsColor = isColorBuffer;
         ColorFormat = colorFormat;
         DepthStencilFormat = depthStencilFormat;
@@ -53,6 +52,7 @@ public sealed class GLRenderBuffer : IGLRenderTarget, IRenderTarget
         }
 
         GL gl = _renderer.GLProvider.Gl;
+        gl.BindRenderbuffer(RenderbufferTarget.RENDERBUFFER, _renderbufferHandle);
         gl.RenderbufferStorage(RenderbufferTarget.RENDERBUFFER, internalFormat, (int)width, (int)height);
     }
 

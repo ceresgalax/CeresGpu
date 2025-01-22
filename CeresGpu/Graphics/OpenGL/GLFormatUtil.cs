@@ -151,5 +151,17 @@ public static class GLFormatUtil
             _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
         };
     }
+
+    public static FramebufferAttachment GetAttachmentPointBasedOnFormat(this DepthStencilFormat format)
+    {
+        return format switch {
+            DepthStencilFormat.D16_UNORM => FramebufferAttachment.DEPTH_ATTACHMENT,
+            DepthStencilFormat.D32_SFLOAT => FramebufferAttachment.DEPTH_ATTACHMENT,
+            DepthStencilFormat.S8_UINT => FramebufferAttachment.STENCIL_ATTACHMENT,
+            DepthStencilFormat.D24_UNORM_S8_UINT => FramebufferAttachment.DEPTH_STENCIL_ATTACHMENT,
+            DepthStencilFormat.D32_SFLOAT_S8_UINT => FramebufferAttachment.DEPTH_STENCIL_ATTACHMENT,
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, null)
+        };
+    }
     
 }

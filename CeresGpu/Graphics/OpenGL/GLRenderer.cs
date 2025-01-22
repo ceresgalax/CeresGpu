@@ -44,6 +44,8 @@ namespace CeresGpu.Graphics.OpenGL
         private readonly GLSwapchainTarget _swapchainTarget = new();
         private readonly GLFramebuffer _swapchainBlitSrcFramebuffer;
         
+        private readonly List<WeakReference<GLRenderBuffer>> _swapchainSizedRenderBuffers = [];
+        
         public GLRenderer(GLFWWindow window, bool isDebugContext = false)
         {
             GL gl = new();
@@ -76,7 +78,7 @@ namespace CeresGpu.Graphics.OpenGL
             FallbackTexture = (GLTexture)RendererUtil.CreateFallbackTexture(this);
             FallbackSampler = (GLSampler)CreateSampler(default);
             
-            _swapchainTarget.InnerBuffer = new GLRenderBuffer(this, true, ColorFormat.R8G8B8A8_UNORM, default, 1, 1);
+            _swapchainTarget.InnerBuffer = new GLRenderBuffer(this, true, ColorFormat.R8G8B8A8_UNORM, default, true, 1, 1);
             _swapchainBlitSrcFramebuffer = new GLFramebuffer(this, new GLPassBacking(new RenderPassDefinition {
                 ColorAttachments = [
                     new ColorAttachment { Format = ColorFormat.R8G8B8A8_UNORM, LoadAction = LoadAction.DontCare }
@@ -180,12 +182,24 @@ namespace CeresGpu.Graphics.OpenGL
 
         public IRenderTarget CreateRenderTarget(ColorFormat format, bool matchSwapchainSize, uint width, uint height)
         {
-            throw new NotImplementedException();
+            width = matchSwapchainSize ? _swapchainTarget.Width : width;
+            height = matchSwapchainSize ? _swapchainTarget.Height : height;
+            GLRenderBuffer buffer = new GLRenderBuffer(this, true, format, default, matchSwapchainSize, width, height);
+            if (matchSwapchainSize) {
+                _swapchainSizedRenderBuffers.Add(new WeakReference<GLRenderBuffer>(buffer));
+            }
+            return buffer;
         }
 
         public IRenderTarget CreateRenderTarget(DepthStencilFormat format, bool matchSwapchainSize, uint width, uint height)
         {
-            throw new NotImplementedException();
+            width = matchSwapchainSize ? _swapchainTarget.Width : width;
+            height = matchSwapchainSize ? _swapchainTarget.Height : height;
+            GLRenderBuffer buffer = new GLRenderBuffer(this, false, default, format, matchSwapchainSize, width, height);
+            if (matchSwapchainSize) {
+                _swapchainSizedRenderBuffers.Add(new WeakReference<GLRenderBuffer>(buffer));
+            }
+            return buffer;
         }
 
         public IRenderTarget GetSwapchainColorTarget()
@@ -258,8 +272,16 @@ namespace CeresGpu.Graphics.OpenGL
             _window.GetFramebufferSize(out int framebufferWidth, out int framebufferHeight);
             if (framebufferWidth != _swapchainTarget.Width || framebufferHeight != _swapchainTarget.Height) {
                 _swapchainTarget.InnerBuffer!.Resize((uint)framebufferWidth, (uint)framebufferHeight);
+                
+                // Re-size all the swapchain-sized render targets to match
+
+                foreach (WeakReference<GLRenderBuffer> bufferRef in _swapchainSizedRenderBuffers) {
+                    // TODO: Removed garbage collected target references from this list? 
+                    if (bufferRef.TryGetTarget(out GLRenderBuffer? target)) {
+                        target.Resize((uint)framebufferWidth, (uint)framebufferHeight);
+                    }
+                }
             }
-            
         }
 
         public void GetDiagnosticInfo(IList<(string key, object value)> entries)

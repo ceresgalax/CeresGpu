@@ -143,7 +143,9 @@ namespace CeresGpu.Graphics.Metal
             width = matchSwapchainSize ? _swapchainTarget.Width : width;
             height = matchSwapchainSize ? _swapchainTarget.Height : height;
             MetalRenderTarget target = new(this, true, format, default, matchSwapchainSize, width, height);
-            _swapchainSizedRenderTargets.Add(new WeakReference<MetalRenderTarget>(target));
+            if (matchSwapchainSize) {
+                _swapchainSizedRenderTargets.Add(new WeakReference<MetalRenderTarget>(target));    
+            }
             return target;
         }
 
@@ -152,7 +154,9 @@ namespace CeresGpu.Graphics.Metal
             width = matchSwapchainSize ? _swapchainTarget.Width : width;
             height = matchSwapchainSize ? _swapchainTarget.Height : height;
             MetalRenderTarget target = new(this, false, default, format, matchSwapchainSize, width, height);
-            _swapchainSizedRenderTargets.Add(new WeakReference<MetalRenderTarget>(target));
+            if (matchSwapchainSize) {
+                _swapchainSizedRenderTargets.Add(new WeakReference<MetalRenderTarget>(target));    
+            }
             return target;
         }
 

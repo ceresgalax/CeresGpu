@@ -65,7 +65,7 @@ public sealed class GLFramebuffer : IFramebuffer
             if (DepthStencilAttachment is not IGLRenderTarget glTarget) {
                 throw new InvalidOperationException();
             }
-            glTarget.BindToFramebuffer(gl, FramebufferHandle, FramebufferAttachment.DEPTH_STENCIL_ATTACHMENT);
+            glTarget.BindToFramebuffer(gl, FramebufferHandle, glTarget.DepthStencilFormat.GetAttachmentPointBasedOnFormat());
         }
         
         _width = width;
