@@ -52,7 +52,8 @@ public class FindPythonTask : Task
             FileName = python,
             CreateNoWindow = true,
             Arguments = "--version",
-            RedirectStandardOutput = true
+            RedirectStandardOutput = true,
+            UseShellExecute = false
         };
         try {
             process.Start();
@@ -60,10 +61,17 @@ public class FindPythonTask : Task
                 process.WaitForExit(1000 * 10);
                 string outputLine = process.StandardOutput.ReadLine() ?? "";
                 isPythonValid = outputLine.ToLowerInvariant().StartsWith("python 3");
-            } finally {
-                process.Kill();
             }
-        } catch { }
+            catch (Exception e) {
+              Log.LogMessage($"Exception: {e}");
+            } finally {
+                try {
+                    process.Kill();
+                } catch {}
+            }
+        } catch (Exception e) { 
+          Log.LogError($"Exception: {e}");
+        }
         return isPythonValid;
     }        
 }
