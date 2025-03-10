@@ -51,7 +51,6 @@ public sealed class GLShaderInstanceBacking : IShaderInstanceBacking
         foreach (VertexArray vao in _vaos) {
             vao.Dispose();
         }
-        Shader.Dispose();
     }
         
     private GLDescriptorBindingInfo GetBinding(in DescriptorInfo descriptorInfo)
