@@ -10,7 +10,7 @@ public sealed class StreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer where T
     // we wait until the buffer is not in use by the GPU, unintentionally sycnhronizing with the gpu (ouch!)
     // Using a buffer for each swapchain frame would guarantee we avoid this. Maybe the drivers optimzie against this,
     // but of course that varies per driver and there's no guarantee that's happening. Also I'd be concerned about
-    // the buffering the buffers confusing some poor OpenGL drivers?
+    // the multiple buffers confusing some poor OpenGL drivers?
     // I should just implement the Vulkan backend already :) 
     
     private readonly GLRenderer _renderer;
@@ -38,7 +38,7 @@ public sealed class StreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer where T
 
     private T[] _directBuffer = [];
     
-    protected override void SetDirectImpl(IBuffer<T>.DirectSetter setter)
+    protected override void SetDirectImpl(IStreamingBuffer<T>.DirectSetter setter, uint count)
     {
         // TODO: This is pretty inefficient. We should memory map the buffer instead?
         
@@ -46,8 +46,8 @@ public sealed class StreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer where T
             _directBuffer = new T[Count];
         }
 
-        setter(_directBuffer);
-        _inner.Set(0, _directBuffer, Count);
+        setter(_directBuffer.AsSpan(0, (int)count));
+        _inner.Set(0, _directBuffer, count);
     }
 
     void IGLBuffer.Commit()

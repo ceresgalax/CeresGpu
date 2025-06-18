@@ -195,14 +195,14 @@ public sealed class VulkanStreamingBuffer<T> : StreamingBuffer<T>, IVulkanBuffer
         }
     }
 
-    protected override void SetDirectImpl(IBuffer<T>.DirectSetter setter)
+    protected override void SetDirectImpl(IStreamingBuffer<T>.DirectSetter setter, uint count)
     {
         Vk vk = _renderer.Vk;
 
         unsafe {
 
             ulong atomSize = _renderer.PhysicalDeviceLimits.NonCoherentAtomSize;
-            ulong unalignedEnd = _perBufferMemoryUsage * (uint)_renderer.FrameCount + _elementCount * (uint)sizeof(T);
+            ulong unalignedEnd = _perBufferMemoryUsage * (uint)_renderer.FrameCount + count * (uint)sizeof(T);
             ulong alignedEnd = AlignUtil.AlignUp(unalignedEnd, atomSize);
             
             void* mapped = null;
@@ -210,7 +210,7 @@ public sealed class VulkanStreamingBuffer<T> : StreamingBuffer<T>, IVulkanBuffer
                 .AssertSuccess("Failed to map memory");
             try {
                 // Operate on the mapped memory.
-                setter(new Span<T>(mapped, (int)_elementCount));
+                setter(new Span<T>(mapped, (int)count));
                 
                 // Flush the writen memory.
                 MappedMemoryRange range = new(

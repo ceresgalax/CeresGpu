@@ -26,7 +26,7 @@ namespace CeresGpu.Graphics.OpenGL
 
         private T[] _directBuffer = [];
 
-        protected override void SetDirectImpl(IBuffer<T>.DirectSetter setter)
+        protected override void SetDirectImpl(IStaticBuffer<T>.DirectSetter setter)
         {
             // TODO: This is pretty inefficient. We should memory map the buffer instead?
         

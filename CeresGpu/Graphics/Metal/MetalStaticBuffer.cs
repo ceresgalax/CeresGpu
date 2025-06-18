@@ -48,7 +48,7 @@ namespace CeresGpu.Graphics.Metal
             MetalBufferUtil.CopyBuffer(_buffer, offset, elements, count, Count);
         }
 
-        protected override void SetDirectImpl(IBuffer<T>.DirectSetter setter)
+        protected override void SetDirectImpl(IStaticBuffer<T>.DirectSetter setter)
         {
             Span<T> directBuffer;
             unsafe {

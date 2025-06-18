@@ -6,6 +6,8 @@ namespace CeresGpu.Graphics.OpenGL;
 /// <summary>
 /// Like our normal streaming buffer impl for OpenGL, but uses mutliple buffers to simulate the invalidation of buffer
 /// contents, making it easier to find incorrect usage of streaming buffers when using the OpenGL backend.
+///
+/// TODO: We probably don't need this now since StreamingBuffer does usage checks for us.
 /// </summary>
 public sealed class DebugStreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer where T : unmanaged
 {
@@ -57,7 +59,7 @@ public sealed class DebugStreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer wh
     
     private T[] _directBuffer = [];
     
-    protected override void SetDirectImpl(IBuffer<T>.DirectSetter setter)
+    protected override void SetDirectImpl(IStreamingBuffer<T>.DirectSetter setter, uint count)
     {
         if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
             Allocate(Count);
@@ -69,8 +71,8 @@ public sealed class DebugStreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer wh
             _directBuffer = new T[Count];
         }
 
-        setter(_directBuffer);
-        _buffers[_activeIndex].Set(0, _directBuffer, Count);
+        setter(_directBuffer.AsSpan(0, (int)count));
+        _buffers[_activeIndex].Set(0, _directBuffer, count);
     }
 
     public override void Dispose()

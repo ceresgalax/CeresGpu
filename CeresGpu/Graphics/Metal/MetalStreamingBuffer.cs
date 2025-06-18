@@ -15,6 +15,7 @@ namespace CeresGpu.Graphics.Metal
         
         private uint _lastAllocationFrameId = uint.MaxValue;
         
+        
         private uint _count;
 
         public override uint Count => _count;
@@ -34,6 +35,8 @@ namespace CeresGpu.Graphics.Metal
 
         public IntPtr GetHandleForCurrentFrame()
         {
+            // TODO: Assert that we've set anything this frame. 
+            
             return _buffers[_activeIndex];
         }
 
@@ -96,13 +99,13 @@ namespace CeresGpu.Graphics.Metal
             MetalBufferUtil.CopyBuffer(buffer, offset, elements, count, Count);
         }
 
-        protected override void SetDirectImpl(IBuffer<T>.DirectSetter setter)
+        protected override void SetDirectImpl(IStreamingBuffer<T>.DirectSetter setter, uint count)
         {
             IntPtr buffer = _buffers[_activeIndex];
 
             Span<T> directBuffer;
             unsafe {
-                directBuffer = new Span<T>((void*)MetalApi.metalbinding_buffer_get_contents(buffer), (int)_count);
+                directBuffer = new Span<T>((void*)MetalApi.metalbinding_buffer_get_contents(buffer), (int)count);
             }
 
             setter(directBuffer);

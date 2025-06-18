@@ -56,13 +56,13 @@ public abstract class StaticBuffer<T> : IStaticBuffer<T> where T : unmanaged
 
     protected abstract void SetImpl(uint offset, ReadOnlySpan<T> elements, uint count);
 
-    public void SetDirect(IBuffer<T>.DirectSetter setter)
+    public void SetDirect(IStaticBuffer<T>.DirectSetter setter)
     {
         CheckCanModify();
         SetDirectImpl(setter);
     }
 
-    protected abstract void SetDirectImpl(IBuffer<T>.DirectSetter setter); 
+    protected abstract void SetDirectImpl(IStaticBuffer<T>.DirectSetter setter); 
 
     protected virtual void Commit()
     {

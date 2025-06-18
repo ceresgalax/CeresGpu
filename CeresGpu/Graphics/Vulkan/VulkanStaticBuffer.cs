@@ -171,7 +171,7 @@ public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer, IDef
         
     }
 
-    protected override void SetDirectImpl(IBuffer<T>.DirectSetter setter)
+    protected override void SetDirectImpl(IStaticBuffer<T>.DirectSetter setter)
     {
         Vk vk = _renderer.Vk;
 
