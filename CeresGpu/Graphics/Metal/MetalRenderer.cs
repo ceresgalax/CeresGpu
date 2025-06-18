@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using CeresGLFW;
@@ -37,6 +38,8 @@ namespace CeresGpu.Graphics.Metal
 
         private readonly List<WeakReference<MetalRenderTarget>> _swapchainSizedRenderTargets = []; 
         
+        private readonly List<IDeferredDisposable>[] _deferedDisposableByWorkingFrame;
+        
         public MetalRenderer(IntPtr window, GLFWWindow glfwWindow)
         {
             _glfwWindow = glfwWindow;
@@ -49,6 +52,8 @@ namespace CeresGpu.Graphics.Metal
             glfwWindow.GetFramebufferSize(out int framebufferWidth, out int framebufferHeight);
             _swapchainTarget.Width = (uint)framebufferWidth;
             _swapchainTarget.Height = (uint)framebufferHeight;
+            
+            _deferedDisposableByWorkingFrame = Enumerable.Range(0, FrameCount).Select(_ => new List<IDeferredDisposable>()).ToArray();
             
             NewFrame();
         }
@@ -267,6 +272,12 @@ namespace CeresGpu.Graphics.Metal
         {
             _hasAcquiredDrawable = false;
             _encoderListStart.ResetAsFront(_encoderListEnd);
+            
+            List<IDeferredDisposable> deferredDisposables = _deferedDisposableByWorkingFrame[WorkingFrame];
+            for (int i = deferredDisposables.Count - 1; i >= 0; --i) {
+                deferredDisposables[i].DeferredDispose();
+            }
+            deferredDisposables.Clear();
         }
 
         public void GetDiagnosticInfo(IList<(string key, object value)> entries)
@@ -299,6 +310,15 @@ namespace CeresGpu.Graphics.Metal
             } finally {
                 Marshal.FreeHGlobal(buffer);
             }
+        }
+        
+        internal void DeferDisposal(IDeferredDisposable disposable)
+        {
+            // TODO: Need to lock this list.
+            // We expect objects may be disposed parallel to whatever thread is servicing the deferred disposable queue. 
+            
+            // These are disposed at the beginning of the associated working frame.
+            _deferedDisposableByWorkingFrame[WorkingFrame].Add(disposable);
         }
     }
 }

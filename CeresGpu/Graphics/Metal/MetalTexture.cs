@@ -4,7 +4,7 @@ using CeresGpu.MetalBinding;
 
 namespace CeresGpu.Graphics.Metal
 {
-    public sealed class MetalTexture : ITexture
+    public sealed class MetalTexture : ITexture, IDeferredDisposable
     {
         private readonly MetalRenderer _renderer;
         private IntPtr _texture;
@@ -54,12 +54,8 @@ namespace CeresGpu.Graphics.Metal
 
         private void ReleaseUnmanagedResources()
         {
-            // TODO: Do we need to ensure this texture isn't still being used in an encoded arugment buffer before disposing?
+            _renderer.DeferDisposal(this);
             
-            if (_texture != IntPtr.Zero) {
-                MetalApi.metalbinding_release_texture(_texture);
-                _texture = IntPtr.Zero;
-            }
             if (_weakHandle != IntPtr.Zero) {
                 GCHandle.FromIntPtr(_weakHandle).Free();
                 _weakHandle = IntPtr.Zero;
@@ -74,6 +70,17 @@ namespace CeresGpu.Graphics.Metal
 
         ~MetalTexture() {
             ReleaseUnmanagedResources();
+        }
+
+        public void DeferredDispose()
+        {
+            // It's now safe to release the metal resource,
+            // as we can guarantee it's not encoded into any argument buffers.
+            
+            if (_texture != IntPtr.Zero) {
+                MetalApi.metalbinding_release_texture(_texture);
+                _texture = IntPtr.Zero;
+            }
         }
     }
 }

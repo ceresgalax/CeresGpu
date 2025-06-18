@@ -10,7 +10,7 @@ public sealed class MetalShaderInstanceBacking : IShaderInstanceBacking
     private readonly MetalRenderer _renderer;
     public readonly MetalShaderBacking Shader;
         
-    public readonly IMetalBuffer[] ArgumentBuffers;
+    public readonly MetalStreamingBuffer<byte>[] ArgumentBuffers;
     private readonly IntPtr[] _argumentEncoders;
     private readonly uint[] _argumentBufferSizes;
         
@@ -18,13 +18,13 @@ public sealed class MetalShaderInstanceBacking : IShaderInstanceBacking
     private readonly Dictionary<MetalDescriptorBindingInfo, IMetalBuffer> _storageBuffersByBinding = [];
     private readonly Dictionary<MetalDescriptorBindingInfo, MetalTexture> _texturesByBinding = [];
     private readonly Dictionary<MetalDescriptorBindingInfo, MetalSampler> _samplersByBinding = [];
-        
+    
     public MetalShaderInstanceBacking(MetalRenderer renderer, MetalShaderBacking shader)
     {
         _renderer = renderer;
         Shader = shader;
             
-        ArgumentBuffers = new IMetalBuffer[shader.ArgumentBufferDetails.Length];
+        ArgumentBuffers = new MetalStreamingBuffer<byte>[shader.ArgumentBufferDetails.Length];
         _argumentEncoders = new IntPtr[shader.ArgumentBufferDetails.Length];
         _argumentBufferSizes = new uint[shader.ArgumentBufferDetails.Length];
             
@@ -36,7 +36,7 @@ public sealed class MetalShaderInstanceBacking : IShaderInstanceBacking
             uint bufferSize = MetalApi.metalbinding_get_argument_buffer_size(argumentEncoder);
                 
             MetalStreamingBuffer<byte> buffer = new MetalStreamingBuffer<byte>(renderer);
-            buffer.Allocate(bufferSize);
+            //buffer.Allocate(bufferSize);
                 
             ArgumentBuffers[abstractedBufferIndex] = buffer;
             _argumentEncoders[abstractedBufferIndex] = argumentEncoder;
@@ -73,6 +73,7 @@ public sealed class MetalShaderInstanceBacking : IShaderInstanceBacking
     {
         for (int i = 0; i < ArgumentBuffers.Length; ++i) {
             MetalApi.metalbinding_set_argument_buffer(_argumentEncoders[i], ArgumentBuffers[i].GetHandleForCurrentFrame());
+            ArgumentBuffers[i].Allocate(_argumentBufferSizes[i]);
         }
         
         // TODO: Iterating over these dictionaries probably generates garbage.

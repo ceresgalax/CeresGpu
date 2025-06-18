@@ -521,7 +521,7 @@ public sealed class VulkanRenderer : IRenderer
         }
 
         //
-        // Prepare the first first frame.
+        // Prepare the first frame.
         //
         NewFrame();
         
@@ -568,7 +568,7 @@ public sealed class VulkanRenderer : IRenderer
 
     internal void DeferDisposal(IDeferredDisposable disposable)
     {
-        // These are disposed at the begining of the associated working frame.
+        // These are disposed at the beginning of the associated working frame.
         _deferedDisposableByWorkingFrame[WorkingFrame].Add(disposable);
     }
     

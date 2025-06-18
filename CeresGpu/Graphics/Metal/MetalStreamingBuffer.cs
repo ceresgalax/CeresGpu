@@ -8,14 +8,12 @@ namespace CeresGpu.Graphics.Metal
     {
         private readonly MetalRenderer _renderer;
 
-        private int _activeIndex;
-        
         private readonly IntPtr[] _buffers;
         private readonly uint[] _sizes;
-        
-        private uint _lastAllocationFrameId = uint.MaxValue;
-        
-        
+
+        /// <summary>
+        /// Number of elements allocated.
+        /// </summary>
         private uint _count;
 
         public override uint Count => _count;
@@ -35,9 +33,7 @@ namespace CeresGpu.Graphics.Metal
 
         public IntPtr GetHandleForCurrentFrame()
         {
-            // TODO: Assert that we've set anything this frame. 
-            
-            return _buffers[_activeIndex];
+            return _buffers[_renderer.WorkingFrame];
         }
 
         void IMetalBuffer.Commit()
@@ -47,25 +43,21 @@ namespace CeresGpu.Graphics.Metal
 
         protected override void AllocateImpl(uint elementCount)
         {
-            if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
-                _lastAllocationFrameId = _renderer.UniqueFrameId;
-                _activeIndex = (_activeIndex + 1) % _renderer.FrameCount;    
-            }
-            
             _count = elementCount;
-            
             RecreateBufferIfNecesary();
         }
 
         private void RecreateBufferIfNecesary()
         {
-            bool needsNewBuffer = _sizes[_activeIndex] != Count || _buffers[_activeIndex] == IntPtr.Zero;
+            int frame = _renderer.WorkingFrame;
+            
+            bool needsNewBuffer = _sizes[frame] != Count || _buffers[frame] == IntPtr.Zero;
             
             if (needsNewBuffer) {
-                IntPtr oldBuffer = _buffers[_activeIndex];
+                IntPtr oldBuffer = _buffers[frame];
                 if (oldBuffer != IntPtr.Zero) {
                     MetalApi.metalbinding_release_buffer(oldBuffer);
-                    _buffers[_activeIndex] = IntPtr.Zero;
+                    _buffers[frame] = IntPtr.Zero;
                 }
 
                 // Metal will not create buffers of zero size.
@@ -75,33 +67,21 @@ namespace CeresGpu.Graphics.Metal
                 }
 
                 IntPtr newBuffer = MetalApi.metalbinding_new_buffer(_renderer.Context, byteCount);
-                _sizes[_activeIndex] = Count;
-                _buffers[_activeIndex] = newBuffer;
+                _sizes[frame] = Count;
+                _buffers[frame] = newBuffer;
             }
         }
         
         protected override void SetImpl(uint offset, ReadOnlySpan<T> elements, uint count)
         {
-            if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
-                Allocate(Count);
-            }
-            
-            // if (_lastAllocationFrameId != _renderer.UniqueFrameId) {
-            //     throw new InvalidOperationException("Must call Allocate the same frame before modifying a streaming buffer");
-            // }
-            
-            IntPtr buffer = _buffers[_activeIndex];
-
-            // if (buffer == IntPtr.Zero) {
-            //     throw new InvalidOperationException("Internal error. Somehow a buffer is null");
-            // }
-
+            RecreateBufferIfNecesary();
+            IntPtr buffer = _buffers[_renderer.WorkingFrame];
             MetalBufferUtil.CopyBuffer(buffer, offset, elements, count, Count);
         }
 
         protected override void SetDirectImpl(IStreamingBuffer<T>.DirectSetter setter, uint count)
         {
-            IntPtr buffer = _buffers[_activeIndex];
+            IntPtr buffer = _buffers[_renderer.WorkingFrame];
 
             Span<T> directBuffer;
             unsafe {
@@ -120,6 +100,7 @@ namespace CeresGpu.Graphics.Metal
 
         private void ReleaseUnmanagedResources()
         {
+            // TODO: We need to defer delete in case this gets released while being referenced by an in-flight argument buffer!
             for (int i = 0, ilen = _buffers.Length; i < ilen; ++i) {
                 IntPtr buffer = _buffers[i];
                 if (buffer != IntPtr.Zero) {

@@ -1,4 +1,4 @@
-﻿namespace CeresGpu.Graphics.Vulkan;
+﻿namespace CeresGpu.Graphics;
 
 interface IDeferredDisposable
 {
