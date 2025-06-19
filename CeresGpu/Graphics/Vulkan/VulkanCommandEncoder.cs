@@ -1,11 +1,8 @@
 ﻿using System;
-using CeresGpu.Graphics.Shaders;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace CeresGpu.Graphics.Vulkan;
-
-//interface IVulkanCommandEncoder : IDisposable
 
 public interface IVulkanCommandEncoder
 {
@@ -36,7 +33,7 @@ public class VulkanCommandEncoderAnchor : IVulkanCommandEncoder
     }
 }
 
-public sealed class VulkanCommandEncoder : IVulkanCommandEncoder, IPass, IDeferredDisposable 
+public sealed class VulkanCommandEncoder : PassEncoder, IVulkanCommandEncoder, IDeferredDisposable 
 {
     private readonly VulkanRenderer _renderer;
     private readonly VulkanPassBacking _passBacking;
@@ -158,9 +155,7 @@ public sealed class VulkanCommandEncoder : IVulkanCommandEncoder, IPass, IDeferr
         Prev = other;
     }
     
-    private IUntypedShaderInstance? _currentShaderInstance;
-    
-    public void SetPipeline<TShader, TVertexBufferLayout>(IPipeline<TShader, TVertexBufferLayout> pipeline, IShaderInstance<TShader, TVertexBufferLayout> shaderInstance) where TShader : IShader where TVertexBufferLayout : IVertexBufferLayout<TShader>
+    protected override void SetPipelineImpl<TShader, TVertexBufferLayout>(IPipeline<TShader, TVertexBufferLayout> pipeline, IShaderInstance<TShader, TVertexBufferLayout> shaderInstance)
     {
         // TODO: Verify that pipeline is compatible with this renderpass.
         // TODO: ALSO THIS VERIFICATION SHOULD HAPPEN FOR ALL RENDERER IMPLS OF IPASS
@@ -185,8 +180,6 @@ public sealed class VulkanCommandEncoder : IVulkanCommandEncoder, IPass, IDeferr
             }
         }
         
-        _currentShaderInstance = shaderInstance;
-        
         RefreshPipeline();
     }
 
@@ -205,20 +198,17 @@ public sealed class VulkanCommandEncoder : IVulkanCommandEncoder, IPass, IDeferr
         _renderer.Vk.CmdEndRenderPass(CommandBuffer);
         _renderer.Vk.EndCommandBuffer(CommandBuffer).AssertSuccess("Failed to end command buffer.");
     }
-
-    public ScissorRect CurrentDynamicScissor { get; private set; }
-    public Viewport CurrentDynamicViewport { get; private set; }
     
-    public void RefreshPipeline()
+    protected override void RefreshPipelineImpl()
     {
-        if (_currentShaderInstance == null) {
+        if (CurrentShaderInstance == null) {
             throw new InvalidOperationException("No pipeline has been set. Call SetPipeline first!");
         }
 
-        VulkanShaderInstanceBacking vulkanShaderInstanceBacking = (VulkanShaderInstanceBacking)_currentShaderInstance.Backing;
+        VulkanShaderInstanceBacking vulkanShaderInstanceBacking = (VulkanShaderInstanceBacking)CurrentShaderInstance.Backing;
         vulkanShaderInstanceBacking.Update();
         
-        ReadOnlySpan<object?> vertexBuffers = _currentShaderInstance.VertexBufferAdapter.VertexBuffers;
+        ReadOnlySpan<object?> vertexBuffers = CurrentShaderInstance.VertexBufferAdapter.VertexBuffers;
             
         for (int i = 0, ilen = vertexBuffers.Length; i < ilen; ++i) {
             // No vertex buffer set.
@@ -239,22 +229,20 @@ public sealed class VulkanCommandEncoder : IVulkanCommandEncoder, IPass, IDeferr
         }
     }
 
-    public void SetScissor(ScissorRect scissor)
+    protected override void SetScissorImpl(ScissorRect scissor)
     {
         Rect2D vkScissor = new (new Offset2D(scissor.X, scissor.Y), new Extent2D(scissor.Width, scissor.Height));
         _renderer.Vk.CmdSetScissor(_commandBuffer, 0, 1, in vkScissor);
-        CurrentDynamicScissor = scissor;  
     }
 
-    public void SetViewport(Viewport viewport)
+    protected override void SetViewportImpl(Viewport viewport)
     {
         // Silk.NET.Vulkan.Viewport vkViewport = new (viewport.X, viewport.Y, viewport.Width, viewport.Height, 0f, 1f);
         Silk.NET.Vulkan.Viewport vkViewport = new (viewport.X, viewport.Height - viewport.Y, viewport.Width, -viewport.Height, 0f, 1f);
         _renderer.Vk.CmdSetViewport(_commandBuffer, 0, 1, in vkViewport);
-        CurrentDynamicViewport = viewport;
     }
 
-    public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
+    protected override void DrawImpl(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
         // TODO: Need to assert that a pipeline has been set. Any way that could be done in CeresGPU's non-api-specific code?
         
@@ -262,25 +250,21 @@ public sealed class VulkanCommandEncoder : IVulkanCommandEncoder, IPass, IDeferr
         vk.CmdDraw(_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
-    public void DrawIndexedUshort(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
+    protected override void DrawIndexedUshortImpl(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         DrawIndexed(indexBuffer, IndexType.Uint16, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
-    public void DrawIndexedUint(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
+    protected override void DrawIndexedUintImpl(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         DrawIndexed(indexBuffer, IndexType.Uint32, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
     private void DrawIndexed(object indexBuffer, IndexType indexType, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
-        // TODO: Need to assert that a pipeline has been set. Any way that could be done in CeresGPU's non-api-specific code?
-        
         if (indexBuffer is not IVulkanBuffer vkIndexBuffer) {
             throw new ArgumentException("Incompatible index buffer", nameof(indexBuffer));
         }
-
-        vkIndexBuffer.Commit();
         
         Vk vk = _renderer.Vk;
         vk.CmdBindIndexBuffer(_commandBuffer, vkIndexBuffer.GetBufferForCurrentFrame(), 0, indexType);

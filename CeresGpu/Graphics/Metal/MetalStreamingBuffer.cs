@@ -36,11 +36,6 @@ namespace CeresGpu.Graphics.Metal
             return _buffers[_renderer.WorkingFrame];
         }
 
-        void IMetalBuffer.Commit()
-        {
-            Commit();
-        }
-
         protected override void AllocateImpl(uint elementCount)
         {
             _count = elementCount;
@@ -79,13 +74,13 @@ namespace CeresGpu.Graphics.Metal
             MetalBufferUtil.CopyBuffer(buffer, offset, elements, count, Count);
         }
 
-        protected override void SetDirectImpl(IStreamingBuffer<T>.DirectSetter setter, uint count)
+        protected override void SetDirectImpl(IStreamingBuffer<T>.DirectSetter setter)
         {
             IntPtr buffer = _buffers[_renderer.WorkingFrame];
 
             Span<T> directBuffer;
             unsafe {
-                directBuffer = new Span<T>((void*)MetalApi.metalbinding_buffer_get_contents(buffer), (int)count);
+                directBuffer = new Span<T>((void*)MetalApi.metalbinding_buffer_get_contents(buffer), (int)_count);
             }
 
             setter(directBuffer);

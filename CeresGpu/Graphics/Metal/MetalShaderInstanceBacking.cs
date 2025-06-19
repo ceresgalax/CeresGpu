@@ -68,7 +68,19 @@ public sealed class MetalShaderInstanceBacking : IShaderInstanceBacking
     {
         _samplersByBinding[GetBinding(in info)] = (MetalSampler)sampler;
     }
-    
+
+    public void GetUsedBuffers(List<IBuffer> outBuffers)
+    {
+        // TODO: Iterating over these dictionaries probably generates garbage.
+        foreach ((_, IMetalBuffer buffer) in _uniformBuffersByBinding) {
+            outBuffers.Add(buffer);
+        }
+        
+        foreach ((_, IMetalBuffer buffer) in _storageBuffersByBinding) {
+            outBuffers.Add(buffer);
+        }
+    }
+
     public void Update(IntPtr renderCommandEncoder)
     {
         for (int i = 0; i < ArgumentBuffers.Length; ++i) {

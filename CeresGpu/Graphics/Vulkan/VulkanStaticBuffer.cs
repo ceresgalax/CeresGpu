@@ -209,11 +209,6 @@ public sealed class VulkanStaticBuffer<T> : StaticBuffer<T>, IVulkanBuffer, IDef
         return _buffer;
     }
 
-    void IVulkanBuffer.Commit()
-    {
-        Commit();
-    }
-
     public void PrepareToUpdateExternally()
     {
         throw new NotImplementedException();

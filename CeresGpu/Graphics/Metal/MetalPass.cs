@@ -29,21 +29,17 @@ class MetalPassAnchor : IMetalPass
     }
 }
 
-public sealed class MetalPass : IMetalPass, IPass
+public sealed class MetalPass : PassEncoder, IMetalPass
 {
     private readonly MetalRenderer _renderer;
     private readonly IntPtr _commandBuffer; 
     private readonly IntPtr _encoder;
     
     public IntPtr CommandBuffer => _commandBuffer;
-        
-    public ScissorRect CurrentDynamicScissor { get; private set;  }
-    public Viewport CurrentDynamicViewport { get; private set; }
     
     public IMetalPass? Prev { get; set; }
     public IMetalPass? Next { get; set; }
-
-    private IUntypedShaderInstance? _shaderInstance;
+    
     private MetalShaderInstanceBacking? _shaderInstanceBacking;
 
     public MetalPass(MetalRenderer renderer, MetalPassBacking passBacking, MetalFramebuffer framebuffer)
@@ -143,12 +139,10 @@ public sealed class MetalPass : IMetalPass, IPass
 
     private object? _previousPipeline;
 
-    public void SetPipeline<TShader, TVertexBufferLayout>(
+    protected override void SetPipelineImpl<TShader, TVertexBufferLayout>(
         IPipeline<TShader, TVertexBufferLayout> pipeline,
         IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
     )
-        where TShader : IShader
-        where TVertexBufferLayout : IVertexBufferLayout<TShader> 
     {
         if (pipeline is not MetalPipeline<TShader, TVertexBufferLayout> metalPipeline) {
             throw new ArgumentException("Incompatible pipeline", nameof(pipeline));
@@ -178,7 +172,7 @@ public sealed class MetalPass : IMetalPass, IPass
             }
         }
             
-        _shaderInstance = shaderInstance;
+        //CurrentShaderInstance = shaderInstance;
         _shaderInstanceBacking = shaderInstanceBacking;
         UpdateShaderInstance();
 
@@ -194,29 +188,27 @@ public sealed class MetalPass : IMetalPass, IPass
         MetalApi.metalbinding_command_encoder_set_dss(_encoder, metalPipeline.DepthStencilState);
     }
 
-    public void RefreshPipeline()
+    protected override void RefreshPipelineImpl()
     {
         UpdateShaderInstance();
     }
 
-    public void SetScissor(ScissorRect scissor)
+    protected override void SetScissorImpl(ScissorRect scissor)
     {
         MetalApi.metalbinding_command_encoder_set_scissor(_encoder, scissor.X, scissor.Y, scissor.Width, scissor.Height);
-        CurrentDynamicScissor = scissor;
     }
 
-    public void SetViewport(Viewport viewport)
+    protected override void SetViewportImpl(Viewport viewport)
     {
         MetalApi.metalbinding_command_encoder_set_viewport(_encoder, viewport.X, viewport.Y, viewport.Width, viewport.Height);
-        CurrentDynamicViewport = viewport;
     }
 
-    public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
+    protected override void DrawImpl(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
         MetalApi.metalbinding_command_encoder_draw(_encoder, vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
-    public void DrawIndexedUshort(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
+    protected override void DrawIndexedUshortImpl(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         if (indexBuffer is not IMetalBuffer metalBuffer) {
             throw new ArgumentException("Incompatible buffer", nameof(indexBuffer));
@@ -232,7 +224,7 @@ public sealed class MetalPass : IMetalPass, IPass
             metalBuffer.GetHandleForCurrentFrame(), indexCount, instanceCount, indexBufferOffset, vertexOffset, firstInstance);
     }
 
-    public void DrawIndexedUint(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
+    protected override void DrawIndexedUintImpl(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         if (indexBuffer is not IMetalBuffer metalBuffer) {
             throw new ArgumentException("Incompatible buffer", nameof(indexBuffer));
@@ -246,11 +238,11 @@ public sealed class MetalPass : IMetalPass, IPass
 
     private void UpdateShaderInstance()
     {
-        if (_shaderInstanceBacking == null || _shaderInstance == null) {
+        if (_shaderInstanceBacking == null || CurrentShaderInstance == null) {
             throw new InvalidOperationException("No shader instance set. Must call SetPipeline first!");
         }
 
-        ReadOnlySpan<object?> vertexBuffers = _shaderInstance.VertexBufferAdapter.VertexBuffers;
+        ReadOnlySpan<object?> vertexBuffers = CurrentShaderInstance.VertexBufferAdapter.VertexBuffers;
             
         for (int i = 0, ilen = vertexBuffers.Length; i < ilen; ++i) {
             // No vertex buffer set.

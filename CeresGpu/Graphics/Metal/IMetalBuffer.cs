@@ -2,7 +2,7 @@ using System;
 
 namespace CeresGpu.Graphics.Metal
 {
-    public interface IMetalBuffer : IDisposable
+    public interface IMetalBuffer : IBuffer, IDisposable
     {
         /// <summary>
         /// Returns the underlying buffer handle that represents the buffer contents for this frame.
@@ -10,11 +10,6 @@ namespace CeresGpu.Graphics.Metal
         /// while previous frames are in flight.
         /// </summary>
         public IntPtr GetHandleForCurrentFrame();
-        
-        /// <summary>
-        /// Called right before the buffer is encoded. Commits the buffer. At this point, the buffer is considered used.
-        /// </summary>
-        public void Commit();
         
         /// <summary>
         /// Called when the buffer is going to be updated outside CeresGPU.

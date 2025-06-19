@@ -39,11 +39,6 @@ namespace CeresGpu.Graphics.OpenGL
             
         }
 
-        void IGLBuffer.Commit()
-        {
-            Commit();
-        }
-
         public uint GetHandleForCurrentFrame()
         {
             return _inner.Handle;

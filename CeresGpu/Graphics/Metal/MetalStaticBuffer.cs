@@ -23,11 +23,6 @@ namespace CeresGpu.Graphics.Metal
             return _buffer;
         }
 
-        void IMetalBuffer.Commit()
-        {
-            Commit();
-        }
-
         public void PrepareToUpdateExternally()
         {
         }

@@ -38,7 +38,7 @@ public sealed class StreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer where T
 
     private T[] _directBuffer = [];
     
-    protected override void SetDirectImpl(IStreamingBuffer<T>.DirectSetter setter, uint count)
+    protected override void SetDirectImpl(IStreamingBuffer<T>.DirectSetter setter)
     {
         // TODO: This is pretty inefficient. We should memory map the buffer instead?
         
@@ -46,13 +46,8 @@ public sealed class StreamingGLBuffer<T> : StreamingBuffer<T>, IGLBuffer where T
             _directBuffer = new T[Count];
         }
 
-        setter(_directBuffer.AsSpan(0, (int)count));
-        _inner.Set(0, _directBuffer, count);
-    }
-
-    void IGLBuffer.Commit()
-    {
-        Commit();
+        setter(_directBuffer);
+        _inner.Set(0, _directBuffer, (uint)_directBuffer.Length);
     }
 
     public uint GetHandleForCurrentFrame()

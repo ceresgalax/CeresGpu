@@ -77,7 +77,19 @@ public sealed class GLShaderInstanceBacking : IShaderInstanceBacking
     {
         _samplersByBinding[GetBinding(in info)] = (GLSampler)sampler;
     }
-    
+
+    public void GetUsedBuffers(List<IBuffer> outBuffers)
+    {
+        // TODO: Iterating over these dictionaries probably generates garbage.
+        foreach ((_, IGLBuffer buffer) in _uniformBuffersByBinding) {
+            outBuffers.Add(buffer);
+        }
+        
+        foreach ((_, IGLBuffer buffer) in _storageBuffersByBinding) {
+            outBuffers.Add(buffer);
+        }
+    }
+
     public void UpdateBoundVao()
     {
         GL gl = _renderer.GLProvider.Gl;

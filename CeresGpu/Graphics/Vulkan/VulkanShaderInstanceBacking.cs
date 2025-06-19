@@ -103,6 +103,18 @@ public sealed class VulkanShaderInstanceBacking : IShaderInstanceBacking, IDefer
         _samplersByBinding[GetBinding(in info)] = (VulkanSampler)sampler;
     }
 
+    public void GetUsedBuffers(List<IBuffer> outBuffers)
+    {
+        // TODO: Iterating over the array probably generates garbage.
+        foreach ((_, IVulkanBuffer buffer) in _uniformBuffersByBinding) {
+            outBuffers.Add(buffer);
+        }
+        
+        foreach ((_, IVulkanBuffer buffer) in _storageBuffersByBinding) {
+            outBuffers.Add(buffer);
+        }
+    }
+
     public unsafe void Update()
     {
         // TODO: Get clever about combining these into a single vkUpdateDescriptorSets call.

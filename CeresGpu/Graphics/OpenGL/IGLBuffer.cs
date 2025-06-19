@@ -1,8 +1,8 @@
 ﻿namespace CeresGpu.Graphics.OpenGL
 {
-    public interface IGLBuffer
+    public interface IGLBuffer : IBuffer
     {
-        void Commit();
+        //void Commit();
         uint GetHandleForCurrentFrame();
     }
 }

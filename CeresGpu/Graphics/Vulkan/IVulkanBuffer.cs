@@ -3,7 +3,7 @@ using VkBuffer = Silk.NET.Vulkan.Buffer;
 
 namespace CeresGpu.Graphics.Vulkan;
 
-public interface IVulkanBuffer
+public interface IVulkanBuffer : IBuffer
 {
     /// <summary>
     /// Returns the underlying buffer handle that represents the buffer contents for this frame.
@@ -11,12 +11,7 @@ public interface IVulkanBuffer
     /// while previous frames are in flight.
     /// </summary>
     public VkBuffer GetBufferForCurrentFrame();
-        
-    /// <summary>
-    /// Called right before the buffer is encoded. Commits the buffer. At this point, the buffer is considered used.
-    /// </summary>
-    public void Commit();
-        
+
     /// <summary>
     /// Called when the buffer is going to be updated outside CeresGPU.
     /// For example, encoding arguments into an argument buffer.

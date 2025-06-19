@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using CeresGL;
 using CeresGpu.Graphics.OpenGL.VirtualCommands;
-using CeresGpu.Graphics.Shaders;
 
 namespace CeresGpu.Graphics.OpenGL;
 
@@ -39,18 +38,14 @@ public class GLPassState
 {
 }
 
-public sealed class GLPass : IGLPass, IPass 
+public sealed class GLPass : PassEncoder, IGLPass 
 {
     private readonly GLRenderer _renderer;
    
     private IGLPipeline? _currentPipeline;
-    private IUntypedShaderInstance? _shaderInstance;
     private GLShaderInstanceBacking? _shaderInstanceBacking;
 
     private readonly uint _attachmentWidth, _attachmentHeight;
-        
-    public ScissorRect CurrentDynamicScissor { get; }
-    public Viewport CurrentDynamicViewport { get; }
 
     private readonly List<IVirtualCommand> _commands = [];
     
@@ -90,12 +85,10 @@ public sealed class GLPass : IGLPass, IPass
         _commands.Add(new BeginPassCommand(passBacking, framebuffer));
     }
         
-    public void SetPipeline<TShader, TVertexBufferLayout>(
+    protected override void SetPipelineImpl<TShader, TVertexBufferLayout>(
         IPipeline<TShader, TVertexBufferLayout> pipeline,
         IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
     ) 
-        where TShader : IShader
-        where TVertexBufferLayout : IVertexBufferLayout<TShader>
     {
         if (pipeline is not IGLPipeline glPipe) {
             throw new ArgumentException("Incompatible pipeline", nameof(pipeline));
@@ -109,63 +102,56 @@ public sealed class GLPass : IGLPass, IPass
         _commands.Add(command);
         
         _currentPipeline = glPipe;
-        _shaderInstance = shaderInstance;
         _shaderInstanceBacking = shaderInstanceBacking;
             
         UpdateShaderInstance();
     }
 
-    public void RefreshPipeline()
+    protected override void RefreshPipelineImpl()
     {
         UpdateShaderInstance();
     }
         
-    public void SetScissor(ScissorRect scissor)
+    protected override void SetScissorImpl(ScissorRect scissor)
     {
         _commands.Add(new SetScissorCommand(scissor, _attachmentHeight));
     }
 
-    public void SetViewport(Viewport viewport)
+    protected override void SetViewportImpl(Viewport viewport)
     {
         _commands.Add(new SetViewportCommand(viewport, _attachmentHeight));
     }
 
-    public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
+    protected override void DrawImpl(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
         _commands.Add(new DrawCommand((int) firstVertex, (int)vertexCount, (int)instanceCount, firstInstance));
     }
 
-    public void DrawIndexedUshort(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
+    protected override void DrawIndexedUshortImpl(IBuffer<ushort> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         if (indexBuffer is not IGLBuffer glIndexBuffer) {
             throw new ArgumentException("Incompatible buffer", nameof(indexBuffer));
         }
-        glIndexBuffer.Commit();
         uint indexBufferOffset = (uint)Marshal.SizeOf<ushort>() * firstIndex;
         _commands.Add(new DrawIndexedCommand(glIndexBuffer, new IntPtr(indexBufferOffset), (int)indexCount, (int)instanceCount, vertexOffset, firstInstance));
     }
 
-    public void DrawIndexedUint(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
+    protected override void DrawIndexedUintImpl(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         if (indexBuffer is not IGLBuffer glIndexBuffer) {
             throw new ArgumentException("Incompatible buffer", nameof(indexBuffer));
         }
-        glIndexBuffer.Commit();
         uint indexBufferOffset = (uint)Marshal.SizeOf<uint>() * firstIndex;
         _commands.Add(new DrawIndexedCommand(glIndexBuffer, new IntPtr(indexBufferOffset), (int)indexCount, (int)instanceCount, vertexOffset, firstInstance));
     }
 
-    public void Finish()
-    {
-    }
-
     private void UpdateShaderInstance()
     {
-        if (_shaderInstanceBacking == null || _shaderInstance == null || _currentPipeline == null) {
+        if (_shaderInstanceBacking == null || CurrentShaderInstance == null || _currentPipeline == null) {
             throw new InvalidOperationException("Must call SetPipeline first!");
         }
         
-        _commands.Add(new UpdateShaderInstanceCommand(_currentPipeline, _shaderInstanceBacking, _shaderInstance));
+        _commands.Add(new UpdateShaderInstanceCommand(_currentPipeline, _shaderInstanceBacking, CurrentShaderInstance));
     }
 
     public void ExecuteCommands(GL gl)

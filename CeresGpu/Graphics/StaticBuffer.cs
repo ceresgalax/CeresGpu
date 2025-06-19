@@ -7,6 +7,7 @@ public abstract class StaticBuffer<T> : IStaticBuffer<T> where T : unmanaged
     protected bool IsCommited;
     
     public abstract uint Count { get; }
+    public string Label { get; set; } = "";
 
     public void Allocate(uint elementCount)
     {
@@ -62,15 +63,14 @@ public abstract class StaticBuffer<T> : IStaticBuffer<T> where T : unmanaged
         SetDirectImpl(setter);
     }
 
-    protected abstract void SetDirectImpl(IStaticBuffer<T>.DirectSetter setter); 
+    protected abstract void SetDirectImpl(IStaticBuffer<T>.DirectSetter setter);
 
-    protected virtual void Commit()
+    public bool Commit()
     {
         IsCommited = true;
+        return true;
     }
-
     
-
     private void CheckCanModify()
     {
         if (IsCommited) {

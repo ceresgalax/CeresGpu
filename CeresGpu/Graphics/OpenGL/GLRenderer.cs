@@ -113,12 +113,7 @@ namespace CeresGpu.Graphics.OpenGL
                 throw new ArgumentOutOfRangeException(nameof(elementCount));
             }
 
-            IStreamingBuffer<T> buffer;
-            #if DEBUG
-            buffer = new DebugStreamingGLBuffer<T>(this);
-            #else
-            buffer = new StreamingGLBuffer<T>(this);
-            #endif
+            IStreamingBuffer<T> buffer = new StreamingGLBuffer<T>(this);
             
             buffer.Allocate((uint)elementCount);
             return buffer;
