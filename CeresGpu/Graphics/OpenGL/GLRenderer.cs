@@ -74,6 +74,7 @@ namespace CeresGpu.Graphics.OpenGL
             }
             
             gl.Enable(EnableCap.SCISSOR_TEST);
+            gl.Enable(EnableCap.DEPTH_TEST);
 
             FallbackTexture = (GLTexture)RendererUtil.CreateFallbackTexture(this);
             FallbackSampler = (GLSampler)CreateSampler(default);
