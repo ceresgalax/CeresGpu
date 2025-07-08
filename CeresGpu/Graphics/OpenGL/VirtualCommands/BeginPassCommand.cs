@@ -27,8 +27,14 @@ public class BeginPassCommand(GLPassBacking passBacking, GLFramebuffer framebuff
         
         if (framebuffer.DepthStencilAttachment != null) {
             if (passBacking.Definition.DepthStencilAttachment?.LoadAction == LoadAction.Clear) {
+                // Need to enable these write masks, otherwise glClear will use what was previously set, and might not clear the depth or stencil.
+                gl.DepthMask(true);
+                gl.StencilMask(uint.MaxValue);
+                
                 gl.ClearDepth(framebuffer.DepthClearValue);
                 gl.ClearStencil((int)framebuffer.StencilClearValue);
+                
+                gl.Clear(ClearBufferMask.DEPTH_BUFFER_BIT | ClearBufferMask.STENCIL_BUFFER_BIT);
             }
         }
     }

@@ -887,7 +887,7 @@ cs_sizes = {
     'Matrix4x4': 64,
     'IntVector2': 8,
     'Vector2': 8,
-    'Vector3': 16,  # Arbitrary choice by me to add padding
+    'Vector3': 12,
     'Vector4': 16
 }
 
