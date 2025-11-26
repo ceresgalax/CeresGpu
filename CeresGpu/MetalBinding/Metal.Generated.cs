@@ -225,6 +225,72 @@ namespace CeresGpu.MetalBinding
         [DllImport(DLL_NAME)]
         public static extern void metalbinding_arp_drain(IntPtr context);
         
+        public enum MTLBlendFactor : ulong
+        {
+            Zero = 0,
+            One = 1,
+            SourceColor = 2,
+            OneMinusSourceColor = 3,
+            SourceAlpha = 4,
+            OneMinusSourceAlpha = 5,
+            DestinationColor = 6,
+            OneMinusDestinationColor = 7,
+            DestinationAlpha = 8,
+            OneMinusDestinationAlpha = 9,
+            SourceAlphaSaturated = 10,
+            BlendColor = 11,
+            OneMinusBlendColor = 12,
+            BlendAlpha = 13,
+            OneMinusBlendAlpha = 14,
+            Source1Color = 15,
+            OneMinusSource1Color = 16,
+            Source1Alpha = 17,
+            OneMinusSource1Alpha = 18,
+            Unspecialized = 19,
+        }
+        
+        public enum MTLBlendOperation : ulong
+        {
+            Add = 0,
+            Subtract = 1,
+            ReverseSubtract = 2,
+            Min = 3,
+            Max = 4,
+            Unspecialized = 5,
+        }
+        
+        public enum MTLCompareFunction : ulong
+        {
+            Never = 0,
+            Less = 1,
+            Equal = 2,
+            LessEqual = 3,
+            Greater = 4,
+            NotEqual = 5,
+            GreaterEqual = 6,
+            Always = 7,
+        }
+        
+        public enum MTLCullMode : ulong
+        {
+            None = 0,
+            Front = 1,
+            Back = 2,
+        }
+        
+        public enum MTLIndexType : ulong
+        {
+            UInt16 = 0,
+            UInt32 = 1,
+        }
+        
+        public enum MTLLoadAction : ulong
+        {
+            DontCare = 0,
+            Load = 1,
+            Clear = 2,
+        }
+        
         public enum MTLPixelFormat : ulong
         {
             Invalid = 0,
@@ -366,50 +432,30 @@ namespace CeresGpu.MetalBinding
             Depth32Float_Stencil8 = 260,
             X32_Stencil8 = 261,
             X24_Stencil8 = 262,
+            Unspecialized = 263,
         }
         
-        public enum MTLBlendOperation : ulong
+        public enum MTLSamplerAddressMode : ulong
         {
-            Add = 0,
-            Subtract = 1,
-            ReverseSubtract = 2,
-            Min = 3,
-            Max = 4,
+            ClampToEdge = 0,
+            MirrorClampToEdge = 1,
+            Repeat = 2,
+            MirrorRepeat = 3,
+            ClampToZero = 4,
+            ClampToBorderColor = 5,
         }
         
-        public enum MTLBlendFactor : ulong
+        public enum MTLSamplerMinMagFilter : ulong
         {
-            Zero = 0,
-            One = 1,
-            SourceColor = 2,
-            OneMinusSourceColor = 3,
-            SourceAlpha = 4,
-            OneMinusSourceAlpha = 5,
-            DestinationColor = 6,
-            OneMinusDestinationColor = 7,
-            DestinationAlpha = 8,
-            OneMinusDestinationAlpha = 9,
-            SourceAlphaSaturated = 10,
-            BlendColor = 11,
-            OneMinusBlendColor = 12,
-            BlendAlpha = 13,
-            OneMinusBlendAlpha = 14,
-            Source1Color = 15,
-            OneMinusSource1Color = 16,
-            Source1Alpha = 17,
-            OneMinusSource1Alpha = 18,
+            Nearest = 0,
+            Linear = 1,
         }
         
-        public enum MTLCompareFunction : ulong
+        public enum MTLSamplerMipFilter : ulong
         {
-            Never = 0,
-            Less = 1,
-            Equal = 2,
-            LessEqual = 3,
-            Greater = 4,
-            NotEqual = 5,
-            GreaterEqual = 6,
-            Always = 7,
+            NotMipmapped = 0,
+            Nearest = 1,
+            Linear = 2,
         }
         
         public enum MTLStencilOperation : ulong
@@ -422,6 +468,16 @@ namespace CeresGpu.MetalBinding
             Invert = 5,
             IncrementWrap = 6,
             DecrementWrap = 7,
+        }
+        
+        public enum MTLStoreAction : ulong
+        {
+            DontCare = 0,
+            Store = 1,
+            MultisampleResolve = 2,
+            StoreAndMultisampleResolve = 3,
+            Unknown = 4,
+            CustomSampleDepthStore = 5,
         }
         
         public enum MTLVertexFormat : ulong
@@ -489,59 +545,6 @@ namespace CeresGpu.MetalBinding
             PerInstance = 2,
             PerPatch = 3,
             PerPatchControlPoint = 4,
-        }
-        
-        public enum MTLIndexType : ulong
-        {
-            UInt16 = 0,
-            UInt32 = 1,
-        }
-        
-        public enum MTLCullMode : ulong
-        {
-            None = 0,
-            Front = 1,
-            Back = 2,
-        }
-        
-        public enum MTLSamplerMinMagFilter : ulong
-        {
-            Nearest = 0,
-            Linear = 1,
-        }
-        
-        public enum MTLSamplerMipFilter : ulong
-        {
-            NotMipmapped = 0,
-            Nearest = 1,
-            Linear = 2,
-        }
-        
-        public enum MTLSamplerAddressMode : ulong
-        {
-            ClampToEdge = 0,
-            MirrorClampToEdge = 1,
-            Repeat = 2,
-            MirrorRepeat = 3,
-            ClampToZero = 4,
-            ClampToBorderColor = 5,
-        }
-        
-        public enum MTLLoadAction : ulong
-        {
-            DontCare = 0,
-            Load = 1,
-            Clear = 2,
-        }
-        
-        public enum MTLStoreAction : ulong
-        {
-            DontCare = 0,
-            Store = 1,
-            MultisampleResolve = 2,
-            StoreAndMultisampleResolve = 3,
-            Unknown = 4,
-            CustomSampleDepthStore = 5,
         }
         
     }

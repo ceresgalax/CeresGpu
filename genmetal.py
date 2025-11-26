@@ -1,7 +1,8 @@
+import os
 import os.path
 import re
 import subprocess
-from typing import Match, List, TextIO, Tuple, Optional
+from typing import Match, List, Set, TextIO, Tuple, Optional
 
 NAMESPACE = 'CeresGpu.MetalBinding'
 
@@ -51,29 +52,36 @@ def main():
     prototypes = []
         
     for line in lines:
-        if line.lstrip().startswith('//'):
+        if line.lstrip().startswith('//'):  
             continue
     
         prototype_match = PROTOTYPE_PATTERN.match(line)
         if prototype_match:
             prototypes.append(parse_prorotype(prototype_match))
     
-    enums = [
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLPixelFormat.h'), 'MTLPixelFormat'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLRenderPipeline.h'), 'MTLBlendOperation'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLRenderPipeline.h'), 'MTLBlendFactor'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLDepthStencil.h'), 'MTLCompareFunction'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLDepthStencil.h'), 'MTLStencilOperation'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLVertexDescriptor.h'), 'MTLVertexFormat'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLVertexDescriptor.h'), 'MTLVertexStepFunction'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLStageInputOutputDescriptor.h'), 'MTLIndexType'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLRenderCommandEncoder.h'), 'MTLCullMode'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLSampler.h'), 'MTLSamplerMinMagFilter'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLSampler.h'), 'MTLSamplerMipFilter'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLSampler.h'), 'MTLSamplerAddressMode'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLRenderPass.h'), 'MTLLoadAction'),
-        parse_enum_header(os.path.join(metal_headers_path, 'MTLRenderPass.h'), 'MTLStoreAction')
-    ]
+    enums_to_include = {
+        'MTLPixelFormat',
+        'MTLBlendOperation',
+        'MTLBlendFactor',
+        'MTLCompareFunction',
+        'MTLStencilOperation',
+        'MTLVertexFormat',
+        'MTLVertexStepFunction',
+        'MTLIndexType',
+        'MTLCullMode',
+        'MTLSamplerMinMagFilter',
+        'MTLSamplerMipFilter',
+        'MTLSamplerAddressMode',
+        'MTLLoadAction',
+        'MTLStoreAction'
+    }
+
+    enums = find_all_enums(metal_headers_path, enums_to_include)
+
+    missing_enums = enums_to_include - set(e.name for e in enums)
+    assert not missing_enums, f'Missing enums in Metal headers: {missing_enums}'
+
+    enums = sorted(enums, key=lambda e: e.name)
     
     with open(cs_out_path, 'w') as f:
         writer = SourceWriter(f)
@@ -130,36 +138,63 @@ class EnumData(object):
         self.entries: List[Tuple[str, str]] = []
 
 
-def parse_enum_header(path: str, prefix: str) -> Optional[EnumData]:
+def parse_all_enums_from_header(path: str, included_enums: Set[str]) -> List[EnumData]:
+    """Parse all enums from a single header file which match the given included_enums"""
     with open(path) as f:
         lines = f.read().split('\n')
         
-    data: Optional[EnumData] = None
-    current_enum = ''
+    enums: List[EnumData] = []
+    current_enum: Optional[EnumData] = None
+    current_enum_name = ''
         
     for line in lines:
-        if data and current_enum == prefix:
+        # If we're inside an enum, look for enum entries
+        if current_enum:
             match = ENUM_PATTERN.match(line)
             if match:
                 name = match.group('name')
-                if name.startswith(prefix):
-                    name = name[len(prefix):]
-                data.entries.append((name, match.group('value')))
+                if name.startswith(current_enum_name):
+                    name = name[len(current_enum_name):]
+                current_enum.entries.append((name, match.group('value')))
                 continue
             
+        # Look for enum type declarations
         match = ENUM_TYPE_PATTERN.match(line)
         if match:
             name = match.group('name')
+
+            if name not in included_enums:
+                continue
+
             backing = match.group('backing')
-            current_enum = name
-            if name == prefix and not data:
-                data = EnumData(name, backing)
+            current_enum_name = name
+            current_enum = EnumData(name, backing)
+            enums.append(current_enum)
             continue
             
+        # End of enum block
         if line.strip().startswith('}'):
-            current_enum = ''
+            current_enum = None
+            current_enum_name = ''
             
-    return data
+    return enums
+
+
+def find_all_enums(metal_headers_path: str, enums_to_include: Set[str]) -> List[EnumData]:
+    """Scan all header files in the directory and return all enums found which match the given enums_to_include"""
+    all_enums: List[EnumData] = []
+    
+    if not os.path.isdir(metal_headers_path):
+        return all_enums
+    
+    # Scan all .h files in the directory
+    for filename in os.listdir(metal_headers_path):
+        if filename.endswith('.h'):
+            header_path = os.path.join(metal_headers_path, filename)
+            enums = parse_all_enums_from_header(header_path, enums_to_include)
+            all_enums.extend(enums)
+    
+    return all_enums
 
 
 def gen_cs_file(f: SourceWriter, prototypes: List[FunctionPrototype], enums: List[EnumData]):

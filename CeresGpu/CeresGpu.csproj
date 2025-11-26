@@ -21,7 +21,7 @@
         <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.22.0" />
         <PackageReference Include="SkiaSharp" Version="2.88.6" />
         
-        <!-- CeresGpu doesn't use this part of the BCL, but upgrade it to supress vulnerability warnings -->
+        <!-- CeresGpu doesn't use this part of the BCL, but upgrade it to avoid vulnerability warnings -->
         <PackageReference Include="System.Text.Json" Version="8.0.5" />
 
         <!-- PrivateAssets="all" here to prevent the shader tools from ending up in the output directory of depending projects -->
