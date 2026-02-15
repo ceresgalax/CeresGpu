@@ -4,7 +4,6 @@ using CeresGLFW;
 using CeresGpu.Graphics;
 using CeresGpu.Graphics.Metal;
 using CeresGpu.Graphics.OpenGL;
-using CeresGpu.Graphics.Vulkan;
 using Silk.NET.Vulkan;
 
 namespace CeresGpu;
@@ -56,6 +55,10 @@ public class GLFWWindowFactory : IGLWindowFactory, IVulkanWindowFactory, IMetalW
         _width = width;
         _height = height;
         _title = title;
+        
+        if (GLFW.MainThread == null) {
+            GLFW.Init();
+        }
     }
 
     public GLFWWindow GetOrCreateWindow()
@@ -72,15 +75,10 @@ public class GLFWWindowFactory : IGLWindowFactory, IVulkanWindowFactory, IMetalW
             _hints.OpenGLProfile = OpenGLProfile.Core;
             _hints.OpenGLForwardCompat = true;    
         }
-        
-        GLFW.SwapInterval(1);
     }
 
     public string[] GetRequiredInstanceExtensions()
     {
-        if (GLFW.MainThread == null) {
-            GLFW.Init();
-        }
         return GLFW.GetRequiredInstanceExtensions();
     }
     
@@ -118,10 +116,6 @@ public class GLFWWindowFactory : IGLWindowFactory, IVulkanWindowFactory, IMetalW
         if (_window != null) {
             throw new InvalidOperationException("Cannot create surface, the window has already been created.");
         }
-        
-        if (GLFW.MainThread == null) {
-            GLFW.Init();
-        }
             
         // GLFW does not allow width or height of 0.
         if (_width == 0) {
@@ -131,6 +125,16 @@ public class GLFWWindowFactory : IGLWindowFactory, IVulkanWindowFactory, IMetalW
         if (_height == 0) {
             // TODO: Should we log somehow?
             _height = 1;
+        }
+        
+        // Make sure windows match video mode so that GLFW can use "Windowed Fullscreen" on platforms like Windows.
+        GLFWMonitor? primaryMonitor = GLFW.GetPrimaryMonitor();
+        if (primaryMonitor != null) {
+            GLFWVideoMode videoMode = primaryMonitor.GetVideoMode();
+            _hints.RedBits = videoMode.RedBits;
+            _hints.GreenBits = videoMode.GreenBits;
+            _hints.BlueBits = videoMode.BlueBits;
+            _hints.RefreshRate = videoMode.RefreshRate;
         }
 
         _window = new(
@@ -142,6 +146,10 @@ public class GLFWWindowFactory : IGLWindowFactory, IVulkanWindowFactory, IMetalW
         );
 
         GLFW.MakeContextCurrent(_window);
+
+        if (_hints.ClientApi is Api.OpenGL or Api.OpenGLES) {
+            GLFW.SwapInterval(1);    
+        }
             
         return _window;
     }
