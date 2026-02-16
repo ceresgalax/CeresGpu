@@ -144,10 +144,9 @@ public class GLFWWindowFactory : IGLWindowFactory, IVulkanWindowFactory, IMetalW
             share: null,
             hints: _hints
         );
-
-        GLFW.MakeContextCurrent(_window);
-
+        
         if (_hints.ClientApi is Api.OpenGL or Api.OpenGLES) {
+            GLFW.MakeContextCurrent(_window);
             GLFW.SwapInterval(1);    
         }
             
