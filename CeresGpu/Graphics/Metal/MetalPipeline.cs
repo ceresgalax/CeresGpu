@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CeresGpu.Graphics.Shaders;
 using CeresGpu.MetalBinding;
 
@@ -17,41 +18,67 @@ namespace CeresGpu.Graphics.Metal
         public readonly CullMode CullMode;
         private IntPtr _pipelineState;
         private IntPtr _depthStencilState;
-
-        public IntPtr Handle => _pipelineState;
+        
         public IntPtr DepthStencilState => _depthStencilState;
         
-        public MetalPipeline(MetalRenderer renderer, PipelineDefinition definition, IShader shader, TVertexBufferLayout vertexBufferLayout)
+        private readonly Dictionary<MetalPassBacking, IntPtr> _pipelineStateByRenderPass = [];
+        
+        public MetalPipeline(
+            MetalRenderer renderer,
+            PipelineDefinition definition,
+            ReadOnlySpan<MetalPassBacking> compatiblePasses,
+            IShader shader,
+            TVertexBufferLayout vertexBufferLayout)
         {
             if (shader.Backing is not MetalShaderBacking backing) {
                 throw new ArgumentException("Incompatible shader backing", nameof(shader));
             }
 
             CullMode = definition.CullMode;
-            
-            IntPtr rpd = MetalApi.metalbinding_new_rpd(renderer.Context);
-            try {
-                MetalApi.metalbinding_set_rpd_common(
-                    descriptor: rpd,
-                    blend: definition.Blend,
-                    colorBlendOp: TranslateBlendOp(definition.ColorBlendOp),
-                    alphaBlendOp: TranslateBlendOp(definition.AlphaBlendOp),
-                    sourceRgb: TranslateBlendFactor(definition.BlendFunction.SourceRGB),
-                    destRgb: TranslateBlendFactor(definition.BlendFunction.DestinationRGB),
-                    sourceAlpha: TranslateBlendFactor(definition.BlendFunction.SourceAlpha),
-                    destAlpha: TranslateBlendFactor(definition.BlendFunction.DestinationAlpha)
-                );
-                MetalApi.metalbinding_set_rpd_functions(rpd, backing.VertexFunction, backing.FragmentFunction);
-                
-                SetupVertexDescriptor(renderer, rpd, shader, vertexBufferLayout);
 
-                _pipelineState = MetalApi.metalbinding_new_pipeline_state(renderer.Context, rpd);
-                if (_pipelineState == IntPtr.Zero) {
-                    throw new InvalidOperationException("Failed to create pipeline: " + renderer.GetLastError());
-                }
-            } finally {
-                MetalApi.metalbinding_release_rpd(rpd);
+            foreach (MetalPassBacking passBacking in compatiblePasses) {
+                IntPtr rpd = MetalApi.metalbinding_new_rpd(renderer.Context);
+                try {
+                    for (uint colorAttachmentIndex = 0; colorAttachmentIndex < passBacking.Definition.ColorAttachments.Length; colorAttachmentIndex++) {
+                        MetalApi.metalbinding_set_rpd_color_attachment(
+                            descriptor: rpd,
+                            attachmentIndex: colorAttachmentIndex,
+                            blend: definition.Blend,
+                            colorBlendOp: TranslateBlendOp(definition.ColorBlendOp),
+                            alphaBlendOp: TranslateBlendOp(definition.AlphaBlendOp),
+                            sourceRgb: TranslateBlendFactor(definition.BlendFunction.SourceRGB),
+                            destRgb: TranslateBlendFactor(definition.BlendFunction.DestinationRGB),
+                            sourceAlpha: TranslateBlendFactor(definition.BlendFunction.SourceAlpha),
+                            destAlpha: TranslateBlendFactor(definition.BlendFunction.DestinationAlpha),
+                            pixelFormat: passBacking.Definition.ColorAttachments[colorAttachmentIndex].Format.ToMtlPixelFormat()
+                        );    
+                    }
+
+                    if (passBacking.Definition.DepthStencilAttachment.HasValue) {
+                        DepthStencilFormat format = passBacking.Definition.DepthStencilAttachment.Value.Format;
+                        MetalApi.metalbinding_set_rpd_depth_stencil(
+                            descriptor: rpd,
+                            depthFormat: format.IsDepthFormat() ? format.ToMtlPixelFormat() : MetalApi.MTLPixelFormat.Invalid,
+                            stencilFormat: format.IsStencilFormat() ? format.ToMtlPixelFormat() : MetalApi.MTLPixelFormat.Invalid
+                        );
+                    }
+                    
+                    MetalApi.metalbinding_set_rpd_functions(rpd, backing.VertexFunction, backing.FragmentFunction);
+                
+                    SetupVertexDescriptor(renderer, rpd, shader, vertexBufferLayout);
+
+                    _pipelineState = MetalApi.metalbinding_new_pipeline_state(renderer.Context, rpd);
+                    if (_pipelineState == IntPtr.Zero) {
+                        throw new InvalidOperationException("Failed to create pipeline: " + renderer.GetLastError());
+                    }
+                    
+                    _pipelineStateByRenderPass.Add(passBacking, _pipelineState);
+                    
+                } finally {
+                    MetalApi.metalbinding_release_rpd(rpd);
+                }    
             }
+            
             
             IntPtr frontFaceStencil = MakeStencilDescriptor(renderer, definition.DepthStencil.FrontFaceStencil);
             try {
@@ -75,6 +102,11 @@ namespace CeresGpu.Graphics.Metal
                 MetalApi.metalbinding_release_stencil_descriptor(frontFaceStencil);
             }
             
+        }
+
+        public IntPtr GetPipelineStateForPassBacking(MetalPassBacking passBacking)
+        {
+            return _pipelineStateByRenderPass.GetValueOrDefault(passBacking, IntPtr.Zero);
         }
 
         private static void SetupVertexDescriptor(MetalRenderer renderer, IntPtr rpd, IShader shader, TVertexBufferLayout vertexBufferLayout)

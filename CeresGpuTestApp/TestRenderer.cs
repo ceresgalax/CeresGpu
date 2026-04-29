@@ -47,7 +47,7 @@ public sealed class TestRenderer : IDisposable
         _indexBuffer.Set(indices);
     }
 
-    public void Draw(IPass encoder)
+    public void Draw(IPassEncoder encoder)
     {
         encoder.SetPipeline(_pipeline, _shaderInstance);
         encoder.DrawIndexedUshort(_indexBuffer, 3, 1, 0, 0, 0);

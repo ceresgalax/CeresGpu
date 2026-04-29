@@ -106,16 +106,16 @@ void set_last_error(MetalBindingContext* context, NSError* error) {
     }
 }
 
-void metalbinding_capture(MetalBindingContext* context) {
+bool metalbinding_capture(MetalBindingContext* context, const char* utf8Path) {
     MTLCaptureManager* captureManager = [MTLCaptureManager sharedCaptureManager];
     
     if (![captureManager supportsDestination:MTLCaptureDestinationGPUTraceDocument]) {
         NSLog(@"Capture to gpu trace document not supported");
-        return;
+        return false;
     }
     
-    NSURL* dest = [[[NSFileManager defaultManager] temporaryDirectory] URLByAppendingPathComponent:@"frameCapture.gputrace"];
-    NSLog(@"Capturing to %@", [dest absoluteString]);
+    NSURL* dest = [NSURL fileURLWithPath:[NSString stringWithUTF8String:utf8Path]];
+    //NSURL* dest = [[[NSFileManager defaultManager] temporaryDirectory] URLByAppendingPathComponent:@"frameCapture.gputrace"];
     
     MTLCaptureDescriptor* descriptor = [[MTLCaptureDescriptor alloc] init];
     descriptor.captureObject = context->device;
@@ -125,7 +125,10 @@ void metalbinding_capture(MetalBindingContext* context) {
     NSError* error;
     if (![captureManager startCaptureWithDescriptor:descriptor error:&error]) {
         NSLog(@"%@", [error localizedDescription]);
+        return false;
     }
+
+    return true;
 }
 
 void metalbinding_stop_capture(MetalBindingContext* context) {
@@ -214,7 +217,7 @@ void metalbinding_release_render_pass_descriptor(MTLRenderPassDescriptor* NS_REL
 //
 // Swapchain
 //
-void metalbinding_acquire_drawable(MetalBindingContext* context) NS_RETURNS_RETAINED {
+void metalbinding_acquire_drawable(MetalBindingContext* context) {
     id<CAMetalDrawable> drawable = [context->layer nextDrawable];
     if (!drawable) {
         NSLog(@"WTF: nextDrawable returned NULL? This shouldn't happen if setAllowsNextDrawableTimeout is set to NO");
@@ -420,19 +423,32 @@ void metalbinding_set_rpd_functions(MTLRenderPipelineDescriptor* descriptor, id<
     [descriptor setFragmentFunction:fragment];
 }
 
-void metalbinding_set_rpd_common(MTLRenderPipelineDescriptor* descriptor, BOOL blend,
-                                 MTLBlendOperation colorBlendOp, MTLBlendOperation alphaBlendOp, 
-                                 MTLBlendFactor sourceRgb, MTLBlendFactor destRgb,
-                                 MTLBlendFactor sourceAlpha, MTLBlendFactor destAlpha
+void metalbinding_set_rpd_color_attachment(
+    MTLRenderPipelineDescriptor* descriptor,
+    uint32_t attachmentIndex,
+    BOOL blend,
+    MTLBlendOperation colorBlendOp, MTLBlendOperation alphaBlendOp,
+    MTLBlendFactor sourceRgb, MTLBlendFactor destRgb,
+    MTLBlendFactor sourceAlpha, MTLBlendFactor destAlpha,
+    MTLPixelFormat pixelFormat
 ) {
-    descriptor.colorAttachments[0].blendingEnabled = blend;
-    descriptor.colorAttachments[0].rgbBlendOperation = colorBlendOp;
-    descriptor.colorAttachments[0].alphaBlendOperation = alphaBlendOp;
-    descriptor.colorAttachments[0].sourceRGBBlendFactor = sourceRgb;
-    descriptor.colorAttachments[0].destinationRGBBlendFactor = destRgb;
-    descriptor.colorAttachments[0].sourceAlphaBlendFactor = sourceAlpha;
-    descriptor.colorAttachments[0].destinationAlphaBlendFactor = destAlpha;
-    descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+    descriptor.colorAttachments[attachmentIndex].blendingEnabled = blend;
+    descriptor.colorAttachments[attachmentIndex].rgbBlendOperation = colorBlendOp;
+    descriptor.colorAttachments[attachmentIndex].alphaBlendOperation = alphaBlendOp;
+    descriptor.colorAttachments[attachmentIndex].sourceRGBBlendFactor = sourceRgb;
+    descriptor.colorAttachments[attachmentIndex].destinationRGBBlendFactor = destRgb;
+    descriptor.colorAttachments[attachmentIndex].sourceAlphaBlendFactor = sourceAlpha;
+    descriptor.colorAttachments[attachmentIndex].destinationAlphaBlendFactor = destAlpha;
+    descriptor.colorAttachments[attachmentIndex].pixelFormat = pixelFormat; //MTLPixelFormatBGRA8Unorm;
+}
+
+void metalbinding_set_rpd_depth_stencil(
+    MTLRenderPipelineDescriptor* descriptor,
+    MTLPixelFormat depthFormat,
+    MTLPixelFormat stencilFormat
+) {
+    descriptor.depthAttachmentPixelFormat = depthFormat;
+    descriptor.stencilAttachmentPixelFormat = stencilFormat;
 }
 
 void metalbinding_set_rpd_vertex_descriptor(MTLRenderPipelineDescriptor* descriptor, MTLVertexDescriptor* vertexDescriptor) {

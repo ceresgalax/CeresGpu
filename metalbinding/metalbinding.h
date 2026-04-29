@@ -11,7 +11,7 @@ MetalBindingContext* metalbinding_create(NSWindow* window, uint frameCount);
 void metalbinding_destroy(MetalBindingContext* context);
 uint32_t metalbinding_get_last_error_length(MetalBindingContext* context);
 void metalbinding_get_last_error(MetalBindingContext* context, char* outUtf8Text, uint32_t length);
-void metalbinding_capture(MetalBindingContext* context);
+bool metalbinding_capture(MetalBindingContext* context, const char* utf8Path);
 void metalbinding_stop_capture(MetalBindingContext* context);
 void metalbinding_set_content_scale(MetalBindingContext* context, float scale, uint32_t drawableWidth, uint32_t drawableHeight);
 id<MTLTexture> metalbinding_get_current_frame_drawable_texture(MetalBindingContext* context);
@@ -92,7 +92,8 @@ void metalbinding_release_function(id<MTLFunction> NS_RELEASES_ARGUMENT function
 MTLRenderPipelineDescriptor* metalbinding_new_rpd(MetalBindingContext* context) NS_RETURNS_RETAINED;
 void metalbinding_release_rpd(MTLRenderPipelineDescriptor* NS_RELEASES_ARGUMENT descriptor);
 void metalbinding_set_rpd_functions(MTLRenderPipelineDescriptor* descriptor, id<MTLFunction> vertex, id<MTLFunction> fragment);
-void metalbinding_set_rpd_common(MTLRenderPipelineDescriptor* descriptor, BOOL blend, MTLBlendOperation colorBlendOp, MTLBlendOperation alphaBlendOp, MTLBlendFactor sourceRgb, MTLBlendFactor destRgb, MTLBlendFactor sourceAlpha, MTLBlendFactor destAlpha);
+void metalbinding_set_rpd_color_attachment(MTLRenderPipelineDescriptor* descriptor, uint32_t attachmentIndex, BOOL blend, MTLBlendOperation colorBlendOp, MTLBlendOperation alphaBlendOp, MTLBlendFactor sourceRgb, MTLBlendFactor destRgb, MTLBlendFactor sourceAlpha, MTLBlendFactor destAlpha, MTLPixelFormat pixelFormat);
+void metalbinding_set_rpd_depth_stencil(MTLRenderPipelineDescriptor* descriptor, MTLPixelFormat depthFormat, MTLPixelFormat stencilFormat);
 void metalbinding_set_rpd_vertex_descriptor(MTLRenderPipelineDescriptor* descriptor, MTLVertexDescriptor* vertexDescriptor);
 
 //

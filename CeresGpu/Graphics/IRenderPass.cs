@@ -21,6 +21,7 @@ public struct RenderPassDefinition
     public DepthStencilAttachment? DepthStencilAttachment;
 }
 
+// TODO: Rename IRenderPass to IFramebuffer and IFramebuffer to IFramebufferBacking.
 public interface IRenderPass : IDisposable
 {
     IFramebuffer Framebuffer { get; }

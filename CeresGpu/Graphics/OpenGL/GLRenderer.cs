@@ -203,7 +203,7 @@ namespace CeresGpu.Graphics.OpenGL
             return _swapchainTarget;
         }
 
-        public IPass CreatePassEncoder<TRenderPass>(TRenderPass pass, IPass? occursBefore) where TRenderPass : IRenderPass
+        public IPassEncoder CreatePassEncoder<TRenderPass>(TRenderPass pass, IPassEncoder? occursBefore) where TRenderPass : IRenderPass
         {
             if (pass.Framebuffer is not GLFramebuffer framebuffer) {
                 throw new ArgumentException("Backend type of pass is not compatible with this renderer.", nameof(pass));

@@ -22,7 +22,7 @@ namespace CeresGpu.MetalBinding
         public static extern void metalbinding_get_last_error(IntPtr context, IntPtr outUtf8Text, uint length);
         
         [DllImport(DLL_NAME)]
-        public static extern void metalbinding_capture(IntPtr context);
+        public static extern bool metalbinding_capture(IntPtr context, string utf8Path);
         
         [DllImport(DLL_NAME)]
         public static extern void metalbinding_stop_capture(IntPtr context);
@@ -148,7 +148,10 @@ namespace CeresGpu.MetalBinding
         public static extern void metalbinding_set_rpd_functions(IntPtr descriptor, IntPtr vertex, IntPtr fragment);
         
         [DllImport(DLL_NAME)]
-        public static extern void metalbinding_set_rpd_common(IntPtr descriptor, bool blend, MTLBlendOperation colorBlendOp, MTLBlendOperation alphaBlendOp, MTLBlendFactor sourceRgb, MTLBlendFactor destRgb, MTLBlendFactor sourceAlpha, MTLBlendFactor destAlpha);
+        public static extern void metalbinding_set_rpd_color_attachment(IntPtr descriptor, uint attachmentIndex, bool blend, MTLBlendOperation colorBlendOp, MTLBlendOperation alphaBlendOp, MTLBlendFactor sourceRgb, MTLBlendFactor destRgb, MTLBlendFactor sourceAlpha, MTLBlendFactor destAlpha, MTLPixelFormat pixelFormat);
+        
+        [DllImport(DLL_NAME)]
+        public static extern void metalbinding_set_rpd_depth_stencil(IntPtr descriptor, MTLPixelFormat depthFormat, MTLPixelFormat stencilFormat);
         
         [DllImport(DLL_NAME)]
         public static extern void metalbinding_set_rpd_vertex_descriptor(IntPtr descriptor, IntPtr vertexDescriptor);

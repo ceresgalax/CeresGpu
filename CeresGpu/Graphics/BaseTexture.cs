@@ -15,15 +15,15 @@ public abstract class BaseTexture
     /// <summary>
     /// Passes we have declared will transition the layout of the texture this frame.
     /// </summary>
-    protected readonly Dictionary<IPass, (TextureLayout inLayout, TextureLayout outLayout)> DeclaredPassTransitions = [];
+    protected readonly Dictionary<IPassEncoder, (TextureLayout inLayout, TextureLayout outLayout)> DeclaredPassTransitions = [];
 
     /// <summary>
     /// Passes we have declared will mutate the texture this frame.
     /// </summary>
-    protected readonly HashSet<IPass> DeclaredMutatingPasses = [];
+    protected readonly HashSet<IPassEncoder> DeclaredMutatingPasses = [];
 
     /// <summary>
     /// Passes we have declared to read from the texture this frame.
     /// </summary>
-    protected readonly HashSet<IPass> DeclaredReadingPasses = [];
+    protected readonly HashSet<IPassEncoder> DeclaredReadingPasses = [];
 }

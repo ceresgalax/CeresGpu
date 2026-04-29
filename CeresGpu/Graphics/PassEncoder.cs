@@ -4,7 +4,7 @@ using CeresGpu.Graphics.Shaders;
 
 namespace CeresGpu.Graphics;
 
-public abstract class PassEncoder : IPass
+public abstract class PassEncoder : IPassEncoder
 {
     protected IUntypedShaderInstance? CurrentShaderInstance;
     

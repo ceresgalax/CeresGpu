@@ -28,7 +28,7 @@ namespace CeresGpu.Graphics.Metal
         /// <summary>
         /// Contains the passes that are to be submitted this frame.
         /// </summary>
-        private readonly HashSet<MetalPass> _passesToSubmit = new();
+        private readonly HashSet<MetalPassEncoder> _passesToSubmit = new();
     
         // NOTE: These are just anchors, and are not to be submitted.
         private readonly MetalPassAnchor _encoderListStart = new();
@@ -127,14 +127,18 @@ namespace CeresGpu.Graphics.Metal
 
         public IPipeline<TShader, TVertexBufferLayout> CreatePipeline<TShader, TVertexBufferLayout>(
             PipelineDefinition definition,
-            ReadOnlySpan<Type> supportedRenderPasses,
+            ReadOnlySpan<Type> compatiblePasses,
             TShader shader,
             TVertexBufferLayout layout
         )
             where TShader : IShader
             where TVertexBufferLayout : IVertexBufferLayout<TShader>
         {
-            return new MetalPipeline<TShader, TVertexBufferLayout>(this, definition, shader, layout);
+            MetalPassBacking[] compatiblePassBackings = new MetalPassBacking[compatiblePasses.Length];
+            for (int i = 0; i < compatiblePasses.Length; ++i) {
+                compatiblePassBackings[i] = GetPassBackingOrThrow(compatiblePasses[i]);
+            }
+            return new MetalPipeline<TShader, TVertexBufferLayout>(this, definition, compatiblePassBackings, shader, layout);
         }
 
         public IFramebuffer CreateFramebuffer<TRenderPass>(ReadOnlySpan<IRenderTarget> colorAttachments, IRenderTarget? depthStencilAttachment) where TRenderPass : IRenderPass
@@ -167,10 +171,13 @@ namespace CeresGpu.Graphics.Metal
 
         public IRenderTarget GetSwapchainColorTarget()
         {
+            // TODO: It would be great if we are able to already know the formats of the swapchain color targets
+            //       without needing to acquire the drawable first.
+            EnsureDrawableAcquired();
             return _swapchainTarget;
         }
 
-        public IPass CreatePassEncoder<TRenderPass>(TRenderPass pass, IPass? occursBefore) where TRenderPass : IRenderPass
+        public IPassEncoder CreatePassEncoder<TRenderPass>(TRenderPass pass, IPassEncoder? occursBefore) where TRenderPass : IRenderPass
         {
             // TODO: Maybe we can be smarter and only acquire the drawable if the framebuffer uses a swapchain target?
             // We need to acquire the drawable as late as possible.
@@ -181,12 +188,12 @@ namespace CeresGpu.Graphics.Metal
             }
             
             MetalPassBacking passBacking = GetPassBackingOrThrow(typeof(TRenderPass));
-            MetalPass encoder = new MetalPass(this, passBacking, framebuffer);
+            MetalPassEncoder encoder = new MetalPassEncoder(this, passBacking, framebuffer);
 
             if (occursBefore == null) {
                 encoder.InsertAfter(_encoderListEnd.Prev!);
             } else {
-                encoder.InsertBefore((MetalPass)occursBefore);
+                encoder.InsertBefore((MetalPassEncoder)occursBefore);
             }
 
             _passesToSubmit.Add(encoder);

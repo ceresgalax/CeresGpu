@@ -29,9 +29,10 @@ class MetalPassAnchor : IMetalPass
     }
 }
 
-public sealed class MetalPass : PassEncoder, IMetalPass
+public sealed class MetalPassEncoder : PassEncoder, IMetalPass
 {
     private readonly MetalRenderer _renderer;
+    private readonly MetalPassBacking _passBacking;
     private readonly IntPtr _commandBuffer; 
     private readonly IntPtr _encoder;
     
@@ -42,9 +43,10 @@ public sealed class MetalPass : PassEncoder, IMetalPass
     
     private MetalShaderInstanceBacking? _shaderInstanceBacking;
 
-    public MetalPass(MetalRenderer renderer, MetalPassBacking passBacking, MetalFramebuffer framebuffer)
+    public MetalPassEncoder(MetalRenderer renderer, MetalPassBacking passBacking, MetalFramebuffer framebuffer)
     {
         _renderer = renderer;
+        _passBacking = passBacking;
         
         IntPtr passDescriptor = MetalApi.metalbinding_create_render_pass_descriptor();
         try {
@@ -118,7 +120,7 @@ public sealed class MetalPass : PassEncoder, IMetalPass
         GC.SuppressFinalize(this);
     }
 
-    ~MetalPass() {
+    ~MetalPassEncoder() {
         ReleaseUnmanagedResources();
     }
     
@@ -150,9 +152,13 @@ public sealed class MetalPass : PassEncoder, IMetalPass
         if (shaderInstance.Backing is not MetalShaderInstanceBacking shaderInstanceBacking) {
             throw new ArgumentException("Incompatible shader instance", nameof(shaderInstance));
         }
+        IntPtr pipelineState = metalPipeline.GetPipelineStateForPassBacking(_passBacking);
+        if (pipelineState == IntPtr.Zero) {
+            throw new ArgumentException("Incompatible pipeline, not compatible with render pass.", nameof(pipeline));   
+        }
             
         if (_previousPipeline != pipeline) {
-            MetalApi.metalbinding_command_encoder_set_pipeline(_encoder, metalPipeline.Handle);
+            MetalApi.metalbinding_command_encoder_set_pipeline(_encoder, pipelineState);
             _previousPipeline = pipeline;
         }
 

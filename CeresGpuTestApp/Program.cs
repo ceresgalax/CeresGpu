@@ -19,7 +19,7 @@ using FramebufferPass pass = new FramebufferPass(renderer, renderer.GetSwapchain
 pass.SetClearColor(new Vector4(0f, 1f, 1f, 1f));
 
 while (!window.ShouldClose) {
-    IPass encoder = renderer.CreatePassEncoder(pass);
+    IPassEncoder encoder = renderer.CreatePassEncoder(pass);
     testRenderer.Draw(encoder);
     renderer.Present(1f / 60f);
     GLFW.PollEvents();

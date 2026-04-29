@@ -671,9 +671,9 @@ public sealed class VulkanRenderer : IRenderer
         return _swapchainRenderTarget;
     }
 
-    public IPass CreatePassEncoder<TRenderPass>(
+    public IPassEncoder CreatePassEncoder<TRenderPass>(
         TRenderPass pass,
-        IPass? occursBefore
+        IPassEncoder? occursBefore
     )
         where TRenderPass : IRenderPass
     {

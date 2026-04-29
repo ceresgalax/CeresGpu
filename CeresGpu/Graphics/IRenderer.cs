@@ -44,12 +44,11 @@ namespace CeresGpu.Graphics
         IRenderTarget CreateRenderTarget(DepthStencilFormat format, bool matchSwapchainSize, uint width, uint height);
         IRenderTarget GetSwapchainColorTarget();
         
-        // TODO: Rename IPass to something else? Like IPassEncoder?
         /// <summary>
         /// Create a pass which renders to the given attachments.
         /// </summary>
         /// <returns>The created pass</returns>
-        IPass CreatePassEncoder<TRenderPass>(TRenderPass pass, IPass? occursBefore = null)
+        IPassEncoder CreatePassEncoder<TRenderPass>(TRenderPass pass, IPassEncoder? occursBefore = null)
             where TRenderPass : IRenderPass;
 
         void Present(float minimumElapsedSeocnds);
