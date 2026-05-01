@@ -1,19 +1,18 @@
 ﻿using CeresGL;
-using CeresGpu.Graphics.Shaders;
 
 namespace CeresGpu.Graphics.OpenGL.VirtualCommands;
 
 public class SetPipelineCommand : IVirtualCommand
 {
     private IGLPipeline? _pipeline;
-    // private GLShaderInstanceBacking? _shaderInstanceBacking;
-    // private IUntypedShaderInstance? _shaderInstance;
+    private GLShaderInstanceBacking? _shaderInstanceBacking;
+    private IUntypedVertexBufferAdapter? _vertexBufferAdapter;
 
-    public void Setup(IGLPipeline pipeline /* GLShaderInstanceBacking shaderInstanceBacking, IUntypedShaderInstance shaderInstance */)
+    public void Setup(IGLPipeline pipeline, GLShaderInstanceBacking shaderInstanceBacking, IUntypedVertexBufferAdapter vertexBufferAdapter)
     {
         _pipeline = pipeline;
-        // _shaderInstance = shaderInstance;
-        // _shaderInstanceBacking = shaderInstanceBacking;
+        _shaderInstanceBacking = shaderInstanceBacking;
+        _vertexBufferAdapter = vertexBufferAdapter;
     }
 
     public void Execute(GL gl)
@@ -26,5 +25,7 @@ public class SetPipelineCommand : IVirtualCommand
         // state.CurrentPipeline = _pipeline;
         // state.ShaderInstanceBacking = _shaderInstanceBacking;
         // state.ShaderInstance = _shaderInstance;
+        
+        _shaderInstanceBacking!.PrepareAndBindVertexArrayObject(_pipeline.VertexBufferLayout, _vertexBufferAdapter!);
     }
 }

@@ -9,7 +9,8 @@ public interface IPassEncoder
         
     void SetPipeline<TShader, TVertexBufferLayout>(
         IPipeline<TShader, TVertexBufferLayout> pipeline,
-        IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
+        IShaderInstance<TShader> shaderInstance,
+        IVertexBufferAdapter<TShader, TVertexBufferLayout> vertexBufferAdapter
     )
         where TShader : IShader
         where TVertexBufferLayout : IVertexBufferLayout<TShader>;

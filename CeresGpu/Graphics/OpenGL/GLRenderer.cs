@@ -35,7 +35,7 @@ namespace CeresGpu.Graphics.OpenGL
         /// <summary>
         /// Contains the passes that are to be submitted this frame.
         /// </summary>
-        private readonly HashSet<GLPass> _passesToSubmit = new();
+        private readonly HashSet<GLPassEncoder> _passesToSubmit = new();
     
         // NOTE: These are just anchors, and are not to be submitted.
         private readonly GLPassAnchor _encoderListStart = new();
@@ -210,12 +210,12 @@ namespace CeresGpu.Graphics.OpenGL
             }
             
             GLPassBacking passBacking = GetPassBackingOrThrow(typeof(TRenderPass));
-            GLPass encoder = new(this, passBacking, framebuffer);
+            GLPassEncoder encoder = new(this, passBacking, framebuffer);
             
             if (occursBefore == null) {
                 encoder.InsertAfter(_encoderListEnd.Prev!);
             } else {
-                encoder.InsertBefore((GLPass)occursBefore);
+                encoder.InsertBefore((GLPassEncoder)occursBefore);
             }
 
             _passesToSubmit.Add(encoder);

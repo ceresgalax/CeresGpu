@@ -7,25 +7,30 @@ namespace CeresGpu.Graphics;
 public abstract class PassEncoder : IPassEncoder
 {
     protected IUntypedShaderInstance? CurrentShaderInstance;
+    protected IUntypedVertexBufferAdapter? CurrentVertexBufferAdapter;
     
     public ScissorRect CurrentDynamicScissor { get; private set; }
     public Viewport CurrentDynamicViewport { get; private set; }
     
+    
     public void SetPipeline<TShader, TVertexBufferLayout>(
         IPipeline<TShader, TVertexBufferLayout> pipeline,
-        IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
+        IShaderInstance<TShader> shaderInstance,
+        IVertexBufferAdapter<TShader, TVertexBufferLayout> vertexBufferAdapter
     )
         where TShader : IShader
         where TVertexBufferLayout : IVertexBufferLayout<TShader>
     {
         CurrentShaderInstance = shaderInstance;
+        CurrentVertexBufferAdapter = vertexBufferAdapter;
         CommitBuffers();
-        SetPipelineImpl(pipeline, shaderInstance);
+        SetPipelineImpl(pipeline, shaderInstance, vertexBufferAdapter);
     }
     
     protected abstract void SetPipelineImpl<TShader, TVertexBufferLayout>(
         IPipeline<TShader, TVertexBufferLayout> pipeline,
-        IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
+        IShaderInstance<TShader> shaderInstance,
+        IVertexBufferAdapter<TShader, TVertexBufferLayout> vertexBufferAdapter
     )
         where TShader : IShader 
         where TVertexBufferLayout : IVertexBufferLayout<TShader>;
@@ -85,6 +90,9 @@ public abstract class PassEncoder : IPassEncoder
         if (CurrentShaderInstance == null) {
             throw new InvalidOperationException("No shader instance is set. Must call SetPipeline first!");
         }
+        if (CurrentVertexBufferAdapter == null) {
+            throw new InvalidOperationException("No vertex buffer adapter is set. Must call SetPipeline first!");
+        }
         
         // TODO: GC -- Pool these lists and be GC-free!
         List<IBuffer> usedBuffers = [];
@@ -94,7 +102,7 @@ public abstract class PassEncoder : IPassEncoder
             CommitBufferOrThrow(buffer);
         }
         
-        foreach (object? untypedBuff in CurrentShaderInstance.VertexBufferAdapter.VertexBuffers) {
+        foreach (object? untypedBuff in CurrentVertexBufferAdapter.VertexBuffers) {
             if (untypedBuff is IBuffer buffer) {
                 CommitBufferOrThrow(buffer);
             }

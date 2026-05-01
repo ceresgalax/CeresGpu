@@ -134,6 +134,9 @@ namespace CeresGpu.Graphics.Metal
             where TShader : IShader
             where TVertexBufferLayout : IVertexBufferLayout<TShader>
         {
+            // TODO: Need common validation that passed VertexBufferLayout is compatible with Shader.
+            // And throw regardless of the backing Api (Currently only Metal throws - since it's an error in Metal if the layout is missing attributes used by the shader)
+            
             MetalPassBacking[] compatiblePassBackings = new MetalPassBacking[compatiblePasses.Length];
             for (int i = 0; i < compatiblePasses.Length; ++i) {
                 compatiblePassBackings[i] = GetPassBackingOrThrow(compatiblePasses[i]);

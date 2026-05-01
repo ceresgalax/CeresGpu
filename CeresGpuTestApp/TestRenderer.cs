@@ -8,7 +8,8 @@ namespace CeresGpuTestApp;
 public sealed class TestRenderer : IDisposable
 {
     private readonly IPipeline<TestShader, TestShader.DefaultVertexBufferLayout> _pipeline;
-    private readonly TestShader.DefaultVertexLayoutInstance _shaderInstance;
+    private readonly TestShader.Instance _shaderInstance;
+    private readonly TestShader.DefaultVertexBufferAdapter _vertexBufferAdapter = new();
     private readonly IBuffer<TestShader.Vertex> _vbo;
     private readonly IBuffer<ushort> _indexBuffer;
     private readonly IBuffer<TestShader.VertUniforms> _ubo;
@@ -19,7 +20,7 @@ public sealed class TestRenderer : IDisposable
         TestShader shader = shaderManager.GetShader<TestShader>();
         PipelineDefinition pipelineDefinition = new PipelineDefinition();
         _pipeline = renderer.CreatePipeline(pipelineDefinition, passTypes, shader, TestShader.DefaultVertexBufferLayout.Instance);
-        _shaderInstance = new TestShader.DefaultVertexLayoutInstance(renderer, shader);
+        _shaderInstance = new TestShader.Instance(renderer, shader);
             
         Span<TestShader.Vertex> verts = stackalloc TestShader.Vertex[] {
             new() {vert_pos = new Vector2(-1f, -1f)},
@@ -28,6 +29,8 @@ public sealed class TestRenderer : IDisposable
         };
         _vbo = renderer.CreateStaticBuffer<TestShader.Vertex>(verts.Length);
         _vbo.Set(verts);
+        
+        _vertexBufferAdapter.SetVertex(_vbo);
 
         _ubo = renderer.CreateStaticBuffer<TestShader.VertUniforms>(1);
         Span<TestShader.VertUniforms> uniforms = stackalloc TestShader.VertUniforms[] {
@@ -37,8 +40,6 @@ public sealed class TestRenderer : IDisposable
 
         _texture = renderer.CreateTexture();
         LoadTexture("test.png", _texture);
-        
-        _shaderInstance.VertexBuffers.SetVertex(_vbo);
         _shaderInstance.SetVertUniforms(_ubo);
         _shaderInstance.Settex(_texture);
 
@@ -49,15 +50,13 @@ public sealed class TestRenderer : IDisposable
 
     public void Draw(IPassEncoder encoder)
     {
-        encoder.SetPipeline(_pipeline, _shaderInstance);
+        encoder.SetPipeline(_pipeline, _shaderInstance, _vertexBufferAdapter);
         encoder.DrawIndexedUshort(_indexBuffer, 3, 1, 0, 0, 0);
-        //encoder.Draw(3, 1, 0, 0);
     }
         
     private void LoadTexture(string path, ITexture texture)
     {
         using Stream stream = GetType().Assembly.GetManifestResourceStream("CeresGpuTestApp.test.png")!;
-        //using FileStream stream = new(path, FileMode.Open, FileAccess.Read);
         using SKBitmap bitmap = SKBitmap.Decode(stream);
         texture.Set(bitmap);
     }

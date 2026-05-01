@@ -155,7 +155,10 @@ public sealed class VulkanCommandEncoder : PassEncoder, IVulkanCommandEncoder, I
         Prev = other;
     }
     
-    protected override void SetPipelineImpl<TShader, TVertexBufferLayout>(IPipeline<TShader, TVertexBufferLayout> pipeline, IShaderInstance<TShader, TVertexBufferLayout> shaderInstance)
+    protected override void SetPipelineImpl<TShader, TVertexBufferLayout>(
+        IPipeline<TShader, TVertexBufferLayout> pipeline,
+        IShaderInstance<TShader> shaderInstance,
+        IVertexBufferAdapter<TShader, TVertexBufferLayout> vertexBufferAdapter)
     {
         // TODO: Verify that pipeline is compatible with this renderpass.
         // TODO: ALSO THIS VERIFICATION SHOULD HAPPEN FOR ALL RENDERER IMPLS OF IPASS
@@ -167,6 +170,26 @@ public sealed class VulkanCommandEncoder : PassEncoder, IVulkanCommandEncoder, I
         Vk vk = _renderer.Vk;
         vulkanPipeline.GetPipelineForPassBacking(_passBacking, out Pipeline vkPipeline);
         vk.CmdBindPipeline(_commandBuffer, PipelineBindPoint.Graphics, vkPipeline);
+        
+        ReadOnlySpan<object?> vertexBuffers = vertexBufferAdapter.VertexBuffers;
+            
+        for (int i = 0, ilen = vertexBuffers.Length; i < ilen; ++i) {
+            // No vertex buffer set.
+            // TODO: log to let the user know they didn't set a vertex buffer.
+            object? untypedVertexBuffer = vertexBuffers[i];
+            if (untypedVertexBuffer == null) {
+                continue;
+            }
+            if (untypedVertexBuffer is IVulkanBuffer buffer) {
+                buffer.Commit();
+                // TODO: Get clever and reduce this to a single vkCmdBindVertexBuffers call.
+                Buffer bufferHandle = buffer.GetBufferForCurrentFrame();
+                ulong offset = 0;  
+                _renderer.Vk.CmdBindVertexBuffers(_commandBuffer, (uint)i, 1, in bufferHandle, in offset);
+            } else {
+                throw new InvalidOperationException($"Buffer returned by vertex buffer adapter at index {i} is not compatible with VulkanCommandEncoder.");
+            }
+        }
 
         VulkanShaderInstanceBacking shaderInstanceBacking = (VulkanShaderInstanceBacking)shaderInstance.Backing;
 
@@ -207,26 +230,6 @@ public sealed class VulkanCommandEncoder : PassEncoder, IVulkanCommandEncoder, I
 
         VulkanShaderInstanceBacking vulkanShaderInstanceBacking = (VulkanShaderInstanceBacking)CurrentShaderInstance.Backing;
         vulkanShaderInstanceBacking.Update();
-        
-        ReadOnlySpan<object?> vertexBuffers = CurrentShaderInstance.VertexBufferAdapter.VertexBuffers;
-            
-        for (int i = 0, ilen = vertexBuffers.Length; i < ilen; ++i) {
-            // No vertex buffer set.
-            // TODO: log to let the user know they didn't set a vertex buffer.
-            object? untypedVertexBuffer = vertexBuffers[i];
-            if (untypedVertexBuffer == null) {
-                continue;
-            }
-            if (untypedVertexBuffer is IVulkanBuffer buffer) {
-                buffer.Commit();
-                // TODO: Get clever and reduce this to a single vkCmdBindVertexBuffers call.
-                Buffer bufferHandle = buffer.GetBufferForCurrentFrame();
-                ulong offset = 0;  
-                _renderer.Vk.CmdBindVertexBuffers(_commandBuffer, (uint)i, 1, in bufferHandle, in offset);
-            } else {
-                throw new InvalidOperationException($"Buffer returned by vertex buffer adapter at index {i} is not compatible with VulkanCommandEncoder.");
-            }
-        }
     }
 
     protected override void SetScissorImpl(ScissorRect scissor)

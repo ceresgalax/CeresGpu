@@ -718,34 +718,25 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     
     # Begin Shader Instance Class
     f.write_line(
-        f'public class Instance<TVertexBufferLayout, TVertexBufferAdapter> : IShaderInstanceWithAdapter<{class_name}, TVertexBufferLayout, TVertexBufferAdapter>',
-        f'    where TVertexBufferLayout : IVertexBufferLayout<{class_name}>',
-        f'    where TVertexBufferAdapter : IVertexBufferAdapter<{class_name}, TVertexBufferLayout>',
+        f'public class Instance : IShaderInstance<{class_name}>',
         '{',
-        '    private IShaderInstanceBacking _backing;'
     )
     f.indent()
 
     f.write_line(
+        'private IShaderInstanceBacking _backing;',
         '',
         'public IShaderInstanceBacking Backing => _backing;',
         '',
-        f'public TVertexBufferAdapter VertexBuffers;',
-        '',
-        f'IVertexBufferAdapter<{class_name}, TVertexBufferLayout> IShaderInstance<{class_name}, TVertexBufferLayout>.VertexBuffers => VertexBuffers;',
-        'IUntypedVertexBufferAdapter IUntypedShaderInstance.VertexBufferAdapter => VertexBuffers;',
-        f'TVertexBufferAdapter IShaderInstanceWithAdapter<{class_name}, TVertexBufferLayout, TVertexBufferAdapter>.Adapter => VertexBuffers;',
-        ''
     )
 
     #
     # Generate ShaderInstanceConstructor
     #
     f.write_line(
-        f'public Instance(IRenderer renderer, {class_name} shader, TVertexBufferAdapter buffers)',
+        f'public Instance(IRenderer renderer, {class_name} shader)',
         '{',
         '    _backing = renderer.CreateShaderInstanceBacking(shader);',
-        '    VertexBuffers = buffers;',
         '}',
         ''
     )
@@ -811,17 +802,6 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     # End Instance class
     f.deindent()
     f.write_line('}', '')
-
-    # DefaultVertexLayoutInstance class
-    f.write_line(
-        'public class DefaultVertexLayoutInstance : Instance<DefaultVertexBufferLayout, DefaultVertexBufferAdapter>',
-        '{',
-        f'    public DefaultVertexLayoutInstance(IRenderer renderer, {class_name} shader)',
-        '        : base(renderer, shader, new DefaultVertexBufferAdapter())',
-        '    {}',
-        '}',
-        ''
-    )
 
     # Close class and namespace
     f.deindent()

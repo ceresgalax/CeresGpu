@@ -50,15 +50,18 @@
         UInt4 = 39,
         
         /// <summary>
-        /// One packed 32-bit value with four normalized signed two's complement integer values, arranged as 10 bits, 10 bits, 10 bits, and 2 bits.
+        /// Four components with 10-bit, normalized, signed integer values for red, green, and blue, and a 2-bit value for alpha.
         /// </summary>
         Int1010102Normalized = 40,
         
         /// <summary>
-        /// ne packed 32-bit value with four normalized unsigned integer values, arranged as 10 bits, 10 bits, 10 bits, and 2 bits.
+        /// Four components with 10-bit, normalized, unsigned integer values for red, green, and blue, and a 2-bit value for alpha.
         /// </summary>
         UInt1010102Normalized = 41,
         
+        /// <summary>
+        /// Four components with 8-bit, normalized, unsigned integer values for blue, green, and red, and alpha.
+        /// </summary>
         UChar4Normalized_BGRA = 42,
         UChar = 45,
         Char = 46,

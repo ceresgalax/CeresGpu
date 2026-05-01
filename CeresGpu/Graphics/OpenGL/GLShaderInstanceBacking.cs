@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using CeresGL;
 using CeresGpu.Graphics.Shaders;
-using CeresGpu.Graphics.Vulkan;
-using Silk.NET.Vulkan;
 
 namespace CeresGpu.Graphics.OpenGL;
 

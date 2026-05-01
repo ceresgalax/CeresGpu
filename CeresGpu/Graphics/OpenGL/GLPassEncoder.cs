@@ -38,7 +38,7 @@ public class GLPassState
 {
 }
 
-public sealed class GLPass : PassEncoder, IGLPass 
+public sealed class GLPassEncoder : PassEncoder, IGLPass 
 {
     private readonly GLRenderer _renderer;
    
@@ -78,7 +78,7 @@ public sealed class GLPass : PassEncoder, IGLPass
         Prev = other;
     }
 
-    public GLPass(GLRenderer renderer, GLPassBacking passBacking, GLFramebuffer framebuffer)
+    public GLPassEncoder(GLRenderer renderer, GLPassBacking passBacking, GLFramebuffer framebuffer)
     {
         _renderer = renderer;
         framebuffer.GetSize(out _attachmentWidth, out _attachmentHeight);
@@ -87,7 +87,8 @@ public sealed class GLPass : PassEncoder, IGLPass
         
     protected override void SetPipelineImpl<TShader, TVertexBufferLayout>(
         IPipeline<TShader, TVertexBufferLayout> pipeline,
-        IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
+        IShaderInstance<TShader> shaderInstance,
+        IVertexBufferAdapter<TShader, TVertexBufferLayout> vertexBufferAdapter
     ) 
     {
         if (pipeline is not IGLPipeline glPipe) {
@@ -98,7 +99,7 @@ public sealed class GLPass : PassEncoder, IGLPass
         }
 
         var command = new SetPipelineCommand();
-        command.Setup(glPipe);
+        command.Setup(glPipe, shaderInstanceBacking, vertexBufferAdapter);
         _commands.Add(command);
         
         _currentPipeline = glPipe;
@@ -147,11 +148,11 @@ public sealed class GLPass : PassEncoder, IGLPass
 
     private void UpdateShaderInstance()
     {
-        if (_shaderInstanceBacking == null || CurrentShaderInstance == null || _currentPipeline == null) {
+        if (_shaderInstanceBacking == null) {
             throw new InvalidOperationException("Must call SetPipeline first!");
         }
         
-        _commands.Add(new UpdateShaderInstanceCommand(_currentPipeline, _shaderInstanceBacking, CurrentShaderInstance));
+        _commands.Add(new UpdateShaderInstanceCommand(_shaderInstanceBacking));
     }
 
     public void ExecuteCommands(GL gl)

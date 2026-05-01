@@ -143,7 +143,8 @@ public sealed class MetalPassEncoder : PassEncoder, IMetalPass
 
     protected override void SetPipelineImpl<TShader, TVertexBufferLayout>(
         IPipeline<TShader, TVertexBufferLayout> pipeline,
-        IShaderInstance<TShader, TVertexBufferLayout> shaderInstance
+        IShaderInstance<TShader> shaderInstance,
+        IVertexBufferAdapter<TShader, TVertexBufferLayout> vertexBufferAdapter
     )
     {
         if (pipeline is not MetalPipeline<TShader, TVertexBufferLayout> metalPipeline) {
@@ -160,6 +161,23 @@ public sealed class MetalPassEncoder : PassEncoder, IMetalPass
         if (_previousPipeline != pipeline) {
             MetalApi.metalbinding_command_encoder_set_pipeline(_encoder, pipelineState);
             _previousPipeline = pipeline;
+        }
+        
+        ReadOnlySpan<object?> vertexBuffers = vertexBufferAdapter.VertexBuffers;
+            
+        for (int i = 0, ilen = vertexBuffers.Length; i < ilen; ++i) {
+            // No vertex buffer set.
+            // TODO: log to let the user know they didn't set a vertex buffer.
+            object? untypedVertexBuffer = vertexBuffers[i];
+            if (untypedVertexBuffer == null) {
+                continue;
+            }
+            if (untypedVertexBuffer is IMetalBuffer buffer) {
+                buffer.Commit();
+                MetalApi.metalbinding_command_encoder_set_vertex_buffer(_encoder, buffer.GetHandleForCurrentFrame(), 0, MetalBufferTableConstants.INDEX_VERTEX_BUFFER_MAX - (uint)i);    
+            } else {
+                throw new InvalidOperationException($"Buffer returned by vertex buffer adapter at index {i} is not compatible with MetalPass.");
+            }
         }
 
         for (int i = 0; i < shaderInstanceBacking.Shader.ArgumentBufferDetails.Length; ++i) {
@@ -246,23 +264,6 @@ public sealed class MetalPassEncoder : PassEncoder, IMetalPass
     {
         if (_shaderInstanceBacking == null || CurrentShaderInstance == null) {
             throw new InvalidOperationException("No shader instance set. Must call SetPipeline first!");
-        }
-
-        ReadOnlySpan<object?> vertexBuffers = CurrentShaderInstance.VertexBufferAdapter.VertexBuffers;
-            
-        for (int i = 0, ilen = vertexBuffers.Length; i < ilen; ++i) {
-            // No vertex buffer set.
-            // TODO: log to let the user know they didn't set a vertex buffer.
-            object? untypedVertexBuffer = vertexBuffers[i];
-            if (untypedVertexBuffer == null) {
-                continue;
-            }
-            if (untypedVertexBuffer is IMetalBuffer buffer) {
-                buffer.Commit();
-                MetalApi.metalbinding_command_encoder_set_vertex_buffer(_encoder, buffer.GetHandleForCurrentFrame(), 0, MetalBufferTableConstants.INDEX_VERTEX_BUFFER_MAX - (uint)i);    
-            } else {
-                throw new InvalidOperationException($"Buffer returned by vertex buffer adapter at index {i} is not compatible with MetalPass.");
-            }
         }
             
         _shaderInstanceBacking.Update(_encoder);
