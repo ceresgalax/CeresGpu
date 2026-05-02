@@ -138,7 +138,13 @@ namespace CeresGpu.Graphics.Metal
                 
                 for (int i = 0, ilen = vblBufferDescriptors.Length; i < ilen; ++i) {
                     ref readonly VblBufferDescriptor vblBufferDescriptor = ref vblBufferDescriptors[i];
-                    MetalApi.metalbinding_set_vertex_descriptor_vbl(vertexDescriptor, MetalBufferTableConstants.INDEX_VERTEX_BUFFER_MAX - (uint)i, TranslateStepFunction(vblBufferDescriptor.StepFunction), vblBufferDescriptor.Stride);
+                    MetalApi.metalbinding_set_vertex_descriptor_vbl(
+                        vertexDescriptor, 
+                        MetalBufferTableConstants.INDEX_VERTEX_BUFFER_MAX - (uint)i,
+                        TranslateStepFunction(vblBufferDescriptor.StepFunction),
+                        GetStepRate(in vblBufferDescriptor),
+                        vblBufferDescriptor.Stride 
+                    );
                 }
 
                 MetalApi.metalbinding_set_rpd_vertex_descriptor(rpd, vertexDescriptor);
@@ -292,7 +298,18 @@ namespace CeresGpu.Graphics.Metal
             return func switch {
                 VertexStepFunction.PerVertex => MetalApi.MTLVertexStepFunction.PerVertex
                 , VertexStepFunction.PerInstance => MetalApi.MTLVertexStepFunction.PerInstance
+                , VertexStepFunction.Constant => MetalApi.MTLVertexStepFunction.Constant
                 , _ => throw new ArgumentOutOfRangeException(nameof(func), func, null)
+            };
+        }
+
+        private static uint GetStepRate(in VblBufferDescriptor vblBufferDescriptor)
+        {
+            return vblBufferDescriptor.StepFunction switch {
+                VertexStepFunction.Constant => 0,
+                VertexStepFunction.PerVertex => 1,
+                VertexStepFunction.PerInstance => vblBufferDescriptor.StepRate,
+                _ => throw new ArgumentOutOfRangeException()
             };
         }
 

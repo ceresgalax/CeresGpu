@@ -470,8 +470,9 @@ void metalbinding_set_vertex_descriptor_vad(MTLVertexDescriptor* descriptor, uin
     descriptor.attributes[index].bufferIndex = bufferIndex;
 }
 
-void metalbinding_set_vertex_descriptor_vbl(MTLVertexDescriptor* descriptor, uint index, MTLVertexStepFunction stepFunction, uint32_t stride) {
+void metalbinding_set_vertex_descriptor_vbl(MTLVertexDescriptor* descriptor, uint index, MTLVertexStepFunction stepFunction, uint32_t stepRate, uint32_t stride) {
     descriptor.layouts[index].stepFunction = stepFunction;
+    descriptor.layouts[index].stepRate = stepRate;
     descriptor.layouts[index].stride = stride;
 }
 

@@ -656,6 +656,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         f.write_line(
             'new VblBufferDescriptor() {',
             f'    StepFunction = VertexStepFunction.{step_mode},',
+            f'    StepRate = 1,',
             f'    Stride = {strides_by_structure[structure_name]},',
             f'    BufferType = typeof({structure_name})',
             '},'

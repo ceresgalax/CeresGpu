@@ -108,7 +108,7 @@ void metalbinding_release_pipeline_state(id<MTLRenderPipelineState> NS_RELEASES_
 MTLVertexDescriptor* metalbinding_new_vertex_descriptor(MetalBindingContext* context) NS_RETURNS_RETAINED;
 void metalbinding_release_vertex_descriptor(MTLVertexDescriptor* NS_RELEASES_ARGUMENT descriptor);
 void metalbinding_set_vertex_descriptor_vad(MTLVertexDescriptor* descriptor, uint index, MTLVertexFormat format, uint32_t offset, uint32_t bufferIndex);
-void metalbinding_set_vertex_descriptor_vbl(MTLVertexDescriptor* descriptor, uint index, MTLVertexStepFunction stepFunction, uint32_t stride);
+void metalbinding_set_vertex_descriptor_vbl(MTLVertexDescriptor* descriptor, uint index, MTLVertexStepFunction stepFunction, uint32_t stepRate, uint32_t stride);
 
 //
 // DSDs (Depth Stencil Descriptors)

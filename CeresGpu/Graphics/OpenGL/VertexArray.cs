@@ -83,7 +83,7 @@ namespace CeresGpu.Graphics.OpenGL
                 gl.EnableVertexAttribArray(shaderAttributeIndex);
                 gl.BindBuffer(BufferTargetARB.ARRAY_BUFFER, buffer.GetHandleForCurrentFrame());
                 SetAttribute(gl, shaderAttributeIndex, shaderAttributeDescriptor, attributeDescriptor, bufferDescriptor);
-                gl.VertexAttribDivisor(shaderAttributeIndex, bufferDescriptor.StepFunction == VertexStepFunction.PerInstance ? 1u : 0u);
+                gl.VertexAttribDivisor(shaderAttributeIndex, TranslateStepFunctionToDivisor(bufferDescriptor.StepFunction));
             }
 
             _prevVertexBufferHandles.Clear();
@@ -120,11 +120,7 @@ namespace CeresGpu.Graphics.OpenGL
         
         private void SetAttribute(GL gl, uint index, ShaderVertexAttributeDescriptor attrib, VblAttributeDescriptor vblAttributeDescriptor, VblBufferDescriptor bufferDescriptor)
         {
-            int size = (int)attrib.Format.GetbytesPerElement();
-            
-            if (attrib.Format == VertexFormat.UChar4Normalized_BGRA) {
-                size = (int)PixelFormat.BGRA;
-            }
+            int size = GetSizeArgument(attrib.Format);
             
             int stride = (int)bufferDescriptor.Stride;
             IntPtr offset = new IntPtr(vblAttributeDescriptor.BufferOffset);
@@ -231,6 +227,95 @@ namespace CeresGpu.Graphics.OpenGL
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+
+        private uint TranslateStepFunctionToDivisor(VertexStepFunction func)
+        {
+            return func switch {
+                VertexStepFunction.PerVertex => 1,
+                VertexStepFunction.PerInstance => 0,
+                VertexStepFunction.Constant => 0,
+                _ => throw new ArgumentOutOfRangeException(nameof(func), func, null)
+            };
+        }
+
+        private static int GetSizeArgument(VertexFormat format)
+        {
+            // Note: This is not a meaningful size, but rather the size values that glVertexAttribPointer or glVertexAttribIPointer expect.
+            // This is actually is the number of components, but can sometimes be a special value (like GL_BGRA)
+            return format switch {
+                //
+                // 1 Component formats
+                //
+                VertexFormat.Char => 1,
+                VertexFormat.CharNormalized => 1,
+                VertexFormat.UChar => 1,
+                VertexFormat.UCharNormalized => 1,
+                VertexFormat.Half => 1,
+                VertexFormat.Float => 1,
+                VertexFormat.Short => 1,
+                VertexFormat.ShortNormalized => 1,
+                VertexFormat.UShort => 1,
+                VertexFormat.UShortNormalized => 1,
+                VertexFormat.Int => 1,
+                VertexFormat.UInt => 1,
+
+                //
+                // 2 component formats
+                //
+                VertexFormat.Char2 => 2,
+                VertexFormat.Char2Normalized => 2,
+                VertexFormat.UChar2 => 2,
+                VertexFormat.UChar2Normalized => 2,
+                VertexFormat.Half2 => 2,
+                VertexFormat.Float2 => 2,
+                VertexFormat.Short2 => 2,
+                VertexFormat.Short2Normalized => 2,
+                VertexFormat.UShort2 => 2,
+                VertexFormat.UShort2Normalized => 2,
+                VertexFormat.Int2 => 2,
+                VertexFormat.UInt2 => 2,
+
+                //
+                // 3 Comonent formats
+                //
+                VertexFormat.Char3 => 3,
+                VertexFormat.Char3Normalized => 3,
+                VertexFormat.UChar3 => 3,
+                VertexFormat.UChar3Normalized => 3,
+                VertexFormat.Half3 => 3,
+                VertexFormat.Float3 => 3,
+                VertexFormat.Short3 => 3,
+                VertexFormat.Short3Normalized => 3,
+                VertexFormat.UShort3 => 3,
+                VertexFormat.UShort3Normalized => 3,
+                VertexFormat.Int3 => 3,
+                VertexFormat.UInt3 => 3,
+
+                //
+                // Four component formats
+                //
+                VertexFormat.Char4 => 4,
+                VertexFormat.Char4Normalized => 4,
+                VertexFormat.UChar4 => 4,
+                VertexFormat.UChar4Normalized => 4,
+                VertexFormat.Half4 => 4,
+                VertexFormat.Float4 => 4,
+                VertexFormat.Short4 => 4,
+                VertexFormat.Short4Normalized => 4,
+                VertexFormat.UShort4 => 4,
+                VertexFormat.UShort4Normalized => 4,
+                VertexFormat.Int4 => 4,
+                VertexFormat.UInt4 => 4,
+                VertexFormat.Int1010102Normalized => 4,
+                VertexFormat.UInt1010102Normalized => 4, 
+                
+                // Special case - 4-comonent BGRA formats.
+                VertexFormat.UChar4Normalized_BGRA => (int)PixelFormat.BGRA,
+
+                VertexFormat.Invalid => throw new ArgumentOutOfRangeException(null, nameof(format)),
+                _ => throw new ArgumentOutOfRangeException()
+            };
         }
     }
 }

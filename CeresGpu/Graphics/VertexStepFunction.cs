@@ -2,7 +2,8 @@
 {
     public enum VertexStepFunction
     {
-        PerVertex = 1,
-        PerInstance = 2
+        Constant,
+        PerVertex,
+        PerInstance
     }
 }

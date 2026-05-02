@@ -29,12 +29,16 @@ public struct VblBufferDescriptor
     /// The step function used by the vertex buffer described by this descriptor.
     /// </summary>
     public VertexStepFunction StepFunction;
+
+    public uint StepRate;
     
     /// <summary>
     /// The stride between vertex elements in the vertex buffer described by this descriptor.
     /// </summary>
     public uint Stride;
     
+    // TODO: This reflection data is only relevant to the default buffer layouts, and should be stored
+    //       in the generated shader class instead.
     /// <summary>
     /// The Type of structure which has been generated for this vertex buffer this shader accepts.
     /// Intended for use by shader introspection tools.

@@ -172,7 +172,7 @@ namespace CeresGpu.MetalBinding
         public static extern void metalbinding_set_vertex_descriptor_vad(IntPtr descriptor, uint index, MTLVertexFormat format, uint offset, uint bufferIndex);
         
         [DllImport(DLL_NAME)]
-        public static extern void metalbinding_set_vertex_descriptor_vbl(IntPtr descriptor, uint index, MTLVertexStepFunction stepFunction, uint stride);
+        public static extern void metalbinding_set_vertex_descriptor_vbl(IntPtr descriptor, uint index, MTLVertexStepFunction stepFunction, uint stepRate, uint stride);
         
         [DllImport(DLL_NAME)]
         public static extern IntPtr metalbinding_new_dsd(MTLCompareFunction depthCompareFunc, bool depthWriteEnabled, IntPtr backFaceStencil, IntPtr frontFaceStencil);
