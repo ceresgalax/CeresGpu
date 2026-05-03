@@ -82,6 +82,9 @@ namespace CeresGpu.MetalBinding
         public static extern void metalbinding_command_encoder_set_viewport(IntPtr encoder, double x, double y, double w, double h);
         
         [DllImport(DLL_NAME)]
+        public static extern void metalbinding_command_encoder_set_front_facing_winding(IntPtr encoder, MTLWinding winding);
+        
+        [DllImport(DLL_NAME)]
         public static extern void metalbinding_command_encoder_set_cull_mode(IntPtr encoder, MTLCullMode cullMode);
         
         [DllImport(DLL_NAME)]
@@ -548,6 +551,12 @@ namespace CeresGpu.MetalBinding
             PerInstance = 2,
             PerPatch = 3,
             PerPatchControlPoint = 4,
+        }
+        
+        public enum MTLWinding : ulong
+        {
+            Clockwise = 0,
+            CounterClockwise = 1,
         }
         
     }

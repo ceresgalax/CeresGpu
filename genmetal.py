@@ -73,7 +73,8 @@ def main():
         'MTLSamplerMipFilter',
         'MTLSamplerAddressMode',
         'MTLLoadAction',
-        'MTLStoreAction'
+        'MTLStoreAction',
+        'MTLWinding'
     }
 
     enums = find_all_enums(metal_headers_path, enums_to_include)
