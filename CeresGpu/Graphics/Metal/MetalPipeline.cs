@@ -16,6 +16,7 @@ namespace CeresGpu.Graphics.Metal
         where TVertexBufferLayout : IVertexBufferLayout<TShader>
     {
         public readonly CullMode CullMode;
+        public readonly Winding FrontFacingWinding;
         private IntPtr _pipelineState;
         private IntPtr _depthStencilState;
         
@@ -35,6 +36,7 @@ namespace CeresGpu.Graphics.Metal
             }
 
             CullMode = definition.CullMode;
+            FrontFacingWinding = definition.FrontFacingWinding;
 
             foreach (MetalPassBacking passBacking in compatiblePasses) {
                 IntPtr rpd = MetalApi.metalbinding_new_rpd(renderer.Context);

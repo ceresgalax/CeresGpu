@@ -288,6 +288,10 @@ void metalbinding_command_encoder_set_viewport(id<MTLRenderCommandEncoder> encod
     [encoder setViewport:viewport];
 }
 
+void metalbinding_command_encoder_set_front_facing_winding(id<MTLRenderCommandEncoder> encoder, MTLWinding winding) {
+    [encoder setFrontFacingWinding:winding];
+}
+
 void metalbinding_command_encoder_set_cull_mode(id<MTLRenderCommandEncoder> encoder, MTLCullMode cullMode) {
     [encoder setCullMode:cullMode];
 }

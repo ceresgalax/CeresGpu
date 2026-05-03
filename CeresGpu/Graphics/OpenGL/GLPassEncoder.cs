@@ -134,7 +134,15 @@ public sealed class GLPassEncoder : PassEncoder, IGLPass
             throw new ArgumentException("Incompatible buffer", nameof(indexBuffer));
         }
         uint indexBufferOffset = (uint)Marshal.SizeOf<ushort>() * firstIndex;
-        _commands.Add(new DrawIndexedCommand(glIndexBuffer, new IntPtr(indexBufferOffset), (int)indexCount, (int)instanceCount, vertexOffset, firstInstance));
+        _commands.Add(new DrawIndexedCommand(
+            glIndexBuffer,
+            new IntPtr(indexBufferOffset),
+            (int)indexCount,
+            DrawElementsType.UNSIGNED_SHORT,
+            (int)instanceCount,
+            vertexOffset,
+            firstInstance
+        ));
     }
 
     protected override void DrawIndexedUintImpl(IBuffer<uint> indexBuffer, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
@@ -143,7 +151,15 @@ public sealed class GLPassEncoder : PassEncoder, IGLPass
             throw new ArgumentException("Incompatible buffer", nameof(indexBuffer));
         }
         uint indexBufferOffset = (uint)Marshal.SizeOf<uint>() * firstIndex;
-        _commands.Add(new DrawIndexedCommand(glIndexBuffer, new IntPtr(indexBufferOffset), (int)indexCount, (int)instanceCount, vertexOffset, firstInstance));
+        _commands.Add(new DrawIndexedCommand(
+            glIndexBuffer,
+            new IntPtr(indexBufferOffset),
+            (int)indexCount,
+            DrawElementsType.UNSIGNED_INT,
+            (int)instanceCount,
+            vertexOffset,
+            firstInstance
+        ));
     }
 
     private void UpdateShaderInstance()

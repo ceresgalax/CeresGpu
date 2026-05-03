@@ -8,6 +8,7 @@ namespace CeresGpu.Graphics
         public BlendOp AlphaBlendOp;
         
         public BlendFunction BlendFunction;
+        public Winding FrontFacingWinding;
         public CullMode CullMode;
         public DepthStencilDefinition DepthStencil = new();
     }

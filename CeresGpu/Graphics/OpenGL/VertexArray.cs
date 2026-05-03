@@ -124,7 +124,11 @@ namespace CeresGpu.Graphics.OpenGL
             
             int stride = (int)bufferDescriptor.Stride;
             IntPtr offset = new IntPtr(vblAttributeDescriptor.BufferOffset);
-            
+
+            if (bufferDescriptor.StepFunction == VertexStepFunction.Constant) {
+                stride = 0;
+            }
+
             switch (attrib.Format) {
                 // Int
                 case VertexFormat.Char:
@@ -232,9 +236,9 @@ namespace CeresGpu.Graphics.OpenGL
         private uint TranslateStepFunctionToDivisor(VertexStepFunction func)
         {
             return func switch {
-                VertexStepFunction.PerVertex => 1,
-                VertexStepFunction.PerInstance => 0,
-                VertexStepFunction.Constant => 0,
+                VertexStepFunction.PerVertex => 0,
+                VertexStepFunction.PerInstance => 1,
+                VertexStepFunction.Constant => 1,
                 _ => throw new ArgumentOutOfRangeException(nameof(func), func, null)
             };
         }

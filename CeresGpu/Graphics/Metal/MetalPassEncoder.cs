@@ -199,6 +199,8 @@ public sealed class MetalPassEncoder : PassEncoder, IMetalPass
         //CurrentShaderInstance = shaderInstance;
         _shaderInstanceBacking = shaderInstanceBacking;
         UpdateShaderInstance();
+        
+        // TODO: Call setFrontFacingWinding
 
         MetalApi.MTLCullMode cullMode = metalPipeline.CullMode switch {
             CullMode.None => MetalApi.MTLCullMode.None

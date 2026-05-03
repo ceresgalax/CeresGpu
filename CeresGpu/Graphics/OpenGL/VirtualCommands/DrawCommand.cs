@@ -11,11 +11,11 @@ public class DrawCommand(int firstVertex, int vertexCount, int instanceCount, ui
     }
 }
 
-public class DrawIndexedCommand(IGLBuffer indexBuffer, IntPtr indexBufferByteOffset, int indexCount, int instanceCount, int vertexOffset, uint firstInstance) : IVirtualCommand
+public class DrawIndexedCommand(IGLBuffer indexBuffer, IntPtr indexBufferByteOffset, int indexCount, DrawElementsType drawElementsType, int instanceCount, int vertexOffset, uint firstInstance) : IVirtualCommand
 {
     public void Execute(GL gl)
     {
         gl.BindBuffer(BufferTargetARB.ELEMENT_ARRAY_BUFFER, indexBuffer.GetHandleForCurrentFrame());
-        gl.glDrawElementsInstancedBaseVertexBaseInstance((uint)PrimitiveType.TRIANGLES, indexCount, (uint)DrawElementsType.UNSIGNED_SHORT, indexBufferByteOffset, instanceCount, vertexOffset, firstInstance);
+        gl.glDrawElementsInstancedBaseVertexBaseInstance((uint)PrimitiveType.TRIANGLES, indexCount, (uint)drawElementsType, indexBufferByteOffset, instanceCount, vertexOffset, firstInstance);
     }
 }

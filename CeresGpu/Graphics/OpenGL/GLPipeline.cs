@@ -21,6 +21,9 @@ namespace CeresGpu.Graphics.OpenGL
 
         public void Dispose() { }
         
+        /// <summary>
+        /// Sets the GL state to the values defined in this pipeline.
+        /// </summary>
         public void Setup(GL gl)
         {
             PipelineDefinition def = _definition;
@@ -37,20 +40,14 @@ namespace CeresGpu.Graphics.OpenGL
             );
             
             SetCap(gl, EnableCap.CULL_FACE, def.CullMode != CullMode.None);
+            gl.FrontFace(def.FrontFacingWinding == Winding.Clockwise ? FrontFaceDirection.CW : FrontFaceDirection.CCW);
             gl.CullFace(def.CullMode == CullMode.Front ? CullFaceMode.FRONT : CullFaceMode.BACK);
             
-            // public DepthStencilDefinition DepthStencil = new();
-            // ->
-            // public CompareFunction DepthCompareFunction = CompareFunction.Always;
             DepthStencilDefinition ddef = def.DepthStencil;
             gl.DepthFunc(TranslateToDepthFunction(ddef.DepthCompareFunction));
             
-            // public bool DepthWriteEnabled;
             gl.DepthMask(ddef.DepthWriteEnabled);
-
-            // public StencilDefinition BackFaceStencil = new();
-            // public StencilDefinition FrontFaceStencil = new()
-            // ->
+            
             SetupStencilDef(gl, ddef.BackFaceStencil, StencilFaceDirection.BACK);
             SetupStencilDef(gl, ddef.FrontFaceStencil, StencilFaceDirection.FRONT);
 
@@ -63,19 +60,12 @@ namespace CeresGpu.Graphics.OpenGL
 
         private static void SetupStencilDef(GL gl, StencilDefinition def, StencilFaceDirection face)
         {
-            // public StencilOperation StencilFailureOperation;
-            // public StencilOperation DepthFailureOperation;
-            // public StencilOperation DepthStencilPassOperation;
-            
             gl.StencilOpSeparate(face,
                 sfail: TranslateToStencilOp(def.StencilFailureOperation),
                 dpfail: TranslateToStencilOp(def.DepthFailureOperation),
                 dppass: TranslateToStencilOp(def.DepthStencilPassOperation)
             );
             
-            // public CompareFunction StencilCompareFunction = CompareFunction.Always;
-            // public uint ReadMask;
-            // public uint WriteMask
             // TODO: IPass doesn't expose setting reference stencil values yet, so use 0
             gl.StencilFuncSeparate(face, TranslateToStencilFunction(def.StencilCompareFunction), 0, def.ReadMask);
             gl.StencilMaskSeparate(face, def.WriteMask);
