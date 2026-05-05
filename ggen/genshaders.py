@@ -1,102 +1,15 @@
 import os
-import re
 from enum import Enum, auto
-from typing import List, Dict, Any, TextIO, Set, Optional
+from typing import List, Dict, Any, Optional
+
+from .csutil import SourceWriter, make_cs_string_literal
+from .shaderdirectives import ShaderDirectives, InputDirective, StepMode
+from .spvreflection import SpirvReflection, StageInput, BufferInput, ArgumentBufferBinding, TextureInput, ShaderType
 
 
-class Member(object):
-    def __init__(self, name: str, type: str, offset: int, matrix_stride: int, array_sizes: List[int],
-                 array_size_is_literal: bool, array_stride: int):
-        self.name = name
-        self.type = type
-        self.offset = offset
-        self.matrix_stride = matrix_stride
-        self.array_sizes = array_sizes
-        self.array_size_is_literal = array_size_is_literal
-        self.array_stride = array_stride
-
-
-class ShaderType(object):
-    def __init__(self, name: str, members: List[Member]):
-        self.name = name
-        self.members = members
-
-
-class BufferInput(object):
-    def __init__(self, type: str, name: str, block_size: int, set: int, binding: int):
-        self.type = type
-        self.name = name
-        self.block_size = block_size
-        self.set = set
-        self.binding = binding
-
-
-class TextureInput(object):
-    def __init__(self, type: str, name: str, set: int, binding: int):
-        self.type = type
-        self.name = name
-        self.set = set
-        self.binding = binding
-
-
-class StageInput(object):
-    def __init__(self, type: str, name: str, location: int):
-        self.type = type
-        self.name = name
-        self.location = location
-
-
-class ArgumentBufferBinding(object):
-    def __init__(self, typename: str, name: str, index: int):
-        self.typename = typename
-        self.name = name
-        self.index = index
-
-
-class SpirvReflection(object):
-    def __init__(self, types: Dict[str, ShaderType], inputs: List[StageInput], ssbos: List[BufferInput],
-                 ubos: List[BufferInput], textures: List[TextureInput]):
-        self.types = types
-        self.inputs = inputs
-        self.ssbos = ssbos
-        self.ubos = ubos
-        self.textures = textures
-        self.arg_buffer_bindings: List[ArgumentBufferBinding] = []
-
-
-class ShaderCodeCollection(object):
-    def __init__(self):
-        self.metal_vertex_source = ''
-        self.metal_fragment_source = ''
-        self.gl_vertex_spirv = b''
-        self.gl_fragment_spirv = b''
-
-
-# noinspection PyArgumentList
-class StepMode(Enum):
-    PER_VERTEX = auto()
-    PER_INSTANCE = auto()
-
-
-# noinspection PyArgumentList
 class ShaderStage(Enum):
     VERTEX = auto()
     FRAGMENT = auto()
-
-
-class InputDirective(object):
-    def __init__(self):
-        self.structure_name = 'Vertex'
-        self.step_mode = StepMode.PER_VERTEX
-        self.hint = ''
-        self.buffer_type = ''
-
-
-class ShaderDirectives(object):
-    def __init__(self):
-        self.full_class_name = ''
-        self.input_directives_by_input_name: Dict[str, InputDirective] = {}
-        self.descriptor_field_hints_by_name: Dict[str, str] = {}
 
 
 class Shader(object):
@@ -115,172 +28,10 @@ class InputAttribute(object):
         self.offset = 0
 
 
-class SourceWriter(object):
-    def __init__(self, f: TextIO):
-        self.f = f
-        self.indent_level = 0
-
-    def indent(self):
-        self.indent_level += 1
-
-    def deindent(self):
-        self.indent_level -= 1
-
-    def write_line(self, *lines: str):
-        for line in lines:
-            self.f.write('    ' * self.indent_level)
-            self.f.write(line)
-            self.f.write('\n')
-
-
-directive_pattern = re.compile(r'\/\/\s*#(\w+):\s*([^\n]+)')
-input_pattern = re.compile(r'layout\s*\(.*\)\s*in\s*\w+\s*(\w+);\s*\/\/\s*#input\s*(.*)')
-
-
-def parse_member(data: Dict[str, Any]) -> Member:
-    return Member(
-        name=data['name'],
-        type=data['type'],
-        offset=data['offset'],
-        matrix_stride=data.get('array_stride', 0),
-        array_sizes=data.get('array', []),
-        array_size_is_literal=data.get('array_size_is_literal', False),
-        array_stride=data.get('array_stride', 0)
-    )
-
-
-def parse_type(data: Dict[str, Any]) -> Optional[ShaderType]:
-    first_offsetlet_member = next((member for member in data['members'] if 'offset' not in member), None)
-    if first_offsetlet_member:
-        # This is an incomplete type. Don't include it.
-        # (spirv-cross will include these sometimes, along with the 'real' type that we care about)
-        return None
-
-    return ShaderType(
-        name=data['name'],
-        members=[parse_member(member) for member in data['members']]
-    )
-
-
-def parse_stage_input(data: Dict[str, Any]) -> StageInput:
-    return StageInput(
-        type=data['type'],
-        name=data['name'],
-        location=data['location']
-    )
-
-
-def parse_buffer_input(data: Dict[str, Any]) -> BufferInput:
-    return BufferInput(
-        type=data['type'],
-        name=data['name'],
-        block_size=data['block_size'],
-        set=data['set'],
-        binding=data['binding']
-    )
-
-
-def parse_texture_input(data: Dict[str, Any]) -> TextureInput:
-    return TextureInput(
-        type=data['type'],
-        name=data['name'],
-        set=data['set'],
-        binding=data['binding']
-    )
-
-
-def parse_spv_reflection(data: Dict[str, Any]) -> SpirvReflection:
-    types = [(k, parse_type(v)) for k, v in data.get('types', {}).items() if not v['name'].startswith('gl_')]
-
-    return SpirvReflection(
-        types={k: v for k, v in types if v},
-        inputs=[parse_stage_input(input) for input in data.get('inputs', [])],
-        ssbos=[parse_buffer_input(ssbo) for ssbo in data.get('ssbos', [])],
-        ubos=[parse_buffer_input(ubo) for ubo in data.get('ubos', [])],
-        textures=[parse_texture_input(texture) for texture in data.get('textures', [])]
-    )
-
-
-def parse_shader_directives(path: str) -> ShaderDirectives:
-    data = ShaderDirectives()
-
-    with open(path, 'r', encoding='utf-8') as f:
-        while True:
-            line = f.readline()
-            if not line:
-                break
-
-            directive_match = directive_pattern.search(line)
-            if directive_match:
-                directive_name = directive_match.group(1)
-                directive_value = directive_match.group(2)
-
-                if directive_name == 'CSNAME':
-                    data.full_class_name = directive_value.strip()
-                    
-                if directive_name == 'DescriptorHint':
-                    name, hint = [part.strip() for part in directive_value.strip().split('=', maxsplit=2)]
-                    data.descriptor_field_hints_by_name[name] = hint
-
-            input_match = input_pattern.search(line)
-            if input_match:
-                input_name = input_match.group(1)
-                input_directive_text = input_match.group(2)
-
-                input_directive = InputDirective()
-                data.input_directives_by_input_name[input_name] = input_directive
-
-                property_strings = input_directive_text.strip().split(' ')
-                for property_string in property_strings:
-                    key, value = property_string.split(':')
-                    key = key.lower()
-
-                    if key == 'struct':
-                        input_directive.structure_name = value
-                    elif key == 'stepmode':
-                        input_directive.step_mode = StepMode[value]
-                    elif key == 'buffertype':
-                        input_directive.buffer_type = value
-                    elif key == 'hint':
-                        input_directive.hint = value
-
-    return data
-
-
 current_shader_id = 1
 
 
-def to_cs_style(val: str) -> str:
-    val = val[0].upper() + val[1:]
-    while True:
-        index = val.find('_')
-        if index == -1:
-            break
-        if index + 1 != len(val):
-            val = val[:index] + val[index + 1].upper() + val[index + 2:]
-        else:
-            val = val[:index]
-
-    return val
-
-
-def make_cs_string_literal(val: str) -> str:
-    return val.replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t').replace('"', '\\"')
-
-
-def make_multiline_cs_string_literal(lines: List[str]) -> str:
-    parts = []
-    for i, line in enumerate(lines):
-        parts.append('"')
-        parts.append(make_cs_string_literal(line))
-        parts.append('"')
-        if i + 1 != len(lines):
-            parts.append(' +\n')
-
-    return ''.join(parts)
-
-
-def generate_shader_file(output_path: str, shader: Shader):
+def generate_shader_cs_file(output_path: str, shader: Shader):
     output_dir = os.path.dirname(output_path)
     os.makedirs(output_dir, exist_ok=True)
     
@@ -302,10 +53,10 @@ def generate_shader_file(output_path: str, shader: Shader):
     #     os.makedirs(output_root, exist_ok=True)
 
     with open(output_path, 'w') as f:
-        generate_shader_class(SourceWriter(f), shader)
+        generate_shader_cs_class(SourceWriter(f), shader)
 
 
-def generate_shader_class(f: SourceWriter, shader: Shader):
+def generate_shader_cs_class(f: SourceWriter, shader: Shader):
     directives = shader.directives
     # reflection = shader.reflection
     full_name_parts = directives.full_class_name.split('.')
@@ -472,6 +223,8 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
 
         abb = get_argument_buffer()
 
+        hint = shader.directives.descriptor_hints_by_name.get(buffer.name, '')
+
         # TODO: METAL BUFFER IDS WILL NOT MATCH THE SPIR-V BINDING INDEX WHEN ARRAYS OF BUFFERS ARE USED.
         # Metal uses an argument buffer Id for each array element, where Vulkan uses the same binding.
         # This is uncommon for my project, but re-mapping support may need to be added.
@@ -494,7 +247,8 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
             '    ),',
             f'    DescriptorType = DescriptorType.{cs_descriptor_type},',
             f'    BufferType = typeof({type_name}),',
-            f'    Name = "{make_cs_string_literal(buffer.name)}"',
+            f'    Name = "{make_cs_string_literal(buffer.name)}",',
+            f'    Hint = "{make_cs_string_literal(hint)}"'
             '},'
         )
 
@@ -509,7 +263,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
         texture_binding = get_binding_index(texture.name)
         sampler_binding = get_binding_index(texture.name + 'Smplr')
 
-        hint = shader.directives.descriptor_field_hints_by_name.get(texture.name, '')
+        hint = shader.directives.descriptor_hints_by_name.get(texture.name, '')
 
         f.write_line(
             'new DescriptorInfo {',
@@ -579,7 +333,7 @@ def generate_shader_class(f: SourceWriter, shader: Shader):
     # Emit Structures
     for reflection in shader.reflections_by_stage.values():
         for type in reflection.types.values():
-            gen_structure(f, type, reflection, shader.directives.descriptor_field_hints_by_name)
+            gen_structure(f, type, reflection, shader.directives.field_hints_by_name)
 
     current_vert_buffer_index = 0
     for structure_name, attributes in input_attributes_by_structure.items():

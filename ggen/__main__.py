@@ -7,11 +7,11 @@ import sys
 import subprocess
 from typing import Dict, List, Tuple
 
+from . import shaderdirectives
+from . import spvreflection
 from .graph import Graph, Node
-from . import genbuffers
 from . import genshaders
 from . import validate
-from .genbuffers import Vertex
 from .genshaders import SpirvReflection, ShaderStage, ArgumentBufferBinding
 
 
@@ -25,7 +25,7 @@ argparser.add_argument('--ggen-script-files')
 
 argparser.add_argument('--rebuild', default=False, action='store_true')
 
-argparser.add_argument('--output-dir',
+argparser.add_argument('--output-dir', required=True,
                        help='Directory to output generated cs files to.')
 
 
@@ -34,21 +34,6 @@ EXE_POSTFIX = '.exe' if sys.platform.lower() == 'win32' else ''
 GLSLANG_BINARY = os.path.join(binaries_path, 'glslangValidator' + EXE_POSTFIX)
 SPIRV_CROSS_BINARY = os.path.join(binaries_path, 'spirv-cross' + EXE_POSTFIX)
 SPIRV_LINK_BINARY = os.path.join(binaries_path, 'spirv-link' + EXE_POSTFIX)
-
-
-def parse_buffers(root: str) -> Dict[str, Vertex]:
-    paths = glob.glob('**/*.buffer.json', recursive=True, root_dir=root)
-
-    buffers = {}
-
-    for path in paths:
-        print(f'Parsing buffer at {path}')
-        with open(path, encoding='utf-8-sig') as f:
-            buffer_data = json.load(f)
-        buffer = genbuffers.parse_buffer(buffer_data)
-        buffers[buffer.name] = buffer
-
-    return buffers
 
 
 def compile_to_spv(node: Node):
@@ -60,10 +45,6 @@ def compile_to_spv(node: Node):
 def spv_to_opengl(node: Node):
     input_path = node.tagged_inputs[0][1].filepath
     output_path = node.filepath
-    # gl_defines = [
-    #     '-Dgl_VertexIndex=gl_VertexID',
-    #     '-Dgl_InstanceIndex=gl_InstanceID'
-    # ]
     subprocess.check_call([SPIRV_CROSS_BINARY, '--output', output_path, input_path])
 
 
@@ -104,7 +85,7 @@ def gen_cs(node: Node):
     for tag, reflection_input in reflection_inputs:
         with open(reflection_input.filepath, 'r') as f:
             reflection_data = json.load(f)
-        reflection = genshaders.parse_spv_reflection(reflection_data)
+        reflection = spvreflection.parse_spv_reflection(reflection_data)
 
         # Find the corresponding metal source input
         matching_metal_input = [input for t, input in metal_inputs if t == tag][0]
@@ -123,21 +104,21 @@ def gen_cs(node: Node):
         reflections[stage] = reflection
 
     # Parse directives in all files
-    directives_by_tag = {t: genshaders.parse_shader_directives(input.filepath) for t, input in source_inputs}
+    directives_by_tag = {t: shaderdirectives.parse_shader_directives(input.filepath) for t, input in source_inputs}
 
     # Merge the directives.
     directives = directives_by_tag['vert']
     for t, other_directives in sorted(directives_by_tag.items(), key=lambda x: x[0]):
         if t == 'vert':
             continue
-        directives.descriptor_field_hints_by_name.update(other_directives.descriptor_field_hints_by_name)    
+        directives.descriptor_hints_by_name.update(other_directives.descriptor_hints_by_name)    
         
     shader = genshaders.Shader(shader_name, directives, reflections)
 
     # Check mappings before we proceed
     validate.validate_descriptor_set_bindings(shader)
     
-    genshaders.generate_shader_file(output_path, shader)
+    genshaders.generate_shader_cs_file(output_path, shader)
     
 
 METAL_ENTRY_POINT_PARAMETERS_PATTERN = re.compile(r'main0\((.*)\)')
