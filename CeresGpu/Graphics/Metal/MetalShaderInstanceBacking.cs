@@ -94,7 +94,10 @@ public sealed class MetalShaderInstanceBacking : IShaderInstanceBacking
             uint stages = binding.Stage == ShaderStage.Vertex ? 0b01u : 0b10u;
             
             buffer.Commit();
-            MetalApi.metalbinding_encode_buffer_argument(encoder, renderCommandEncoder, buffer.GetHandleForCurrentFrame(), 0, binding.BufferId, stages);
+
+            if (binding.BufferId.HasValue) {
+                MetalApi.metalbinding_encode_buffer_argument(encoder, renderCommandEncoder, buffer.GetHandleForCurrentFrame(), 0, binding.BufferId.Value, stages);    
+            }
         }
         
         foreach ((MetalDescriptorBindingInfo binding, IMetalBuffer buffer) in _storageBuffersByBinding) {
@@ -102,7 +105,11 @@ public sealed class MetalShaderInstanceBacking : IShaderInstanceBacking
             uint stages = binding.Stage == ShaderStage.Vertex ? 0b01u : 0b10u;
             
             buffer.Commit();
-            MetalApi.metalbinding_encode_buffer_argument(encoder, renderCommandEncoder, buffer.GetHandleForCurrentFrame(), 0, binding.BufferId, stages);
+
+            if (binding.BufferId.HasValue) {
+                MetalApi.metalbinding_encode_buffer_argument(encoder, renderCommandEncoder, buffer.GetHandleForCurrentFrame(), 0, binding.BufferId.Value, stages);    
+            }
+            
         }
         
         foreach ((MetalDescriptorBindingInfo binding, MetalTexture texture) in _texturesByBinding) {
@@ -113,8 +120,12 @@ public sealed class MetalShaderInstanceBacking : IShaderInstanceBacking
                 sampler = _renderer.FallbackSampler;
             }
 
-            MetalApi.metalbinding_encode_sampler_argument(encoder, sampler.Handle, binding.SamplerBufferId);
-            MetalApi.metalbinding_encode_texture_argument(encoder, renderCommandEncoder, texture.Handle, binding.BufferId, stages);
+            if (binding.SamplerBufferId.HasValue) {
+                MetalApi.metalbinding_encode_sampler_argument(encoder, sampler.Handle, binding.SamplerBufferId.Value);    
+            }
+            if (binding.BufferId.HasValue) {
+                MetalApi.metalbinding_encode_texture_argument(encoder, renderCommandEncoder, texture.Handle, binding.BufferId.Value, stages);
+            }
         }
         
     }

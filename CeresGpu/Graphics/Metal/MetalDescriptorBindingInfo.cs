@@ -21,12 +21,16 @@ public struct MetalDescriptorBindingInfo : IDescriptorBindingInfo
     public required ShaderStage Stage;
     
     /// <summary>
-    /// The id of the argument buffer field containing this resources.
+    /// The value of the id attribute applied to this resource's pointer in the MSL argument buffer structure
+    /// If null, this means that the output metal shader doesn't actually use this resource, and the generated MSL
+    /// argument buffer structure doesn't contain a pointer to this resource.
     /// </summary>
-    public required uint BufferId;
+    public required uint? BufferId;
     
     /// <summary>
     /// If the descriptor is for a texture, this index is the function's argument buffer index for it's related sampler.
+    /// If null, this means that the output metal shader doesn't actually use this resource, and the generated MSL
+    /// argument buffer structure doesn't contain a pointer to this resource.
     /// </summary>
-    public uint SamplerBufferId;
+    public uint? SamplerBufferId;
 }

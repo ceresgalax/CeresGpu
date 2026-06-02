@@ -1,6 +1,6 @@
 import os
 from enum import Enum, auto
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 from .csutil import SourceWriter, make_cs_string_literal
 from .shaderdirectives import ShaderDirectives, InputDirective, StepMode
@@ -187,7 +187,7 @@ def generate_shader_cs_class(f: SourceWriter, shader: Shader):
     flattened_arg_buffers: Dict[Any, int] = {} 
     
     for stage, reflection in shader.reflections_by_stage.items():
-        descriptors: List[(str, int)] = []  # (name, set)
+        descriptors: List[Tuple[str, int]] = []  # (name, set)
         descriptors.extend(((ubo.name, ubo.set) for ubo in reflection.ubos))
         descriptors.extend(((ssbo.name, ssbo.set) for ssbo in reflection.ssbos))
         descriptors.extend(((tex.name, tex.set) for tex in reflection.textures))
@@ -209,12 +209,15 @@ def generate_shader_cs_class(f: SourceWriter, shader: Shader):
 
     def write_descriptor_info_field_for_buffer(stage: ShaderStage, buffer: BufferInput, reflection: SpirvReflection, cs_descriptor_type: str):
 
-        # Figure out what the metal argument buffer binding index is
-        def get_argument_buffer() -> ArgumentBufferBinding:
+        # Figure out what the metal argument buffer binding index is 
+        # (Note: It's possible for the argument buffer binding to be compiled out.)
+        def get_argument_buffer() -> Optional[ArgumentBufferBinding]:
             for abb in reflection.arg_buffer_bindings:
                 # For some reason spirv-cross reflects the Uniform typename as the name.
+                print(f'{buffer.name} -- {abb.typename}, {abb.name}, {abb.index}')
                 if abb.typename == buffer.name:
                     return abb
+            return None
 
         if buffer.type[0] == '_':
             type_name = reflection.types[buffer.type].name
@@ -225,13 +228,6 @@ def generate_shader_cs_class(f: SourceWriter, shader: Shader):
 
         hint = shader.directives.descriptor_hints_by_name.get(buffer.name, '')
 
-        # TODO: METAL BUFFER IDS WILL NOT MATCH THE SPIR-V BINDING INDEX WHEN ARRAYS OF BUFFERS ARE USED.
-        # Metal uses an argument buffer Id for each array element, where Vulkan uses the same binding.
-        # This is uncommon for my project, but re-mapping support may need to be added.
-        # It would be easier to add this support with bindings to libspirvcross
-        # instead of regex detection of the generated metal source.
-        # https://github.com/KhronosGroup/SPIRV-Cross#msl-20
-
         f.write_line(
             'new DescriptorInfo {',
             '    Binding = MakeBinding(',
@@ -241,7 +237,7 @@ def generate_shader_cs_class(f: SourceWriter, shader: Shader):
             f'            FunctionArgumentBufferIndex = {buffer.set},',
             f'            AbstractedBufferIndex = {abstracted_argbuffer_indices_by_name[buffer.name]},',
             f'            Stage = {get_cs_shader_stage(stage)},',
-            f'            BufferId = {buffer.binding}',
+            f'            BufferId = {"null" if abb is None else abb.index}',
             f'        }},',
             f'        vulkan: new VulkanDescriptorBindingInfo {{ Set = {buffer.set}, Binding = {buffer.binding} }}',
             '    ),',
