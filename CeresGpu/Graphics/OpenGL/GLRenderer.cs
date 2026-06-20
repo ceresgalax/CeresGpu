@@ -65,6 +65,10 @@ namespace CeresGpu.Graphics.OpenGL
             int flags = pContextFlags[0];
             
             Console.WriteLine($"OpenGLRenderer: OpenGL version {majorVersion}.{minorVersion}, context flags: {flags}");
+
+            if (majorVersion < 4 || minorVersion < 5) {
+                throw new InvalidOperationException("OpenGLRenderer: Requires OpenGL 4.5 or higher.");
+            }
             
             // TODO: Fix parameter validation in gl.GetIntegerv
             
@@ -75,6 +79,9 @@ namespace CeresGpu.Graphics.OpenGL
             
             gl.Enable(EnableCap.SCISSOR_TEST);
             gl.Enable(EnableCap.DEPTH_TEST);
+
+            // Ceres GPU's NDC Z axis ranges from [0,1] (Like Metal, Vulkan, and Direct3D)
+            gl.ClipControl(ClipControlOrigin.LOWER_LEFT, ClipControlDepth.ZERO_TO_ONE);
 
             FallbackTexture = (GLTexture)RendererUtil.CreateFallbackTexture(this);
             FallbackSampler = (GLSampler)CreateSampler(default);
