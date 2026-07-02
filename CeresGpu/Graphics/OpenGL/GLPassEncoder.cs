@@ -67,6 +67,9 @@ public sealed class GLPassEncoder : PassEncoder, IGLPass
     public void InsertBefore(IGLPass other)
     {
         Prev = other.Prev;
+        if (Prev != null) {
+            Prev.Next = this;
+        }
         other.Prev = this;
         Next = other;
     }
@@ -74,6 +77,9 @@ public sealed class GLPassEncoder : PassEncoder, IGLPass
     public void InsertAfter(IGLPass other)
     {
         Next = other.Next;
+        if (Next != null) {
+            Next.Prev = this;
+        }
         other.Next = this;
         Prev = other;
     }

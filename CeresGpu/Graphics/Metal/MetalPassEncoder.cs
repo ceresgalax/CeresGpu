@@ -127,6 +127,9 @@ public sealed class MetalPassEncoder : PassEncoder, IMetalPass
     public void InsertBefore(IMetalPass other)
     {
         Prev = other.Prev;
+        if (Prev != null) {
+            Prev.Next = this;
+        }
         other.Prev = this;
         Next = other;
     }
@@ -134,6 +137,9 @@ public sealed class MetalPassEncoder : PassEncoder, IMetalPass
     public void InsertAfter(IMetalPass other)
     {
         Next = other.Next;
+        if (Next != null) {
+            Next.Prev = this;
+        }
         other.Next = this;
         Prev = other;
     }
